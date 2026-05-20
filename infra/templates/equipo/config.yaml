@@ -1,42 +1,119 @@
 # martes.app — Template Equipo ($100/mo)
-# 2 plataformas (Telegram + Discord), DeepSeek V4, toolset completo oficina
+# 2 plataformas (Telegram + Discord), DeepSeek V4
 # Balance entre funcionalidad y costo
+# Hermes v0.14.0 production config
 
+# =============================================================================
+# LLM
+# =============================================================================
 model:
   provider: openrouter
   default: deepseek/deepseek-chat
   base_url: "https://openrouter.ai/api/v1"
 
+# =============================================================================
+# Toolsets — funcionalidad completa de oficina
+# =============================================================================
+# Incluye: vision, skills, session_search
+# NO incluye: terminal, file, browser (playwright), code_execution, delegate
 platform_toolsets:
-  telegram: [web, memory, todo, cronjob, clarify, vision, skills]
-  discord: [web, memory, todo, cronjob, clarify, vision, skills]
+  telegram: [web, memory, todo, cronjob, clarify, vision, skills, session_search]
+  discord: [web, memory, todo, cronjob, clarify, vision, skills, session_search]
 
-skills:
-  creation_nudge_interval: 15
+# =============================================================================
+# Security
+# =============================================================================
+security:
+  allow_lazy_installs: false
 
+terminal:
+  backend: "local"
+
+# =============================================================================
+# Streaming
+# =============================================================================
+streaming:
+  enabled: true
+  edit_interval: 0.3
+  buffer_threshold: 40
+
+# =============================================================================
+# Compression — moderada
+# =============================================================================
 compression:
   enabled: true
-  threshold: 0.40
+  threshold: 0.40          # Comprimir al 40%
   target_ratio: 0.20
   protect_last_n: 15
+  protect_first_n: 3
 
+# =============================================================================
+# Memory — limites standard
+# =============================================================================
 memory:
   memory_enabled: true
   user_profile_enabled: true
-  memory_char_limit: 2200
-  user_char_limit: 1375
+  memory_char_limit: 2200   # ~800 tokens
+  user_char_limit: 1375     # ~500 tokens
   nudge_interval: 10
+  flush_min_turns: 6
 
+# =============================================================================
+# Session Reset
+# =============================================================================
 session_reset:
   mode: both
-  idle_minutes: 1440  # 24 horas
+  idle_minutes: 1440        # 24 horas
   at_hour: 4
 
+group_sessions_per_user: true
+
+# =============================================================================
+# Agent behavior
+# =============================================================================
 agent:
   max_turns: 50
   reasoning_effort: "medium"
 
-# Firecrawl para web scraping
+# =============================================================================
+# Tool Loop Guardrails
+# =============================================================================
+tool_loop_guardrails:
+  warnings_enabled: true
+  hard_stop_enabled: true
+  warn_after:
+    exact_failure: 2
+    same_tool_failure: 3
+    idempotent_no_progress: 2
+  hard_stop_after:
+    exact_failure: 4
+    same_tool_failure: 6
+    idempotent_no_progress: 4
+
+# =============================================================================
+# STT — transcripcion de voz
+# =============================================================================
+stt:
+  enabled: true
+  local:
+    model: "base"
+
+# =============================================================================
+# Skills — nudge moderado
+# =============================================================================
+skills:
+  creation_nudge_interval: 15
+
+# =============================================================================
+# Browser — Firecrawl (web scraping sin Playwright, mas ligero)
+# =============================================================================
 browser:
-  provider: firecrawl
   inactivity_timeout: 60
+
+# =============================================================================
+# Display
+# =============================================================================
+display:
+  tool_progress: all
+  interim_assistant_messages: true
+  cleanup_progress: true    # Limpiar mensajes de progreso en Telegram

@@ -1,37 +1,113 @@
 # martes.app — Template Basico ($30/mo)
-# 1 plataforma (Telegram), DeepSeek V4, toolset minimo
-# Optimizado para minimo token overhead
+# 1 plataforma (Telegram), DeepSeek V4
+# Optimizado para minimo token overhead y costo
+# Hermes v0.14.0 production config
 
+# =============================================================================
+# LLM
+# =============================================================================
 model:
   provider: openrouter
   default: deepseek/deepseek-chat
   base_url: "https://openrouter.ai/api/v1"
 
-# Toolset reducido para messaging (ahorra ~4K tokens/request)
+# =============================================================================
+# Toolsets — SOLO lo necesario (reduce ~8K tokens de tool definitions)
+# =============================================================================
+# NO incluye: terminal, file, browser, image_gen, tts, delegate, code_execution
+# Esto es intencional: reduce costo por request y superficie de ataque
 platform_toolsets:
-  telegram: [web, memory, todo, cronjob, clarify]
+  telegram: [web, memory, todo, cronjob, clarify, session_search]
 
-skills:
-  creation_nudge_interval: 0  # Desactivar nudge de skills
+# =============================================================================
+# Security — bloquear instalaciones y terminal
+# =============================================================================
+security:
+  allow_lazy_installs: false  # No permitir que el agente instale paquetes
 
+terminal:
+  backend: "local"
+  # Terminal deshabilitado via toolsets (no esta en la lista)
+  # Si alguien intenta habilitarlo, el backend local no tiene acceso peligroso
+
+# =============================================================================
+# Streaming — siempre on para mejor UX en Telegram
+# =============================================================================
+streaming:
+  enabled: true
+  edit_interval: 0.4       # Mas lento que default (ahorra rate limits de Telegram)
+  buffer_threshold: 50
+
+# =============================================================================
+# Compression — agresiva para ahorrar tokens
+# =============================================================================
 compression:
   enabled: true
-  threshold: 0.30
+  threshold: 0.30          # Comprimir temprano (30% del contexto)
   target_ratio: 0.20
-  protect_last_n: 10
+  protect_last_n: 10       # Solo proteger ultimos 10 mensajes
+  protect_first_n: 2       # Solo system prompt + primer intercambio
 
+# =============================================================================
+# Memory — limites reducidos para ahorrar tokens en system prompt
+# =============================================================================
 memory:
   memory_enabled: true
   user_profile_enabled: true
-  memory_char_limit: 1500
-  user_char_limit: 1000
-  nudge_interval: 15
+  memory_char_limit: 1500   # ~545 tokens
+  user_char_limit: 1000     # ~364 tokens
+  nudge_interval: 15        # Menos frecuente que default
+  flush_min_turns: 8
 
+# =============================================================================
+# Session Reset — mas agresivo (ahorra contexto acumulado)
+# =============================================================================
 session_reset:
   mode: both
-  idle_minutes: 720  # 12 horas
+  idle_minutes: 720         # 12 horas (vs 24h default)
   at_hour: 4
 
+group_sessions_per_user: true
+
+# =============================================================================
+# Agent behavior
+# =============================================================================
 agent:
-  max_turns: 30
-  reasoning_effort: "low"
+  max_turns: 30             # Menos iteraciones (controla costo)
+  reasoning_effort: "low"   # Menos tokens de razonamiento
+
+# =============================================================================
+# Tool Loop Guardrails — CRITICO para tenants autonomos
+# =============================================================================
+tool_loop_guardrails:
+  warnings_enabled: true
+  hard_stop_enabled: true   # Detener loops costosos
+  warn_after:
+    exact_failure: 2
+    same_tool_failure: 2
+    idempotent_no_progress: 2
+  hard_stop_after:
+    exact_failure: 3
+    same_tool_failure: 4
+    idempotent_no_progress: 3
+
+# =============================================================================
+# STT — transcripcion de voz (gratis con faster-whisper local)
+# =============================================================================
+stt:
+  enabled: true
+  local:
+    model: "base"           # Modelo pequeno, rapido
+
+# =============================================================================
+# Skills — desactivar nudge (ahorra tokens)
+# =============================================================================
+skills:
+  creation_nudge_interval: 0  # No sugerir crear skills
+
+# =============================================================================
+# Display
+# =============================================================================
+display:
+  tool_progress: new        # Solo mostrar cuando cambia el tool (menos spam)
+  interim_assistant_messages: false  # No enviar mensajes intermedios
