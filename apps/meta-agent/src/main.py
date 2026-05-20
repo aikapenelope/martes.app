@@ -1,21 +1,18 @@
-"""Entry point de martes.app meta-agente.
+"""Entry point del meta-agente martes.app.
 
-AgentOS con:
-- Team (Diagnosticador + Operador) como agente principal
-- Skill Builder agent (crea y gestiona skills)
-- Knowledge base expuesta para upload via UI
-- Telegram interface (condicional)
-- Scheduler habilitado para jobs periodicos
-- Tracing para audit trail
+Levanta AgentOS con interfaces condicionales:
+- API HTTP siempre activa (health checks, testing)
+- Telegram solo si META_AGENT_TELEGRAM_TOKEN esta configurado
 """
 
 from agno.os.app import AgentOS
 from agno.os.interfaces.telegram import Telegram
 
-from src.agents.skill_builder import skill_builder
+from src.agent import create_meta_agent
 from src.config import settings
-from src.shared import knowledge_base
-from src.team import martes_team
+
+# Crear el meta-agente
+meta_agent = create_meta_agent()
 
 # Interfaces condicionales
 interfaces = []
@@ -24,38 +21,34 @@ interfaces = []
 if settings.telegram_token and ":" in settings.telegram_token:
     interfaces.append(
         Telegram(
-            team=martes_team,
+            agent=meta_agent,
             token=settings.telegram_token,
             reply_to_mentions_only=False,
             streaming=True,
             start_message=(
-                "Meta-agente martes.app activo.\n"
-                "Puedo diagnosticar y operar tenants Hermes.\n"
-                "Escribe 'health check' o 'lista tenants' para empezar."
+                "Meta-agente martes.app activo. "
+                "Puedo gestionar tenants Hermes. Escribe 'lista tenants' para empezar."
             ),
             help_message=(
-                "Diagnostico (sin restriccion):\n"
-                "- health check / status\n"
-                "- lista tenants\n"
-                "- logs [codigo] / stats [codigo]\n\n"
-                "Operaciones (requieren aprobacion):\n"
-                "- crea tenant [nombre] plan [plan] token [token]\n"
-                "- pausa [codigo] / reactiva [codigo]\n"
-                "- registra pago [codigo] $[monto] [metodo]\n"
-                "- conecta [servicio] a [codigo] token [valor]"
+                "Comandos disponibles:\n"
+                "- Crea tenant [nombre] plan [basico/equipo/pro] token [bot_token]\n"
+                "- Lista tenants\n"
+                "- Pausa tenant [codigo]\n"
+                "- Reactiva tenant [codigo]\n"
+                "- Health check\n"
+                "- Registra pago [codigo] $[monto] [metodo]\n"
+                "- Logs [codigo]\n"
+                "- Stats [codigo]"
             ),
         )
     )
 
-# AgentOS: expone Knowledge para upload via UI (os.agno.com)
+# AgentOS: API siempre activa, Telegram condicional, scheduler habilitado
 agent_os = AgentOS(
-    teams=[martes_team],
-    agents=[skill_builder],
-    knowledge=[knowledge_base],
+    agents=[meta_agent],
     interfaces=interfaces,
     scheduler=True,
-    scheduler_poll_interval=60,
-    tracing=True,
+    scheduler_poll_interval=60,  # Revisa jobs cada 60 segundos
 )
 
 # FastAPI app
