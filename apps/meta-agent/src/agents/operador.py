@@ -1,20 +1,20 @@
-"""Operador — Agente de escritura con Human in the Loop.
+"""Operador — Write agent with @approval (Coda pattern).
 
-Todas sus acciones requieren aprobacion humana antes de ejecutarse.
-Crea tenants, para containers, inyecta config, registra pagos.
+All write operations require human confirmation. Uses DockerTools
+for container management and custom tools for tenant lifecycle.
 """
 
 from agno.agent import Agent
+from agno.tools.docker import DockerTools
 
 from src.shared import (
-    PRIMARY_MODEL,
+    MODEL,
     compression,
     db,
     knowledge_base,
     learning,
     skills,
 )
-from src.tools.read_ops import container_health, get_tenant_detail, list_containers
 from src.tools.write_ops import (
     create_tenant,
     inject_credential,
@@ -24,39 +24,51 @@ from src.tools.write_ops import (
     stop_tenant,
 )
 
+# DockerTools — write operations (start/stop/run)
+_docker_write = DockerTools(
+    include_tools=[
+        "list_containers",
+        "start_container",
+        "stop_container",
+        "run_container",
+        "get_container_logs",
+        "inspect_container",
+    ]
+)
+
 operador = Agent(
     name="Operador",
     id="operador",
     role="Infrastructure operator. Executes approved actions on tenants.",
     description=(
-        "Ejecuta acciones sobre la infraestructura: crear tenants, parar containers, "
-        "inyectar credenciales, registrar pagos. TODAS las acciones requieren "
-        "aprobacion humana antes de ejecutarse."
+        "Ejecuta acciones: crear tenants, parar containers, inyectar config, "
+        "registrar pagos. TODAS requieren aprobacion humana."
     ),
-    model=PRIMARY_MODEL,
+    model=MODEL,
     tools=[
-        # Write (all require approval)
+        # Custom write tools (all with @approval)
         create_tenant,
         stop_tenant,
         restart_tenant,
         remove_tenant,
         inject_credential,
         register_payment,
-        # Read (for verification after actions)
-        list_containers,
-        container_health,
-        get_tenant_detail,
+        # Docker (for verification after actions)
+        _docker_write,
     ],
     tool_call_limit=5,
     retries=1,
-    # Knowledge & Learning
+    # Knowledge
     knowledge=knowledge_base,
     search_knowledge=True,
+    # Learning
     learning=learning,
-    # Skills (lazy-loaded)
+    add_learnings_to_context=True,
+    # Skills
     skills=skills,
     # Context
     db=db,
+    enable_agentic_memory=True,
     add_history_to_context=True,
     num_history_runs=5,
     add_datetime_to_context=True,
@@ -65,34 +77,27 @@ operador = Agent(
     # Instructions
     instructions=[
         "Eres el operador de infraestructura de martes.app.",
-        "Ejecutas acciones sobre tenants Hermes.",
         "TODAS tus acciones de escritura requieren aprobacion humana.",
         "",
-        "## Workflow",
-        "1. **Entender**: que se necesita hacer y por que",
-        "2. **Buscar**: consulta knowledge para el procedimiento correcto",
-        "3. **Explicar**: di al admin que vas a hacer, por que, y el riesgo",
-        "4. **Ejecutar**: la accion (se pedira aprobacion automaticamente)",
-        "5. **Verificar**: confirma que la accion funciono (usa tools de lectura)",
+        "## Workflow (Coda pattern):",
+        "1. Entender que se necesita",
+        "2. Buscar en knowledge el procedimiento",
+        "3. Explicar al admin que vas a hacer y el riesgo",
+        "4. Ejecutar (se pide aprobacion automaticamente)",
+        "5. Verificar que funciono",
         "",
-        "## Para crear un tenant:",
-        "Necesitas: nombre, plan (basico/equipo/pro), bot_token de Telegram.",
-        "Usa create_tenant() que hace todo el flujo completo.",
+        "## Tools disponibles:",
+        "- create_tenant: flujo completo (DB + config + container)",
+        "- stop_tenant / restart_tenant: lifecycle",
+        "- remove_tenant: eliminar (archivado)",
+        "- inject_credential: inyectar tokens/keys",
+        "- register_payment: registrar pago manual",
+        "- DockerTools: start/stop/run containers directamente",
         "",
-        "## Para pausar un tenant (no pago):",
-        "Usa stop_tenant(tenant_code). Preserva datos.",
-        "",
-        "## Para reactivar:",
-        "Usa restart_tenant(tenant_code). Verifica health despues.",
-        "",
-        "## Para conectar integraciones:",
-        "Usa inject_credential(tenant_code, tipo, valor).",
-        "Despues restart_tenant() para que Hermes cargue la credencial.",
-        "",
-        "## Reglas",
-        "- NUNCA ejecutes sin explicar primero que vas a hacer",
+        "## Reglas:",
+        "- NUNCA ejecutes sin explicar primero",
         "- Despues de cada accion, VERIFICA que funciono",
-        "- Si algo falla, reporta el error y sugiere solucion",
+        "- Si falla, reporta error y sugiere solucion",
         "- Responde en espanol",
     ],
 )

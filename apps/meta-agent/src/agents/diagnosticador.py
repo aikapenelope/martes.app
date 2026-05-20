@@ -1,38 +1,37 @@
-"""Diagnosticador — Agente de solo lectura para observar el sistema.
+"""Diagnosticador — Read-only agent with Context Providers (Scout pattern).
 
-Nunca modifica nada. Solo observa, analiza, y reporta.
-Tiene acceso a: containers, logs, health, stats, DB (read-only).
+Uses ContextProviders that auto-generate query_<id> tools:
+- query_crm: SQL queries to tenant database
+- query_knowledge: search the platform wiki
+- Plus DockerTools for container inspection
 """
 
 from agno.agent import Agent
 from agno.tools.docker import DockerTools
 
 from src.shared import (
-    PRIMARY_MODEL,
+    MODEL,
     compression,
     db,
+    db_provider,
     knowledge_base,
     learning,
     skills,
-)
-from src.tools.read_ops import (
-    check_all_health,
-    container_health,
-    container_logs,
-    container_stats,
-    get_all_tenants,
-    get_tenant_detail,
-    list_containers,
+    wiki_provider,
 )
 
-# DockerTools oficial de Agno — solo funciones de lectura
+# Context providers generate tools automatically
+_context_tools: list = []
+_context_tools.extend(wiki_provider.get_tools())
+_context_tools.extend(db_provider.get_tools())
+
+# DockerTools — read-only subset
 _docker_read = DockerTools(
     include_tools=[
         "list_containers",
         "get_container_logs",
         "inspect_container",
         "list_networks",
-        "list_volumes",
         "list_images",
     ]
 )
@@ -40,68 +39,61 @@ _docker_read = DockerTools(
 diagnosticador = Agent(
     name="Diagnosticador",
     id="diagnosticador",
-    role="Infrastructure diagnostics specialist. Read-only access to all systems.",
+    role="Infrastructure diagnostics. Read-only. Observes, analyzes, reports.",
     description=(
-        "Observa el estado de containers, health checks, logs, metricas, "
-        "y base de datos. Nunca modifica nada. Reporta problemas y sugiere "
-        "acciones que el Operador puede ejecutar con aprobacion."
+        "Observa containers, health, logs, base de datos, y wiki. "
+        "Nunca modifica nada. Usa ContextProviders para acceso directo."
     ),
-    model=PRIMARY_MODEL,
+    model=MODEL,
     tools=[
-        # Custom read tools (martes-specific)
-        list_containers,
-        container_health,
-        container_logs,
-        container_stats,
-        check_all_health,
-        get_all_tenants,
-        get_tenant_detail,
-        # Agno DockerTools (general Docker inspection)
-        _docker_read,
+        *_context_tools,  # query_knowledge, update_knowledge, query_crm, update_crm
+        _docker_read,     # Docker inspection
     ],
-    tool_call_limit=8,
+    tool_call_limit=10,
     retries=1,
-    # Knowledge & Learning
+    # Knowledge (RAG)
     knowledge=knowledge_base,
     search_knowledge=True,
+    # Learning
     learning=learning,
-    # Skills (lazy-loaded)
+    add_learnings_to_context=True,
+    # Skills
     skills=skills,
     # Context
     db=db,
+    enable_agentic_memory=True,
     add_history_to_context=True,
     num_history_runs=5,
     add_datetime_to_context=True,
     markdown=True,
-    # Compression for long tool outputs
     compression_manager=compression,
     # Instructions
     instructions=[
-        "Eres un especialista en diagnostico de infraestructura para martes.app.",
-        "Tienes acceso de SOLO LECTURA a todos los sistemas.",
-        "NUNCA modificas nada — solo observas, analizas, y reportas.",
+        "Eres un especialista en diagnostico de infraestructura.",
+        "Tienes acceso de SOLO LECTURA a todo el sistema.",
         "",
-        "## Workflow (sigue este orden)",
-        "1. **Recordar**: busca en tu knowledge si ya viste este patron antes",
-        "2. **Observar**: recopila datos (containers, health, logs, stats)",
-        "3. **Analizar**: correlaciona hallazgos, identifica causa raiz",
-        "4. **Reportar**: lidera con la respuesta, luego la evidencia",
+        "## Tus herramientas:",
+        "- **query_crm**: SQL directo a la DB de tenants (SELECT only)",
+        "- **query_knowledge / update_knowledge**: wiki de la plataforma",
+        "- **DockerTools**: inspeccionar containers, logs, redes",
+        "- **Knowledge search**: buscar en docs indexados (RAG)",
         "",
-        "## Cuando te preguntan 'como esta todo?' o 'health check':",
-        "  - check_all_health() → algun container caido?",
-        "  - get_all_tenants() → algun tenant con dias_remaining <= 0?",
-        "  - container_stats() en los que esten corriendo → RAM/CPU altos?",
+        "## Workflow (Scout pattern):",
+        "1. Busca en learnings si ya viste este patron",
+        "2. Consulta la fuente relevante (DB, Docker, wiki)",
+        "3. Analiza y correlaciona",
+        "4. Reporta con evidencia (numeros, logs, queries)",
         "",
-        "## Cuando te preguntan por un tenant especifico:",
-        "  - get_tenant_detail(code) → info de DB",
-        "  - container_health(code) → esta respondiendo?",
-        "  - container_logs(code) → errores recientes?",
+        "## Queries utiles:",
+        "- Tenants activos: SELECT tenant_code, name, plan, status, paid_until FROM tenants",
+        "- Sin pago: SELECT * FROM tenants WHERE paid_until < CURRENT_DATE",
+        "- Errores recientes: SELECT * FROM error_logs WHERE resolved = false "
+        "ORDER BY created_at DESC LIMIT 10",
+        "- Health: SELECT * FROM health_checks ORDER BY checked_at DESC LIMIT 20",
         "",
-        "## Reglas",
-        "- Siempre da EVIDENCIA (numeros reales, lineas de log)",
-        "- Si identificas un problema que necesita accion, di:",
-        "  'El Operador puede arreglar esto con: [accion sugerida]'",
-        "- Responde en espanol",
-        "- Se conciso: respuesta primero, datos despues",
+        "## Reglas:",
+        "- NUNCA uses UPDATE/DELETE/INSERT en query_crm",
+        "- Si identificas un problema, di: 'El Operador puede arreglar esto'",
+        "- Responde en espanol, conciso, evidencia primero",
     ],
 )

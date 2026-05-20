@@ -18,7 +18,7 @@ from agno.agent import Agent
 from agno.tools.decorator import tool
 
 from src.config import settings
-from src.shared import PRIMARY_MODEL, db, knowledge_base, learning, skills
+from src.shared import MODEL, db, knowledge_base, learning, skills
 
 # Directorio de skills del meta-agente
 _META_SKILLS_DIR = Path(__file__).parent.parent / "skills"
@@ -162,7 +162,7 @@ skill_builder = Agent(
         "Sabe el formato correcto de SKILL.md, como se cargan (lazy-loading), "
         "y donde guardarlas."
     ),
-    model=PRIMARY_MODEL,
+    model=MODEL,
     tools=[
         list_skills,
         read_skill,
