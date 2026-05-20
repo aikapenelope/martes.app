@@ -226,36 +226,132 @@ networks:
 
 ---
 
-## 4. La Base de Datos de la Plataforma (Nuestra, No de Hermes)
+## 4. La Base de Datos: PostgreSQL Compartido (Agno + Plataforma)
 
-Hermes no necesita base de datos externa. Pero **nuestra plataforma** (martes.app) sí necesita una para gestionar tenants, billing, y configuraciones:
+### Decisión Final
+
+Un **solo PostgreSQL ligero** (~150-200MB RAM) que sirve para dos cosas:
+
+1. **Meta-agente Agno**: sesiones, memoria, traces, learning (via `PostgresDb` nativo de Agno)
+2. **Plataforma**: tenants, billing, configs, error logs, audit trail
 
 ```
-┌─────────────────────────────────────────────────────┐
-│ PostgreSQL (plataforma martes.app)                    │
-│                                                       │
-│  tenants          → Quién es cada cliente            │
-│  integrations     → OAuth tokens por tenant          │
-│  instance_configs → Qué template/skills/model tiene  │
-│  billing          → Stripe subscriptions             │
-│  health_logs      → Historial de health checks       │
-└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│ PostgreSQL (pg-platform, ~150-200MB RAM)                         │
+│                                                                   │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ Schema "public" (plataforma)                             │    │
+│  │                                                           │    │
+│  │  tenants          → Quién es cada cliente                │    │
+│  │  instance_configs → Qué template/skills/model tiene      │    │
+│  │  integrations     → OAuth tokens por tenant              │    │
+│  │  billing_events   → Pagos, cancelaciones, upgrades       │    │
+│  │  error_logs       → Errores de containers por tenant     │    │
+│  │  health_history   → Historial de health checks           │    │
+│  │  actions_log      → Qué hizo el meta-agente y cuándo    │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                   │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ Tablas de Agno (auto-creadas por PostgresDb)             │    │
+│  │                                                           │    │
+│  │  agno_sessions    → Sesiones del meta-agente             │    │
+│  │  agno_memories    → Lo que el meta-agente recuerda       │    │
+│  │  agno_traces      → Logs de cada acción (audit trail)    │    │
+│  │  agno_learnings   → Patrones aprendidos                  │    │
+│  └─────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
 
-┌─────────────────────────────────────────────────────┐
-│ SQLite (DENTRO de cada container Hermes)              │
-│                                                       │
-│  state.db         → Sesiones, mensajes, búsqueda    │
-│  (kanban.db)      → Si usa kanban multi-agente      │
-│                                                       │
-│  NO es accesible desde fuera del container           │
-│  NO necesita backup separado (está en el volumen)    │
-│  Se respalda cuando respaldas el volumen completo    │
-└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│ SQLite (DENTRO de cada container Hermes, por tenant)              │
+│                                                                   │
+│  state.db         → Sesiones del tenant, mensajes, búsqueda    │
+│  (kanban.db)      → Si usa kanban multi-agente                  │
+│                                                                   │
+│  NO es accesible desde fuera del container                       │
+│  Se respalda cuando respaldas el volumen completo                │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-**Son dos cosas completamente separadas:**
-1. PostgreSQL de la plataforma = datos de negocio del SaaS
-2. SQLite dentro de cada Hermes = datos del agente del tenant
+### Por Qué PostgreSQL y No SQLite Para la Plataforma
+
+Agno se integra **nativamente** con PostgreSQL via `agno.db.postgres.PostgresDb`. Es su base de datos principal para:
+- Sesiones (historial de conversaciones del meta-agente)
+- Memoria persistente (lo que aprende sobre los tenants)
+- Traces (log completo de cada acción — audit trail automático)
+- Learning (patrones que mejoran con el tiempo)
+
+Si ya necesitamos PostgreSQL para Agno, usamos la misma instancia para la plataforma. No tiene sentido tener SQLite + PostgreSQL cuando uno solo hace todo.
+
+### Qué Puede Hacer el Meta-Agente con Acceso a la DB
+
+```python
+# El meta-agente Agno tiene acceso directo a PostgreSQL
+# Puede hacer queries como tools:
+
+@tool()
+async def check_tenant_billing(tenant_id: str) -> str:
+    """Verifica si un tenant tiene su suscripción activa."""
+    result = await db.execute(
+        "SELECT status, plan FROM tenants WHERE id = $1", tenant_id
+    )
+    return json.dumps(result)
+
+@tool()
+async def log_container_error(tenant_id: str, error: str) -> str:
+    """Registra un error de container para análisis posterior."""
+    await db.execute(
+        "INSERT INTO error_logs (tenant_id, error, timestamp) VALUES ($1, $2, now())",
+        tenant_id, error
+    )
+    return "Error logged"
+
+@tool()
+async def get_unhealthy_tenants() -> str:
+    """Lista tenants con containers en estado unhealthy."""
+    result = await db.execute(
+        "SELECT id, name, last_health_check FROM tenants WHERE status = 'unhealthy'"
+    )
+    return json.dumps(result)
+```
+
+### Configuración Mínima
+
+```yaml
+pg-platform:
+  image: postgres:16-alpine
+  container_name: pg-platform
+  restart: unless-stopped
+  environment:
+    POSTGRES_USER: martes
+    POSTGRES_PASSWORD: ${PG_PASSWORD}
+    POSTGRES_DB: martes
+  volumes:
+    - /var/lib/martes/pg-data:/var/lib/postgresql/data
+  command:
+    - "postgres"
+    - "-c"
+    - "shared_buffers=128MB"
+    - "-c"
+    - "max_connections=30"
+    - "-c"
+    - "log_min_duration_statement=1000"
+  deploy:
+    resources:
+      limits:
+        memory: 256M   # Suficiente para <1000 tenants
+  networks:
+    - platform-net
+```
+
+**RAM real**: ~150-200MB con `shared_buffers=128MB` y 30 conexiones.
+Esto es 1 tenant menos de RAM, pero a cambio tienes audit trail, error tracking, y billing verification automáticos via el meta-agente.
+
+### Resumen de Bases de Datos
+
+| DB | Dónde | Para qué | RAM |
+|----|-------|----------|-----|
+| PostgreSQL (pg-platform) | Container separado en el servidor | Plataforma + Agno meta-agente | ~200MB |
+| SQLite (state.db) | Dentro de cada container Hermes | Datos del agente del tenant | 0MB extra (incluido en Hermes) |
 
 ---
 
