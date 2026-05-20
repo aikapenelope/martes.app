@@ -224,3 +224,22 @@ Esto te da una UI de emergencia sin sacrificar RAM significativa.
 **¿Docker bridge tiene problemas con Hermes?** No. Verificado en el código fuente. Solo necesitas `API_SERVER_HOST=0.0.0.0` y no ofrecer Docker-in-Docker backend.
 
 **¿Estamos listos para empezar a codear?** Sí, si decides las preguntas de producto de la sección 4.1. La arquitectura técnica está completa.
+
+---
+
+## 7. Meta-Agente: Dentro de Container + Docker Socket (Decisión Final)
+
+El meta-agente corre **dentro de un container** con Docker socket montado:
+
+```yaml
+meta-agent:
+  volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    - /var/lib/martes/tenants:/var/lib/martes/tenants
+```
+
+**Por qué dentro de container**: reproducibilidad, aislamiento, mismo patrón que todo.
+**Por qué Docker socket**: necesita crear/parar/inspeccionar containers de tenants.
+**Seguridad**: no expuesto a internet, solo red interna, solo el admin interactúa.
+
+Patrón estándar de la industria (Portainer, Watchtower, Traefik usan el mismo approach).
