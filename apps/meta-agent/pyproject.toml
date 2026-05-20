@@ -15,6 +15,7 @@ dependencies = [
     "pyyaml>=6.0",
     "sqlalchemy>=2.0.0",
     "lancedb>=0.30.0",
+    "tantivy>=0.22.0",
 ]
 
 [project.optional-dependencies]
