@@ -325,14 +325,271 @@ Si falla 3 veces consecutivas → restart automático.
 
 ---
 
-## 8. Decisiones Actualizadas
+---
 
-| Decisión | Antes | Ahora (post-investigación) |
-|----------|-------|---------------------------|
-| Browser | Incluido siempre | Por tier (Starter: sin browser, Pro: Firecrawl, Business: Playwright) |
-| Capacidad | 10-12/servidor | 25-30 Starter, 12-15 Pro, 6-8 Business |
-| Tokens | Modelo compartido | BYOK para Starter, incluido para Pro/Business |
-| Dashboard Hermes | Para todos | Solo Pro/Business (Starter usa nuestro web UI) |
-| Resource limits | No definidos | 512MB/0.5CPU (S), 1GB/1CPU (P), 2GB/1.5CPU (B) |
-| Updates | Auto | Pinned por tenant, update manual |
-| Load balancing | Tradicional | Determinístico (tenant → servidor fijo) |
+## 8. Hermes NO es Pesado — Tú Construyes Sobre Él
+
+### Aclaración Importante
+
+Hermes no es un monolito pesado que instalas completo. Es un **runtime ligero** donde tú decides qué activar:
+
+- **Base** (gateway idle): ~150-200MB RAM — solo el loop de conversación + conexión a plataforma
+- **+ Skills activos**: +50-100MB (depende de cuántos)
+- **+ Browser (Playwright)**: +200-800MB (solo cuando se usa activamente)
+- **+ Dashboard**: +50-100MB
+- **+ Cron jobs corriendo**: +50-200MB (depende de la complejidad)
+
+La imagen Docker incluye TODO (Playwright, Node.js, Python, etc.) pero **solo consume RAM lo que está activo**. Un tenant con solo Telegram + Google Workspace + 3 cron jobs usa ~300-400MB.
+
+### Presets Preconfigurados (Producto)
+
+Podemos ofrecer "templates" de Hermes preconfigurados:
+
+#### Template: "Asistente de Trabajo" ($15/mo)
+```yaml
+# config.yaml preconfigurado
+platforms: [telegram]  # O discord
+skills:
+  - google-workspace   # Gmail, Calendar, Drive, Sheets
+  - airtable           # Base de datos
+  - notion             # Notas y wikis
+tools:
+  browser: false       # Sin browser (ahorra RAM)
+  web_search: true     # Búsqueda web básica
+  terminal: false      # Sin acceso a terminal
+  file: false          # Sin manipulación de archivos
+cron:
+  - "Daily briefing at 8am: summarize unread emails and today's calendar"
+  - "Weekly report: Airtable status summary every Monday 9am"
+  - "Auto-archive: move emails older than 30 days to archive every Sunday"
+model: deepseek-v4     # Barato, con cache discount
+```
+
+**RAM estimada**: ~300MB idle, ~400MB activo
+**Tokens**: ~500K-1M/mes (bajo, sin browser)
+**Costo nuestro**: ~$0.50/mo infra + $0-2/mo tokens (BYOK o DeepSeek)
+
+#### Template: "Asistente Completo" ($35/mo)
+```yaml
+platforms: [telegram, discord]
+skills:
+  - google-workspace
+  - airtable
+  - notion
+  - github-code-review
+  - ocr-and-documents
+tools:
+  browser: firecrawl   # Web scraping via API (sin RAM local)
+  web_search: true
+  terminal: true       # Puede ejecutar código
+  file: true
+  vision: true         # Analiza imágenes
+cron:
+  - "Daily briefing at 8am"
+  - "Monitor GitHub PRs every 2 hours"
+  - "Weekly analytics report"
+  - "Daily expense tracker from email receipts"
+model: claude-haiku    # Mejor razonamiento
+dashboard: true        # Dashboard web incluido
+```
+
+**RAM estimada**: ~500-700MB
+**Tokens**: ~2-5M/mes
+**Costo nuestro**: ~$1.50/mo infra + $5-15/mo tokens
+
+#### Template: "Agente Autónomo" ($75/mo)
+```yaml
+platforms: [telegram, discord, whatsapp, api]
+skills:
+  - google-workspace
+  - airtable
+  - notion
+  - github-pr-workflow
+  - linear
+  - ocr-and-documents
+  - research (arxiv, web)
+tools:
+  browser: playwright  # Browser completo (CamoFox)
+  web_search: true
+  terminal: true
+  file: true
+  vision: true
+  delegate: true       # Puede crear sub-agentes
+  code_execution: true
+cron:
+  - "Daily briefing at 8am"
+  - "Monitor all platforms every 30 min"
+  - "Weekly deep research report"
+  - "Auto-respond to routine emails"
+  - "Nightly backup of Notion workspace"
+model: claude-sonnet   # Máximo razonamiento
+dashboard: true
+memory: unlimited
+```
+
+**RAM estimada**: ~1-2GB (con browser activo)
+**Tokens**: ~5-15M/mes
+**Costo nuestro**: ~$2.50/mo infra + $15-50/mo tokens
+
+---
+
+## 9. Aislamiento de Red — Cómo Funciona
+
+### El Problema Original
+
+Hermes usa `network_mode: host` en su docker-compose oficial. Esto significa que el container comparte la red del servidor directamente — puede ver todos los puertos, todos los otros containers, todo.
+
+**Para un SaaS multi-tenant esto es INACEPTABLE.** Un tenant podría acceder a la base de datos de otro, o al API server de otro tenant.
+
+### La Solución: Bridge Networks Aisladas
+
+```
+┌─────────────────────────────────────────────────────┐
+│ Servidor                                             │
+│                                                      │
+│  ┌─────────────────────────────────────────────┐    │
+│  │ Red "platform" (solo infra + API)            │    │
+│  │  Traefik ←→ Platform API ←→ PostgreSQL      │    │
+│  └─────────────────────────────────────────────┘    │
+│                                                      │
+│  ┌──────────────┐  ┌──────────────┐                 │
+│  │ Red "t001"   │  │ Red "t002"   │  (aisladas)    │
+│  │              │  │              │                  │
+│  │ hermes-t001  │  │ hermes-t002  │                 │
+│  │ (solo ve     │  │ (solo ve     │                 │
+│  │  su propia   │  │  su propia   │                 │
+│  │  red + salida│  │  red + salida│                 │
+│  │  a internet) │  │  a internet) │                 │
+│  └──────────────┘  └──────────────┘                 │
+└─────────────────────────────────────────────────────┘
+```
+
+**Implementación:**
+
+```bash
+# Crear red aislada por tenant
+docker network create --internal=false tenant-t001
+
+# Lanzar container en su red aislada
+docker run -d \
+  --name hermes-t001 \
+  --network tenant-t001 \
+  --memory 512m \
+  --cpus 0.5 \
+  -v /var/lib/martes/tenants/t001:/opt/data \
+  nousresearch/hermes-agent gateway run
+```
+
+**Qué logra esto:**
+- Tenant t001 NO puede ver a tenant t002 (redes separadas)
+- Tenant t001 NO puede acceder a PostgreSQL de la plataforma (red diferente)
+- Tenant t001 SÍ puede acceder a internet (para APIs, LLM, etc.)
+- Traefik SÍ puede rutear tráfico al tenant (se conecta a ambas redes)
+
+**NO necesita IP propia cada container.** Docker asigna IPs internas automáticamente (172.x.x.x). Traefik rutea por nombre de container, no por IP.
+
+### Alternativa Más Simple (si no hay riesgo real)
+
+Si todos los tenants son BYOK y no comparten infraestructura sensible, el aislamiento de red es **nice-to-have, no crítico**. Lo crítico es:
+1. Volúmenes separados (ya lo tenemos)
+2. Resource limits (memory/CPU)
+3. No `network_mode: host` (usar bridge default)
+
+Con bridge default, los containers pueden verse entre sí por nombre, pero no pueden acceder a puertos que no están expuestos. Si PostgreSQL solo expone en `127.0.0.1:5432` (no en la red Docker), los tenants no pueden accederlo.
+
+---
+
+## 10. Métricas de Uso — No Son Necesarias Si Es BYOK
+
+### Si el tenant trae su propia API key (BYOK):
+
+- **No necesitamos medir tokens** — el tenant ve su consumo directamente en OpenRouter/Anthropic/etc.
+- **No necesitamos billing por uso** — cobramos flat fee por el hosting
+- **Lo que sí medimos**: uptime del container, health checks, disk usage
+
+### Si nosotros proveemos la IA (modelo compartido):
+
+Necesitamos un **proxy de API** entre Hermes y el LLM provider que:
+1. Intercepta cada request al LLM
+2. Cuenta tokens (input + output)
+3. Asocia al tenant
+4. Aplica rate limits por plan
+
+**Implementación**: Un proxy ligero (LiteLLM o similar) que corre como servicio compartido:
+
+```
+Hermes-t001 → LiteLLM Proxy → OpenRouter → LLM
+                  ↓
+            Registra: tenant=t001, tokens_in=5000, tokens_out=1200
+```
+
+**LiteLLM** ya hace esto out-of-the-box:
+- Proxy OpenAI-compatible
+- Tracking por API key (una key por tenant)
+- Rate limiting
+- Fallback entre providers
+- Dashboard de uso
+
+### Recomendación
+
+**MVP**: Solo BYOK. No necesitas métricas de tokens. Cobra flat fee.
+**V2**: Agrega LiteLLM proxy para ofrecer "tokens incluidos" en Pro/Business.
+
+---
+
+## 11. Version Pinning — Sí, Es Lo Mejor
+
+### Por Qué
+
+Hermes publica releases frecuentes (v0.14.0 actual, ~2 releases/mes). Cada release puede:
+- Cambiar formato de config.yaml
+- Deprecar skills
+- Romper plugins
+- Cambiar comportamiento de tools
+
+Si auto-updateamos todos los tenants, un release roto afecta a TODOS.
+
+### Cómo Implementarlo
+
+```bash
+# Cada tenant tiene su versión pinned
+docker run -d \
+  --name hermes-t001 \
+  nousresearch/hermes-agent:0.14.0  # Versión fija, no :latest
+```
+
+**Flujo de updates:**
+1. NousResearch publica v0.15.0
+2. Nosotros la testeamos en un tenant interno ("canary")
+3. Si funciona bien → la marcamos como "stable" en nuestra plataforma
+4. Los tenants ven "Update available" en su dashboard
+5. El tenant decide cuándo actualizar (click en "Update")
+6. El meta-agente hace: stop container → pull nueva imagen → start container
+
+**Rollback**: Si el tenant reporta problemas post-update, el meta-agente puede revertir a la versión anterior (la imagen anterior sigue en cache).
+
+### Versiones que Mantenemos
+
+| Tag | Propósito |
+|-----|-----------|
+| `0.14.0` | Versión actual estable |
+| `0.13.0` | Versión anterior (rollback) |
+| `latest` | NUNCA usar en producción |
+| `canary` | Para testing interno |
+
+---
+
+## 12. Decisiones Actualizadas (Final)
+
+| Decisión | Resolución Final |
+|----------|-----------------|
+| Browser | Por template: "Trabajo" sin browser, "Completo" con Firecrawl, "Autónomo" con Playwright |
+| Capacidad | ~30-40 "Trabajo", ~15-20 "Completo", ~8-10 "Autónomo" por CX43 |
+| Tokens | BYOK obligatorio en MVP. LiteLLM proxy en V2 para "tokens incluidos" |
+| Métricas | No necesarias si BYOK. Solo health/uptime. LiteLLM en V2. |
+| Aislamiento de red | Bridge networks separadas por tenant (no host mode) |
+| Version pinning | Sí. Versión fija por tenant. Update manual via dashboard. |
+| Presets | 3 templates preconfigurados (Trabajo $15, Completo $35, Autónomo $75) |
+| Cron jobs | Preelaborados por template + custom del tenant |
+| Dashboard Hermes | Solo en "Completo" y "Autónomo" |
+| Skills | Preinstalados por template, tenant puede agregar más |
