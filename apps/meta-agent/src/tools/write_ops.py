@@ -448,6 +448,210 @@ def register_payment(
 # ---------------------------------------------------------------------------
 
 
+
+# ---------------------------------------------------------------------------
+# LLM Wiki — pre-populate tenant wiki before container starts
+# ---------------------------------------------------------------------------
+
+
+@tool(requires_confirmation=True)
+def inject_wiki_content(
+    tenant_code: str,
+    company_name: str,
+    company_description: str,
+    domain: str = "",
+    team_members: str = "",
+    tools_used: str = "",
+    active_projects: str = "",
+    custom_pages: str = "",
+) -> str:
+    """Pre-popula la wiki del tenant con conocimiento inicial de la empresa.
+
+    Crea la estructura LLM Wiki (Karpathy pattern) en el volumen del tenant
+    con contenido real. El agente Hermes arranca con contexto desde el dia 1.
+
+    Puede llamarse antes O despues de crear el container (la wiki persiste en volumen).
+
+    Args:
+        tenant_code: Codigo del tenant (e.g. t001).
+        company_name: Nombre de la empresa o cliente.
+        company_description: Que hace la empresa, su industria, audiencia.
+        domain: Dominio de conocimiento (marketing, desarrollo, finanzas, etc.).
+        team_members: Lista de miembros del equipo (JSON o texto libre).
+        tools_used: Herramientas que usa el equipo (Notion, GitHub, Jira...).
+        active_projects: Proyectos activos actuales (JSON o texto libre).
+        custom_pages: Paginas markdown adicionales en formato JSON:
+                      '[{"name": "archivo.md", "content": "# Titulo..."}]'
+    """
+    from datetime import date
+
+    wiki_path = Path(settings.tenants_base_path) / tenant_code / "wiki"
+
+    if not (Path(settings.tenants_base_path) / tenant_code).exists():
+        return json.dumps({"error": f"Tenant {tenant_code} no existe en disco."})
+
+    today = date.today().isoformat()
+
+    try:
+        # Crear estructura de directorios
+        for subdir in ["raw/articles", "raw/papers", "raw/transcripts",
+                       "raw/assets", "entities", "concepts", "comparisons", "queries"]:
+            (wiki_path / subdir).mkdir(parents=True, exist_ok=True)
+
+        # --- SCHEMA.md — define el dominio y convenciones ---
+        effective_domain = domain or "Asistente de equipo inteligente"
+        schema_content = f"""# Wiki Schema — {company_name}
+
+## Domain
+{effective_domain}. Conocimiento acumulativo del equipo de {company_name}.
+
+## Conventions
+- File names: lowercase, hyphens, no spaces (e.g., `proyecto-alfa.md`)
+- Every wiki page starts with YAML frontmatter
+- Use `[[wikilinks]]` to link between pages (minimum 2 outbound links per page)
+- When updating a page, always bump the `updated` date
+- Every new page must be added to `index.md` under the correct section
+- Every action must be appended to `log.md`
+
+## Frontmatter
+```yaml
+---
+title: Page Title
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+type: entity | concept | comparison | query | summary
+tags: [from taxonomy below]
+sources: []
+---
+```
+
+## Tag Taxonomy
+- Company: company, team, member, project, client
+- Work: task, deadline, meeting, decision, process
+- Tools: notion, github, slack, telegram, google-workspace
+- Meta: reference, procedure, template
+
+## Page Thresholds
+- Create a page when an entity/concept appears in 2+ contexts OR is central
+- Split pages when they exceed ~200 lines
+- Archive when content is fully superseded
+"""
+        (wiki_path / "SCHEMA.md").write_text(schema_content)
+
+        # --- index.md — catalogo inicial ---
+        index_content = f"""# Wiki Index — {company_name}
+
+> Catalogo de contenido. Cada pagina listada con resumen de una linea.
+> Ultima actualizacion: {today} | Total paginas: 1
+
+## Entities
+- [[{company_name.lower().replace(" ", "-")}]] — Informacion de la empresa
+
+## Concepts
+
+## Projects
+
+## Processes
+"""
+        (wiki_path / "index.md").write_text(index_content)
+
+        # --- log.md ---
+        log_content = f"""# Wiki Log — {company_name}
+
+> Log cronologico de todas las acciones. Solo append.
+> Formato: `## [YYYY-MM-DD] accion | tema`
+
+## [{today}] create | Wiki inicializada por martes.app
+- Dominio: {effective_domain}
+- Estructura creada con SCHEMA.md, index.md, log.md
+- Entidad inicial: {company_name}
+"""
+        (wiki_path / "log.md").write_text(log_content)
+
+        # --- entities/company.md — pagina principal de la empresa ---
+        company_slug = company_name.lower().replace(" ", "-")
+        members_section = ""
+        if team_members:
+            members_section = f"\n## Team\n{team_members}\n"
+
+        tools_section = ""
+        if tools_used:
+            tools_section = f"\n## Tools\n{tools_used}\n"
+
+        projects_section = ""
+        if active_projects:
+            projects_section = f"\n## Active Projects\n{active_projects}\n"
+
+        company_content = f"""---
+title: {company_name}
+created: {today}
+updated: {today}
+type: entity
+tags: [company]
+sources: []
+---
+
+# {company_name}
+
+{company_description}
+{members_section}{tools_section}{projects_section}
+## Notes
+
+<!-- El agente actualiza esta seccion con lo que aprende -->
+"""
+        (wiki_path / "entities" / f"{company_slug}.md").write_text(company_content)
+
+        # --- Paginas custom adicionales (opcionales) ---
+        custom_created: list[str] = []
+        if custom_pages:
+            try:
+                pages = json.loads(custom_pages)
+                for page in pages:
+                    page_name = page.get("name", "")
+                    page_content = page.get("content", "")
+                    if page_name and page_content:
+                        # Determinar subdirectorio por prefijo
+                        if "/" in page_name:
+                            page_path = wiki_path / page_name
+                        else:
+                            page_path = wiki_path / "concepts" / page_name
+                        page_path.parent.mkdir(parents=True, exist_ok=True)
+                        page_path.write_text(page_content)
+                        custom_created.append(page_name)
+            except json.JSONDecodeError:
+                pass  # custom_pages en texto libre, ignorar
+
+        # --- Configurar WIKI_PATH en .env del tenant ---
+        env_file = Path(settings.tenants_base_path) / tenant_code / ".env"
+        if env_file.exists():
+            env_text = env_file.read_text()
+            if "WIKI_PATH" not in env_text:
+                env_text += "\nWIKI_PATH=/opt/data/wiki\n"
+                env_file.write_text(env_text)
+                os.chmod(env_file, 0o600)
+
+        # Fijar permisos
+        _chown_recursive(wiki_path, 1000, 1000)
+
+        files_created = ["SCHEMA.md", "index.md", "log.md",
+                         f"entities/{company_slug}.md"] + custom_created
+
+        return json.dumps({
+            "success": True,
+            "tenant_code": tenant_code,
+            "wiki_path": str(wiki_path),
+            "company": company_name,
+            "files_created": files_created,
+            "message": (
+                f"Wiki de {company_name} inicializada. "
+                "El agente Hermes tendra contexto desde el primer mensaje."
+            ),
+        })
+
+    except OSError as e:
+        return json.dumps({"error": str(e)})
+
+
 def _chown_recursive(path: Path, uid: int, gid: int) -> None:
     """Cambia ownership recursivamente."""
     try:

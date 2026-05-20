@@ -18,6 +18,7 @@ from src.shared import (
 from src.tools.write_ops import (
     create_tenant,
     inject_credential,
+    inject_wiki_content,
     register_payment,
     remove_tenant,
     restart_tenant,
@@ -52,6 +53,7 @@ operador = Agent(
         restart_tenant,
         remove_tenant,
         inject_credential,
+        inject_wiki_content,
         register_payment,
         # Docker (for verification after actions)
         _docker_write,
@@ -91,6 +93,7 @@ operador = Agent(
         "- stop_tenant / restart_tenant: lifecycle",
         "- remove_tenant: eliminar (archivado)",
         "- inject_credential: inyectar tokens/keys",
+        "- inject_wiki_content: pre-poblar wiki con contexto del cliente",
         "- register_payment: registrar pago manual",
         "- DockerTools: start/stop/run containers directamente",
         "",
