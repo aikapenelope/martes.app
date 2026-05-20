@@ -74,6 +74,17 @@ def create_tenant_container(
             "mem_limit": f"{resource_limits['memory_mb']}m",
             "nano_cpus": int(float(resource_limits["cpus"]) * 1e9),
             "command": ["gateway", "run"],
+            # Security hardening
+            "security_opt": ["no-new-privileges"],
+            "pids_limit": 256,
+            "cap_drop": ["ALL"],
+            "cap_add": ["NET_RAW"],  # wget/curl necesitan esto
+            "dns": ["1.1.1.1", "8.8.8.8"],
+            "tmpfs": {"/tmp": "size=100m"},
+            "log_config": {
+                "Type": "json-file",
+                "Config": {"max-size": "50m", "max-file": "3"},
+            },
             "labels": {
                 "martes.tenant": tenant_code,
                 "martes.plan": plan,
