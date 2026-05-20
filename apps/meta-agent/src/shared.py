@@ -40,7 +40,7 @@ db = PostgresDb(
 # SQLAlchemy engines for DatabaseContextProvider
 from sqlalchemy import create_engine  # noqa: E402
 
-_pg_url = settings.database_url.replace("+psycopg", "")
+_pg_url = settings.database_url  # postgresql+psycopg://...
 sql_engine = create_engine(_pg_url)
 readonly_engine = create_engine(_pg_url, execution_options={"postgresql_readonly": True})
 
