@@ -4,6 +4,7 @@ import json
 from typing import Any
 
 import docker
+from agno.tools import tool
 from docker.errors import APIError, NotFound
 
 from src.config import settings
@@ -74,6 +75,17 @@ def create_tenant_container(
             "mem_limit": f"{resource_limits['memory_mb']}m",
             "nano_cpus": int(float(resource_limits["cpus"]) * 1e9),
             "command": ["gateway", "run"],
+            # Security hardening
+            "security_opt": ["no-new-privileges"],
+            "pids_limit": 256,
+            "cap_drop": ["ALL"],
+            "cap_add": ["NET_RAW"],  # wget/curl necesitan esto
+            "dns": ["1.1.1.1", "8.8.8.8"],
+            "tmpfs": {"/tmp": "size=100m"},
+            "log_config": {
+                "Type": "json-file",
+                "Config": {"max-size": "50m", "max-file": "3"},
+            },
             "labels": {
                 "martes.tenant": tenant_code,
                 "martes.plan": plan,
@@ -112,6 +124,7 @@ def create_tenant_container(
         return json.dumps({"success": False, "error": str(e)})
 
 
+@tool(requires_confirmation=True)
 def stop_tenant_container(tenant_code: str) -> str:
     """Detiene el container de un tenant (preserva datos).
 
@@ -208,6 +221,7 @@ def list_tenant_containers() -> str:
         return json.dumps({"success": False, "error": str(e)})
 
 
+@tool(requires_confirmation=True)
 def remove_tenant_container(tenant_code: str) -> str:
     """Elimina completamente un container y su red (para archivado).
 

@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: ${PG_PASSWORD}
       POSTGRES_DB: martes
     volumes:
-      - /var/lib/martes/pg-data:/var/lib/postgresql/data
+      - /var/lib/martes/pg-data:/var/lib/postgresql
       - ../db/migrations:/docker-entrypoint-initdb.d:ro
     networks:
       - platform-net
@@ -17,7 +17,20 @@ services:
       test: ["CMD-SHELL", "pg_isready -U martes -d martes"]
       interval: 10s
       timeout: 5s
+      start_period: 30s
       retries: 5
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=128MB"
+      - "-c"
+      - "max_connections=50"
+      - "-c"
+      - "work_mem=4MB"
+      - "-c"
+      - "log_min_duration_statement=1000"
+      - "-c"
+      - "log_statement=ddl"
     deploy:
       resources:
         limits:
@@ -45,6 +58,12 @@ services:
         condition: service_healthy
     networks:
       - platform-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
     deploy:
       resources:
         limits:
@@ -67,12 +86,24 @@ services:
       - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
       - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
       - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+      # Security: disable dashboard, enable ping for healthcheck
+      - "--api.dashboard=false"
+      - "--ping=true"
+      # Logging
+      - "--accesslog=true"
+      - "--accesslog.bufferingsize=100"
+      - "--log.level=WARN"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - traefik_certs:/letsencrypt
     networks:
       - platform-net
       - tenant-net
+    healthcheck:
+      test: ["CMD-SHELL", "traefik healthcheck --ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     deploy:
       resources:
         limits:

@@ -1,0 +1,10 @@
+name: martes-infra
+description: Hetzner CX43 server for martes.app SaaS platform
+runtime:
+  name: nodejs
+  options:
+    packagemanager: npm
+config:
+  pulumi:tags:
+    value:
+      pulumi:template: typescript

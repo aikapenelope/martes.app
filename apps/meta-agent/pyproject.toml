@@ -5,12 +5,15 @@ description = "Meta-agente Agno para gestionar tenants Hermes en martes.app"
 requires-python = ">=3.12"
 dependencies = [
     "agno[telegram]>=2.6.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
     "openai>=1.30.0",
     "psycopg[binary]>=3.1.0",
     "docker>=7.0.0",
     "pydantic>=2.7.0",
     "pydantic-settings>=2.3.0",
     "pyyaml>=6.0",
+    "sqlalchemy>=2.0.0",
 ]
 
 [project.optional-dependencies]

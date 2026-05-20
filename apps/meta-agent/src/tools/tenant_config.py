@@ -7,6 +7,27 @@ from pathlib import Path
 
 from src.config import settings
 
+# UID/GID que Hermes usa dentro del container (default del entrypoint)
+_HERMES_UID = 1000
+_HERMES_GID = 1000
+
+
+def _chown_recursive(path: Path, uid: int, gid: int) -> None:
+    """Cambia ownership recursivamente de un directorio.
+
+    Necesario porque el meta-agente corre como root pero Hermes
+    necesita que los archivos sean de UID 1000 dentro del container.
+    """
+    try:
+        os.chown(path, uid, gid)
+        for root, dirs, files in os.walk(path):
+            for d in dirs:
+                os.chown(os.path.join(root, d), uid, gid)
+            for f in files:
+                os.chown(os.path.join(root, f), uid, gid)
+    except PermissionError:
+        pass  # En dev local puede no tener permisos, en prod si
+
 
 def write_tenant_config(
     tenant_code: str,
@@ -38,6 +59,9 @@ def write_tenant_config(
         for subdir in ["sessions", "memories", "skills", "cron", "logs", "wiki", "workspace"]:
             (tenant_path / subdir).mkdir(exist_ok=True)
 
+        # Fijar permisos para Hermes (UID/GID 1000 dentro del container)
+        _chown_recursive(tenant_path, uid=1000, gid=1000)
+
         # Copiar config.yaml del template
         config_src = template_path / "config.yaml"
         if config_src.exists():
@@ -66,6 +90,9 @@ def write_tenant_config(
             if soul_name:
                 soul_content = soul_content.replace("{{AGENT_NAME}}", soul_name)
             (tenant_path / "SOUL.md").write_text(soul_content)
+
+        # Re-aplicar ownership despues de escribir archivos
+        _chown_recursive(tenant_path, uid=_HERMES_UID, gid=_HERMES_GID)
 
         return json.dumps(
             {
