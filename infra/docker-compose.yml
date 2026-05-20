@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: ${PG_PASSWORD}
       POSTGRES_DB: martes
     volumes:
-      - /var/lib/martes/pg-data:/var/lib/postgresql/data
+      - /var/lib/martes/pg-data:/var/lib/postgresql
       - ../db/migrations:/docker-entrypoint-initdb.d:ro
     networks:
       - platform-net
@@ -17,6 +17,7 @@ services:
       test: ["CMD-SHELL", "pg_isready -U martes -d martes"]
       interval: 10s
       timeout: 5s
+      start_period: 30s
       retries: 5
     command:
       - "postgres"
