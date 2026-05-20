@@ -4,6 +4,7 @@ import json
 from typing import Any
 
 import docker
+from agno.tools import tool
 from docker.errors import APIError, NotFound
 
 from src.config import settings
@@ -123,6 +124,7 @@ def create_tenant_container(
         return json.dumps({"success": False, "error": str(e)})
 
 
+@tool(requires_confirmation=True)
 def stop_tenant_container(tenant_code: str) -> str:
     """Detiene el container de un tenant (preserva datos).
 
@@ -219,6 +221,7 @@ def list_tenant_containers() -> str:
         return json.dumps({"success": False, "error": str(e)})
 
 
+@tool(requires_confirmation=True)
 def remove_tenant_container(tenant_code: str) -> str:
     """Elimina completamente un container y su red (para archivado).
 

@@ -1,7 +1,8 @@
 """Entry point del meta-agente martes.app.
 
-Levanta AgentOS con la interface de Telegram para recibir
-comandos del admin y gestionar tenants Hermes.
+Levanta AgentOS con interfaces condicionales:
+- API HTTP siempre activa (health checks, testing)
+- Telegram solo si META_AGENT_TELEGRAM_TOKEN esta configurado
 """
 
 from agno.os.app import AgentOS
@@ -13,14 +14,16 @@ from src.config import settings
 # Crear el meta-agente
 meta_agent = create_meta_agent()
 
-# Configurar AgentOS con Telegram interface
-agent_os = AgentOS(
-    agents=[meta_agent],
-    interfaces=[
+# Interfaces condicionales
+interfaces = []
+
+# Telegram: solo si hay un token valido
+if settings.telegram_token and ":" in settings.telegram_token:
+    interfaces.append(
         Telegram(
             agent=meta_agent,
             token=settings.telegram_token,
-            reply_to_mentions_only=False,  # Responde a todos los mensajes (bot privado)
+            reply_to_mentions_only=False,
             streaming=True,
             start_message=(
                 "Meta-agente martes.app activo. "
@@ -38,10 +41,17 @@ agent_os = AgentOS(
                 "- Stats [codigo]"
             ),
         )
-    ],
+    )
+
+# AgentOS: API siempre activa, Telegram condicional, scheduler habilitado
+agent_os = AgentOS(
+    agents=[meta_agent],
+    interfaces=interfaces,
+    scheduler=True,
+    scheduler_poll_interval=60,  # Revisa jobs cada 60 segundos
 )
 
-# FastAPI app (para health checks y webhook de Telegram)
+# FastAPI app
 app = agent_os.get_app()
 
 if __name__ == "__main__":
