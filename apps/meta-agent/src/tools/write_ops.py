@@ -161,7 +161,7 @@ def create_tenant(
             "security_opt": ["no-new-privileges"],
             "pids_limit": 256,
             "cap_drop": ["ALL"],
-            "cap_add": ["NET_RAW"],
+            "cap_add": ["NET_RAW", "CHOWN", "SETUID", "SETGID", "DAC_OVERRIDE", "FOWNER"],
             "dns": ["1.1.1.1", "8.8.8.8"],
             "tmpfs": {"/tmp": "size=100m"},
             "log_config": {"Type": "json-file", "Config": {"max-size": "50m", "max-file": "3"}},

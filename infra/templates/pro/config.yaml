@@ -12,16 +12,17 @@ model:
   base_url: "https://openrouter.ai/api/v1"
 
 # =============================================================================
-# Toolsets — TODO habilitado excepto terminal directo
+# Toolsets — completo EXCEPTO terminal directo (seguridad multi-tenant)
 # =============================================================================
-# Usa presets completos que incluyen: web, terminal, file, browser, vision,
-# image_gen, tts, skills, todo, cronjob, memory, session_search, delegate,
-# execute_code, send_message
-# Terminal esta en el preset pero sandboxed via Docker backend (ver abajo)
+# Terminal requiere Docker-in-Docker que no esta habilitado por defecto.
+# Se puede habilitar caso por caso para clientes que lo necesiten.
 platform_toolsets:
-  telegram: [hermes-telegram]
-  discord: [hermes-discord]
-  whatsapp: [hermes-whatsapp]
+  telegram: [web, memory, todo, cronjob, clarify, vision, skills,
+             session_search, browser, image_gen, tts]
+  discord: [web, memory, todo, cronjob, clarify, vision, skills,
+            session_search, browser, image_gen, tts]
+  whatsapp: [web, memory, todo, cronjob, clarify, vision, skills,
+             session_search, browser, image_gen, tts]
 
 # =============================================================================
 # Security — lazy installs permitidos (Pro tiene mas libertad)
@@ -30,19 +31,17 @@ security:
   allow_lazy_installs: true   # Pro puede instalar backends bajo demanda
 
 # =============================================================================
-# Terminal — Docker sandbox (NO local, aislado del host)
+# Terminal — deshabilitado por defecto en multi-tenant
 # =============================================================================
+# Para habilitar terminal sandboxed, el admin debe:
+# 1. Montar Docker socket en el container del tenant
+# 2. Cambiar backend a "docker"
+# 3. Agregar terminal al platform_toolsets
+# Esto se hace caso por caso, no por defecto.
 terminal:
-  backend: "docker"
-  cwd: "/workspace"
-  timeout: 180
-  lifetime_seconds: 300
-  docker_image: "nikolaik/python-nodejs:python3.11-nodejs20"
-  docker_run_as_host_user: false
-  container_cpu: 1
-  container_memory: 2048     # 2GB para el sandbox
-  container_disk: 10240      # 10GB
-  container_persistent: true  # Preservar filesystem entre sesiones
+  backend: "local"
+  cwd: "/opt/data/workspace"
+  timeout: 60
 
 # =============================================================================
 # Streaming
