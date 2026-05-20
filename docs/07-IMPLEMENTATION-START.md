@@ -15,35 +15,73 @@
 
 ---
 
-## Flujo de Pagos: Stripe → PostgreSQL → Meta-Agente
+## Flujo de Pagos: Manual via Telegram al Meta-Agente
 
 ```
-Stripe Checkout → Webhook → API → PostgreSQL → Meta-Agente → Container creado
+Admin (tú) escribe al meta-agente por Telegram → Meta-agente crea todo
 ```
 
-### Detalle:
+**No hay Stripe. No hay checkout automatizado.** El cobro es manual (transferencia, Zelle, Pago Móvil, lo que sea). Cuando el cliente paga, tú le dices al meta-agente que cree la instancia.
 
-1. **Usuario contacta por WhatsApp** → le mandamos link de Stripe Checkout
-2. **Stripe procesa pago** → envía webhook `checkout.session.completed`
-3. **Nuestro endpoint** (`/api/webhooks/stripe`) verifica firma y escribe en DB:
-   - `INSERT INTO tenants` (nuevo cliente)
-   - `INSERT INTO billing_events` (pago registrado)
-   - `INSERT INTO pending_actions` (acción: crear instancia)
-4. **Meta-agente** (polling cada 30s) lee `pending_actions`:
-   - Crea volumen + config + container
-   - Marca acción como completada
-   - Actualiza tenant status → 'active'
-5. **Notificamos al usuario** (WhatsApp): "Tu agente está listo"
+### Flujo Real:
 
-### Eventos de Stripe que manejamos:
+1. **Cliente te contacta por WhatsApp** → acuerdan plan y precio
+2. **Cliente paga** (transferencia, Zelle, Pago Móvil, crypto, lo que sea)
+3. **Tú confirmas el pago** y le escribes al meta-agente por Telegram:
 
-| Evento | Acción |
-|--------|--------|
-| `checkout.session.completed` | Crear tenant + instancia |
-| `invoice.paid` | Registrar pago, reactivar si estaba pausado |
-| `invoice.payment_failed` | Registrar fallo, enviar aviso |
-| `customer.subscription.deleted` | Pausar instancia, iniciar countdown de backup |
-| `customer.subscription.updated` | Upgrade/downgrade de plan |
+```
+Tú: "Crea un tenant nuevo:
+  - Nombre: Empresa XYZ
+  - Email: contacto@xyz.com
+  - Plan: equipo
+  - Plataforma: telegram
+  - Bot token: 123456:ABC..."
+
+Meta-agente: "Creando instancia para Empresa XYZ (plan equipo)...
+  ✓ Volumen creado
+  ✓ Config escrita (template equipo)
+  ✓ Container hermes-t004 iniciado
+  ✓ Health check OK
+  
+  Listo. El agente está activo en Telegram."
+```
+
+4. **Tú le dices al cliente**: "Tu agente está listo, escríbele a @xyz_bot"
+
+### Para Pausar/Reactivar:
+
+```
+Tú: "Pausa el tenant Empresa XYZ, no pagó este mes"
+Meta-agente: "Pausando hermes-t004...
+  ✓ Container detenido
+  ✓ Tenant marcado como 'paused'
+  Datos preservados. Se puede reactivar cuando pague."
+
+Tú: "Reactiva Empresa XYZ, ya pagó"
+Meta-agente: "Reactivando hermes-t004...
+  ✓ Container iniciado
+  ✓ Health check OK
+  ✓ Tenant marcado como 'active'"
+```
+
+### Para Conectar Integraciones:
+
+```
+Tú: "Conecta Google Workspace al tenant Empresa XYZ. 
+     El token OAuth es: ya29.xxx..."
+Meta-agente: "Inyectando credenciales de Google en hermes-t004...
+  ✓ google_token.json escrito
+  ✓ Container reiniciado
+  Google Workspace activo para Empresa XYZ."
+```
+
+### Ventajas de Este Enfoque:
+
+- **Sin infraestructura de pagos** (no Stripe, no webhooks, no checkout pages)
+- **Flexible** (aceptas cualquier método de pago)
+- **El meta-agente es tu interfaz** (todo se hace hablándole por Telegram)
+- **Puedes automatizar después** (agregar Stripe cuando tengas 50+ tenants)
+- **Menos código** (no necesitas API de webhooks en el MVP)
 
 ---
 
@@ -52,30 +90,21 @@ Stripe Checkout → Webhook → API → PostgreSQL → Meta-Agente → Container
 ```
 martes.app/
 ├── apps/
-│   ├── meta-agent/                 ← Agno meta-agente
-│   │   ├── src/
-│   │   │   ├── __init__.py
-│   │   │   ├── main.py            ← AgentOS entry point
-│   │   │   ├── config.py          ← DB, modelos, config
-│   │   │   ├── agent.py           ← Definición del meta-agente
-│   │   │   └── tools/
-│   │   │       ├── __init__.py
-│   │   │       ├── docker_ops.py  ← create/stop/restart containers
-│   │   │       ├── tenant_config.py ← write config/env/soul to volumes
-│   │   │       ├── billing.py     ← check payments, process actions
-│   │   │       ├── health.py      ← poll health, detect issues
-│   │   │       └── backup.py      ← tar.gz volumes, upload to R2
-│   │   ├── Dockerfile
-│   │   └── pyproject.toml
-│   │
-│   └── api/                        ← API mínima (webhooks + health)
+│   └── meta-agent/                 ← Agno meta-agente (ES TODO EL BACKEND)
 │       ├── src/
-│       │   ├── index.ts
-│       │   ├── webhooks/
-│       │   │   └── stripe.ts      ← Recibe webhooks de Stripe
-│       │   └── health.ts
+│       │   ├── __init__.py
+│       │   ├── main.py            ← AgentOS entry point (FastAPI + Telegram gateway)
+│       │   ├── config.py          ← DB, modelos, config
+│       │   ├── agent.py           ← Definición del meta-agente
+│       │   └── tools/
+│       │       ├── __init__.py
+│       │       ├── docker_ops.py  ← create/stop/restart containers
+│       │       ├── tenant_config.py ← write config/env/soul to volumes
+│       │       ├── tenant_db.py   ← CRUD tenants en PostgreSQL
+│       │       ├── health.py      ← poll health, detect issues
+│       │       └── backup.py      ← tar.gz volumes, upload to R2
 │       ├── Dockerfile
-│       └── package.json
+│       └── pyproject.toml
 │
 ├── db/
 │   └── migrations/
@@ -127,32 +156,35 @@ martes.app/
 ### Sprint 1 (esta semana): Infra + Meta-Agente
 
 1. `docker-compose.yml` (PostgreSQL + Traefik + meta-agente + Portainer)
-2. Schema SQL (migrations/001)
-3. Meta-agente Agno con tools básicos:
-   - `create_tenant_container()`
-   - `stop_tenant_container()`
-   - `check_health()`
-   - `process_pending_actions()`
+2. Schema SQL (tenants, configs, payments, health, errors)
+3. Meta-agente Agno con tools:
+   - `create_tenant()` — crea volumen + config + container
+   - `stop_tenant()` — para container
+   - `restart_tenant()` — reinicia container
+   - `list_tenants()` — muestra todos los tenants y su estado
+   - `register_payment()` — marca que un tenant pagó
+   - `check_health()` — verifica estado de todos los containers
 4. Templates de Hermes (config.yaml para cada tier)
-5. Script `create-tenant.sh` para testing manual
+5. Conectar meta-agente a Telegram (tú le hablas, él ejecuta)
 
-### Sprint 2: API + Stripe
+### Sprint 2: Integraciones + Wiki
 
-6. API mínima (Hono): webhook de Stripe + health check
-7. Integración Stripe → DB → pending_actions
-8. Meta-agente procesa acciones automáticamente
-9. Flujo completo: pago → container creado
+6. Tool para inyectar OAuth tokens (Google, Notion)
+7. Tool para inyectar wiki content inicial
+8. Tool para conectar Composio MCP
+9. Health monitoring automático (cron cada 5 min)
+10. Auto-restart en fallo
 
-### Sprint 3: Onboarding + Polish
+### Sprint 3: Backup + Producción
 
-10. Guía de setup de Telegram bot para el tenant
-11. Wiki injection (meta-agente escribe contenido inicial)
-12. Health monitoring + auto-restart
-13. Backup automatizado
+11. Backup automatizado (tar.gz → R2)
+12. Tool para pausar/reactivar con backup
+13. Deploy en VPS (Hetzner CX43)
+14. DNS + Cloudflare + Cloudflare Access
+15. Primer tenant real (beta)
 
-### Sprint 4: Producción
+### Sprint 4: Polish
 
-14. Deploy en VPS (Hetzner CX43)
-15. DNS + Cloudflare
-16. Primer tenant real (beta)
-17. Monitoring (Sentry + UptimeRobot)
+16. Monitoring (Sentry + UptimeRobot)
+17. Documentación para tenants (cómo usar su agente)
+18. Onboarding guiado (el meta-agente te guía por Telegram)
