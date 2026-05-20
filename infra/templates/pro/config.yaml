@@ -1,0 +1,49 @@
+# martes.app — Template Pro ($200/mo)
+# Todas las plataformas, Claude Haiku, toolset completo
+# Maximo rendimiento y capacidades
+
+model:
+  provider: openrouter
+  default: anthropic/claude-3.5-haiku
+  base_url: "https://openrouter.ai/api/v1"
+
+platform_toolsets:
+  telegram: [hermes-telegram]   # Todo incluido
+  discord: [hermes-discord]
+  whatsapp: [hermes-whatsapp]
+
+skills:
+  creation_nudge_interval: 10
+
+compression:
+  enabled: true
+  threshold: 0.50
+  target_ratio: 0.20
+  protect_last_n: 20
+
+memory:
+  memory_enabled: true
+  user_profile_enabled: true
+  memory_char_limit: 2200
+  user_char_limit: 1375
+  nudge_interval: 10
+
+session_reset:
+  mode: both
+  idle_minutes: 1440  # 24 horas
+  at_hour: 4
+
+agent:
+  max_turns: 60
+  reasoning_effort: "medium"
+
+# Playwright para browser automation
+browser:
+  provider: playwright
+  inactivity_timeout: 120
+
+# Code execution habilitado
+code_execution:
+  enabled: true
+  timeout: 30
+  sandbox: true

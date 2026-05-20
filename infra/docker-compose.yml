@@ -1,0 +1,106 @@
+services:
+  # PostgreSQL con pgvector (imagen oficial de Agno)
+  db:
+    image: agnohq/pgvector:18
+    container_name: martes-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: martes
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+      POSTGRES_DB: martes
+    volumes:
+      - /var/lib/martes/pg-data:/var/lib/postgresql/data
+      - ../db/migrations:/docker-entrypoint-initdb.d:ro
+    networks:
+      - platform-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U martes -d martes"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # Meta-agente (Agno AgentOS con Telegram Interface)
+  meta-agent:
+    build:
+      context: ..
+      dockerfile: apps/meta-agent/Dockerfile
+    container_name: martes-meta
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg://martes:${PG_PASSWORD}@db:5432/martes
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      TELEGRAM_TOKEN: ${META_AGENT_TELEGRAM_TOKEN}
+      APP_ENV: ${APP_ENV:-development}
+      TENANTS_BASE_PATH: /var/lib/martes/tenants
+      HERMES_IMAGE: nousresearch/hermes-agent:0.14.0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/martes/tenants:/var/lib/martes/tenants
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - platform-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # Traefik (reverse proxy para dashboards de tenants)
+  traefik:
+    image: traefik:v3.4
+    container_name: martes-traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_certs:/letsencrypt
+    networks:
+      - platform-net
+      - tenant-net
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  # Portainer (UI de emergencia, solo via Tailscale)
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: martes-portainer
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    networks:
+      - platform-net
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+volumes:
+  traefik_certs:
+  portainer_data:
+
+networks:
+  platform-net:
+    name: martes-platform
+  tenant-net:
+    name: martes-tenants
