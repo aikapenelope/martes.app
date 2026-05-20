@@ -375,3 +375,41 @@ networks:
 - Sin Coolify ✓
 
 **Infraestructura final validada. Lista para implementar.**
+
+---
+
+## 9. Correcciones Post-Revisión (Admin Feedback)
+
+### Puerto 8000: Expuesto via Tailscale (no cerrado)
+
+El puerto 8000 del meta-agente se expone pero SOLO accesible via Tailscale:
+- Para debugging desde tu computadora
+- Para ver traces y sesiones
+- Para acceder al API del AgentOS directamente
+- Firewall bloquea acceso desde internet público
+
+### Token Overhead: No recortar agresivamente
+
+DeepSeek V4 tiene 90% descuento en cache hits. El system prompt + tools se cachean automáticamente. El costo real con cache:
+- Sin cache: $0.0042/request
+- Con cache: $0.00042/request (10x más barato)
+
+**Decisión**: Mantener toolsets completos para mejor experiencia. El cache absorbe el overhead. No degradar la experiencia del usuario por ahorrar fracciones de centavo.
+
+### Telegram Interface de Agno: Features completas
+
+La interface nativa incluye:
+- Streaming (token-by-token, edita mensaje en tiempo real)
+- User memory (recuerda cada admin entre sesiones)
+- PostgresDb (sesiones + traces en la misma DB)
+- Scheduler (cron jobs nativos para health checks)
+- Background hooks (tareas largas sin bloquear Telegram)
+- requires_confirmation (pide confirmación antes de acciones destructivas)
+- Webhook automático en producción (polling en dev)
+
+### Webhook vs Polling
+
+- **Desarrollo** (`APP_ENV=development`): Agno usa polling (no necesita dominio)
+- **Producción** (`APP_ENV=production`): Agno usa webhook (necesita HTTPS público)
+
+Para producción del meta-agente: el webhook de Telegram llega via Traefik al puerto 8000 del container. Traefik maneja HTTPS.
