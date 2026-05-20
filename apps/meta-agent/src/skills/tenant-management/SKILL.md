@@ -1,9 +1,7 @@
 ---
 name: tenant-management
 description: "Procedimientos para gestionar tenants Hermes en martes.app"
-version: 1.0.0
-author: martes.app
-platforms: [linux]
+license: MIT
 metadata:
   tags: [infrastructure, docker, tenants, hermes]
   category: operations

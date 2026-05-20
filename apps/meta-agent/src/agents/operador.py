@@ -12,6 +12,7 @@ from src.shared import (
     db,
     knowledge_base,
     learning,
+    skills,
 )
 from src.tools.read_ops import container_health, get_tenant_detail, list_containers
 from src.tools.write_ops import (
@@ -52,6 +53,8 @@ operador = Agent(
     knowledge=knowledge_base,
     search_knowledge=True,
     learning=learning,
+    # Skills (lazy-loaded)
+    skills=skills,
     # Context
     db=db,
     add_history_to_context=True,

@@ -19,6 +19,7 @@ from agno.learn import (
 )
 from agno.learn.machine import LearningMachine
 from agno.models.openai import OpenAIChat
+from agno.skills import LocalSkills, Skills
 from agno.vectordb.lancedb import LanceDb, SearchType
 
 from src.config import settings
@@ -132,3 +133,12 @@ compression = CompressionManager(
     model=FAST_MODEL,
     compress_tool_results=True,
 )
+
+# ---------------------------------------------------------------------------
+# Skills (lazy-loaded domain knowledge)
+# ---------------------------------------------------------------------------
+# Skills are loaded on demand: agents see summaries in their system prompt,
+# then load full instructions only when relevant. Saves tokens.
+
+_SKILLS_DIR = Path(__file__).parent / "skills"
+skills = Skills(loaders=[LocalSkills(str(_SKILLS_DIR))]) if _SKILLS_DIR.exists() else None

@@ -5,6 +5,7 @@ Tiene acceso a: containers, logs, health, stats, DB (read-only).
 """
 
 from agno.agent import Agent
+from agno.tools.docker import DockerTools
 
 from src.shared import (
     PRIMARY_MODEL,
@@ -12,6 +13,7 @@ from src.shared import (
     db,
     knowledge_base,
     learning,
+    skills,
 )
 from src.tools.read_ops import (
     check_all_health,
@@ -21,6 +23,18 @@ from src.tools.read_ops import (
     get_all_tenants,
     get_tenant_detail,
     list_containers,
+)
+
+# DockerTools oficial de Agno — solo funciones de lectura
+_docker_read = DockerTools(
+    include_tools=[
+        "list_containers",
+        "get_container_logs",
+        "inspect_container",
+        "list_networks",
+        "list_volumes",
+        "list_images",
+    ]
 )
 
 diagnosticador = Agent(
@@ -34,6 +48,7 @@ diagnosticador = Agent(
     ),
     model=PRIMARY_MODEL,
     tools=[
+        # Custom read tools (martes-specific)
         list_containers,
         container_health,
         container_logs,
@@ -41,6 +56,8 @@ diagnosticador = Agent(
         check_all_health,
         get_all_tenants,
         get_tenant_detail,
+        # Agno DockerTools (general Docker inspection)
+        _docker_read,
     ],
     tool_call_limit=8,
     retries=1,
@@ -48,6 +65,8 @@ diagnosticador = Agent(
     knowledge=knowledge_base,
     search_knowledge=True,
     learning=learning,
+    # Skills (lazy-loaded)
+    skills=skills,
     # Context
     db=db,
     add_history_to_context=True,
