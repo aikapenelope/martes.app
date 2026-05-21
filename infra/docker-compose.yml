@@ -118,20 +118,23 @@ services:
           memory: 128M
 
   # ==========================================================================
-  # Portainer — UI de gestion Docker (solo via Tailscale)
+  # Portainer — UI de gestion Docker via deploy.martes.app
   # ==========================================================================
   portainer:
     image: portainer/portainer-ce:latest
     container_name: martes-portainer
     restart: unless-stopped
-    ports:
-      - "100.104.89.128:9000:9000"    # Solo accesible via Tailscale
-      - "100.104.89.128:9443:9443"    # HTTPS via Tailscale
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data
     networks:
       - platform-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.portainer.rule=Host(`deploy.martes.app`)"
+      - "traefik.http.routers.portainer.entrypoints=websecure"
+      - "traefik.http.routers.portainer.tls.certresolver=letsencrypt"
+      - "traefik.http.services.portainer.loadbalancer.server.port=9000"
     deploy:
       resources:
         limits:
