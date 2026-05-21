@@ -79,6 +79,8 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    environment:
+      - DOCKER_API_VERSION=1.41
     command:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
