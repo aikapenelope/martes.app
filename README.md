@@ -8,31 +8,29 @@ SaaS de agentes Hermes gestionados por un meta-agente Agno. PYMEs pagan $30-200/
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│ Servidor (Hetzner CX43 — 8 vCPU, 16 GB RAM)                         │
-│                                                                       │
-│  ┌─────────────────────────────────────────────────────────────┐    │
-│  │ Infraestructura de Plataforma                                │    │
-│  │                                                               │    │
-│  │  ┌──────────┐  ┌──────────────┐  ┌──────────┐  ┌────────┐  │    │
-│  │  │ Traefik  │  │ Meta-Agente  │  │PostgreSQL│  │Portainer│  │    │
-│  │  │ :80/:443 │  │   (Agno)     │  │(pgvector)│  │  :9000  │  │    │
-│  │  │          │  │   :8000*     │  │  :5432   │  │         │  │    │
-│  │  └──────────┘  └──────────────┘  └──────────┘  └────────┘  │    │
-│  │  * Puerto 8000 solo via Tailscale                            │    │
-│  └─────────────────────────────────────────────────────────────┘    │
-│                                                                       │
-│  ┌─────────────────────────────────────────────────────────────┐    │
-│  │ Containers de Tenants (Hermes Agent v0.14.0)                 │    │
-│  │                                                               │    │
-│  │  ┌───────────┐  ┌───────────┐  ┌───────────┐               │    │
-│  │  │hermes-t001│  │hermes-t002│  │hermes-t003│  ...           │    │
-│  │  │ Telegram  │  │ Discord   │  │ Telegram  │               │    │
-│  │  │ Google WS │  │ GitHub    │  │ Notion    │               │    │
-│  │  │ Notion    │  │ Linear    │  │ Airtable  │               │    │
-│  │  │ ~400MB    │  │ ~700MB    │  │ ~400MB    │               │    │
-│  │  └───────────┘  └───────────┘  └───────────┘               │    │
-│  │  Cada uno en su propia bridge network (aislados)             │    │
-│  └─────────────────────────────────────────────────────────────┘    │
+│ Servidor (Hetzner CX43 — 8 vCPU, 16 GB RAM)                        │
+│                                                                      │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │ Coolify (orquestador + reverse proxy + SSL)                   │   │
+│  │                                                                │   │
+│  │  ┌──────────────────────┐  ┌──────────────────────────────┐  │   │
+│  │  │   Meta-Agente (Agno) │  │ PostgreSQL (agnohq/pgvector)  │  │   │
+│  │  │   api.martes.app     │  │   :5432 (interno)            │  │   │
+│  │  │   :7777 (interno)    │  └──────────────────────────────┘  │   │
+│  │  │   :8001 Tailscale    │                                     │   │
+│  │  └──────────────────────┘                                     │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │ Containers de Tenants (Hermes Agent v0.14.0)                  │   │
+│  │                                                                │   │
+│  │  ┌───────────┐  ┌───────────┐  ┌───────────┐                │   │
+│  │  │hermes-t001│  │hermes-t002│  │hermes-t003│  ...           │   │
+│  │  │ Telegram  │  │ Discord   │  │ Telegram  │                │   │
+│  │  │ ~400MB    │  │ ~700MB    │  │ ~400MB    │                │   │
+│  │  └───────────┘  └───────────┘  └───────────┘                │   │
+│  │  Cada uno en su propia bridge network (aislados)              │   │
+│  └──────────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -40,15 +38,15 @@ SaaS de agentes Hermes gestionados por un meta-agente Agno. PYMEs pagan $30-200/
 
 ## Stack Técnico
 
-| Componente | Tecnología | Versión |
-|-----------|-----------|---------|
-| Meta-agente | Agno AgentOS + Telegram Interface | v2.6.x |
-| DB | `agnohq/pgvector:18` (PostgreSQL 18 + pgvector) | 18 |
-| Tenants | `nousresearch/hermes-agent` | v0.14.0 (pinned) |
-| Reverse proxy | Traefik | v3.4 |
-| VPN admin | Tailscale | latest |
-| Viewer emergencia | Portainer CE | latest |
-| LLM | DeepSeek V4 via OpenRouter | — |
+| Componente      | Tecnología                                     | Versión   |
+|-----------------|------------------------------------------------|-----------|
+| Meta-agente     | Agno AgentOS + Telegram Interface              | v2.6.x    |
+| DB              | `agnohq/pgvector:18` (PostgreSQL 18 + pgvector)| 18        |
+| Tenants         | `nousresearch/hermes-agent`                    | v0.14.0   |
+| Orquestador     | Coolify (reverse proxy + SSL + deployments)    | latest    |
+| VPN admin       | Tailscale                                      | latest    |
+| LLM             | DeepSeek V4 via OpenRouter                     | —         |
+| Infraestructura | Hetzner Cloud via Pulumi (TypeScript)          | —         |
 
 ---
 
@@ -72,31 +70,44 @@ SaaS de agentes Hermes gestionados por un meta-agente Agno. PYMEs pagan $30-200/
 4. Admin le dice al cliente: "Tu agente está listo, escríbele a @xyz_bot"
 ```
 
+### Flujo de Deploy Automático
+
+```
+git push → main
+    └── GitHub Actions
+          ├── Build imagen ghcr.io/aikapenelope/martes-meta-agent:latest
+          └── GET COOLIFY_WEBHOOK_URL
+                └── Coolify
+                      ├── git pull infra/docker-compose.yml
+                      ├── docker pull ghcr.io/.../martes-meta-agent:latest
+                      └── docker compose up -d meta-agent
+```
+
 ### Gestión via Telegram
 
 ```
 Admin: "Lista todos los tenants"
 Meta:  "3 tenants activos:
         • Empresa XYZ (equipo) — healthy, 15 días restantes
-        • Dev Studio (pro) — healthy, 28 días restantes  
+        • Dev Studio (pro) — healthy, 28 días restantes
         • Freelancer Juan (básico) — healthy, 5 días restantes"
 
 Admin: "Pausa Freelancer Juan, no pagó"
-Meta:  "✓ Container hermes-t003 detenido. Datos preservados."
+Meta:  "Container hermes-t003 detenido. Datos preservados."
 
 Admin: "Conecta Google Workspace a Empresa XYZ, token: ya29.xxx"
-Meta:  "✓ google_token.json inyectado. Container reiniciado. Google activo."
+Meta:  "google_token.json inyectado. Container reiniciado. Google activo."
 ```
 
 ---
 
 ## Tiers
 
-| Tier | Precio | Plataformas | Skills | Modelo | RAM |
-|------|--------|-------------|--------|--------|-----|
-| **Básico** | $30/mo | 1 (Telegram) | Google WS, email, Notion, Airtable | DeepSeek V4 | ~400MB |
-| **Equipo** | $100/mo | 2 (Telegram + Discord) | Todo oficina + wiki + OCR + vision | DeepSeek V4 | ~600MB |
-| **Pro** | $200/mo | Todas | Todo + GitHub + Linear + browser + code | Claude Haiku | ~1GB |
+| Tier       | Precio  | Plataformas              | Skills                              | Modelo       | RAM   |
+|------------|---------|--------------------------|-------------------------------------|--------------|-------|
+| **Básico** | $30/mo  | 1 (Telegram)             | Google WS, email, Notion, Airtable  | DeepSeek V4  | ~400MB|
+| **Equipo** | $100/mo | 2 (Telegram + Discord)   | Todo oficina + wiki + OCR + vision  | DeepSeek V4  | ~600MB|
+| **Pro**    | $200/mo | Todas                    | Todo + GitHub + Linear + code       | Claude Haiku | ~1GB  |
 
 **Capacidad por servidor**: ~24 tenants (mix típico) = ~$2,000/mo revenue en un servidor de $16/mo.
 
@@ -110,14 +121,11 @@ martes.app/
 │   └── meta-agent/                 # Agno AgentOS (FastAPI + Telegram)
 │       ├── src/
 │       │   ├── main.py             # AgentOS entry point
-│       │   ├── config.py           # PostgresDb, modelos, config
-│       │   ├── agent.py            # Meta-agente (instrucciones + tools)
-│       │   └── tools/
-│       │       ├── docker_ops.py   # create/stop/restart/list containers
-│       │       ├── tenant_config.py # write config/env/soul to volumes
-│       │       ├── tenant_db.py    # CRUD tenants en PostgreSQL
-│       │       ├── health.py       # poll health de todos los containers
-│       │       └── backup.py       # tar.gz → R2
+│       │   ├── team.py             # Team(coordinate) Diagnosticador + Operador
+│       │   ├── shared.py           # DB, Models, Learning, Skills
+│       │   └── agents/
+│       │       ├── diagnosticador.py  # Read-only agent
+│       │       └── operador.py        # Write agent con @approval
 │       ├── Dockerfile
 │       └── pyproject.toml
 │
@@ -126,27 +134,20 @@ martes.app/
 │       └── 001_initial.sql         # Schema: tenants, configs, payments, health, errors
 │
 ├── infra/
-│   ├── docker-compose.yml          # PostgreSQL + Traefik + meta-agente + Portainer
-│   ├── bootstrap.sh                # Setup completo de VPS nuevo
-│   └── templates/                  # Configs preconfigurados de Hermes
+│   ├── docker-compose.yml          # Solo servicios de app: PostgreSQL + meta-agente
+│   ├── .env.example                # Variables requeridas
+│   └── templates/                  # Configs preconfigurados de Hermes por tier
 │       ├── basico/
-│       │   ├── config.yaml         # Toolset mínimo, DeepSeek, 1 plataforma
-│       │   ├── env.template        # Variables de entorno
-│       │   └── SOUL.md             # Personalidad default
 │       ├── equipo/
-│       │   ├── config.yaml         # Toolset completo oficina, wiki, vision
-│       │   ├── env.template
-│       │   └── SOUL.md
 │       └── pro/
-│           ├── config.yaml         # Todo habilitado, browser, code execution
-│           ├── env.template
-│           └── SOUL.md
 │
-├── docs/                           # Planificación completa (8 documentos)
+├── pulumi/                         # Infraestructura Hetzner (TypeScript)
+│   ├── index.ts                    # Servidor CX43 + SSH + Firewall + cloud-init
+│   └── Pulumi.dev.yaml
 │
 └── .github/
     └── workflows/
-        └── cd.yml                  # Build meta-agent image → GHCR
+        └── cd.yml                  # Build GHCR + trigger Coolify webhook
 ```
 
 ---
@@ -169,39 +170,17 @@ Una sola instancia `agnohq/pgvector:18` (~200MB RAM) para:
 
 ---
 
-## Hermes: Cómo Funciona Cada Tenant
-
-Cada tenant es un container `nousresearch/hermes-agent:0.14.0` con:
-
-**Almacenamiento** (volumen en `/var/lib/martes/tenants/{id}/`):
-- `state.db` — SQLite con sesiones, historial, búsqueda FTS5
-- `config.yaml` — configuración completa del agente
-- `.env` — API keys (OpenRouter, bot token)
-- `SOUL.md` — personalidad del agente
-- `wiki/` — LLM Wiki (conocimiento acumulativo del equipo)
-- `memories/` — memoria persistente por usuario
-- `skills/` — skills instalados
-- `cron/` — jobs programados
-
-**Red**: Bridge network aislada (no ve otros tenants ni la DB de plataforma)
-
-**Recursos**: Limitados por Docker (`--memory`, `--cpus`) según tier
-
-**Actualización**: Version pinned. No auto-update. Admin decide cuándo actualizar.
-
----
-
 ## Seguridad
 
-| Capa | Mecanismo |
-|------|-----------|
-| Aislamiento de tenants | Bridge network separada + volumen propio |
-| Acceso al meta-agente | Solo via Telegram (bot privado del admin) |
-| Puerto 8000 (API) | Solo accesible via Tailscale |
-| Dashboard de tenants | Cloudflare Access (login por email) |
-| Docker socket | Solo el meta-agente lo tiene (no los tenants) |
-| Credenciales | En .env con permisos 600, nunca en código |
-| Backups | Encriptados antes de subir a R2 |
+| Capa                    | Mecanismo                                              |
+|-------------------------|--------------------------------------------------------|
+| Aislamiento de tenants  | Bridge network separada + volumen propio               |
+| Acceso al meta-agente   | Solo via Telegram (bot privado del admin)              |
+| AgentOS API (:8001)     | Solo accesible via Tailscale                           |
+| Coolify UI (:8000)      | Solo accesible via Tailscale (UFW + firewall Hetzner)  |
+| Docker socket           | Solo el meta-agente lo tiene (no los tenants)          |
+| Credenciales            | En Coolify env vars, nunca en código                   |
+| Backups                 | Encriptados antes de subir a R2                        |
 
 ---
 
@@ -209,15 +188,12 @@ Cada tenant es un container `nousresearch/hermes-agent:0.14.0` con:
 
 ```
 Día 0:   Activo
-Día 30:  No paga → Admin le escribe al meta-agente: "Pausa tenant X"
-         → Container detenido, datos preservados
-Día 45:  No paga → "Archiva tenant X"
-         → Backup a R2, volumen local eliminado
-Día 90:  No paga → Backup eliminado de R2
-         → Datos perdidos permanentemente
+Día 30:  No paga → Admin: "Pausa tenant X" → Container detenido, datos preservados
+Día 45:  No paga → Admin: "Archiva tenant X" → Backup a R2, volumen local eliminado
+Día 90:  No paga → Backup eliminado de R2 → Datos perdidos permanentemente
 
-Si paga después (antes de día 90):
-         → "Reactiva tenant X"
+Si paga antes del día 90:
+         → Admin: "Reactiva tenant X"
          → Descarga backup de R2, crea container, todo restaurado
 ```
 
@@ -236,34 +212,29 @@ Si paga después (antes de día 90):
 ### Via Composio MCP (add-on):
 - 1000+ apps (Slack, HubSpot, Salesforce, Trello, Jira, etc.)
 - OAuth gestionado por Composio
-- Config: una línea en `config.yaml` del tenant
-
-### LLM Wiki (incluido en todos):
-- Base de conocimiento en markdown
-- El agente la construye y consulta automáticamente
-- Meta-agente inyecta contenido inicial (info de empresa, equipo, procesos)
 
 ---
 
-## Desarrollo
+## Desarrollo Local
 
 ### Requisitos
 - Python 3.12+
 - Docker + Docker Compose
-- Una API key de OpenRouter
-- Un bot token de Telegram (para el meta-agente)
+- API key de OpenRouter
+- Bot token de Telegram
 
-### Setup Local
+### Setup
 
 ```bash
 git clone https://github.com/aikapenelope/martes.app.git
 cd martes.app
 
 # Configurar variables
-cp infra/.env.example .env
-# Editar .env con tus keys
+cp infra/.env.example infra/.env
+# Editar infra/.env con tus keys (APP_ENV=development para polling local)
 
-# Levantar infra
+# Levantar infra local
+docker network create martes-tenants  # red de tenants (external en el compose)
 docker compose -f infra/docker-compose.yml up -d
 
 # Desarrollar meta-agente
@@ -273,31 +244,53 @@ pip install -e ".[dev]"
 python src/main.py
 ```
 
-### Deploy a Producción
+---
+
+## Provisionar un VPS Nuevo (Pulumi)
 
 ```bash
-# Opción A: VPS nuevo manual
-ssh root@<IP>
-git clone https://github.com/aikapenelope/martes.app.git /opt/martes
-cd /opt/martes && bash infra/bootstrap.sh
-
-# Opción B: Pulumi (crea el VPS automáticamente)
 cd pulumi/
+
+# Configurar (primera vez)
+pulumi stack select dev
+
+# Opcional: auto-join Tailscale en el boot
+pulumi config set --secret martes-infra:tailscaleAuthKey <tskey-...>
+
+# Crear servidor en Hetzner
 pulumi up
 ```
 
+El servidor arranca con Docker + Tailscale + Coolify pre-instalados via cloud-init.
+
+### Setup inicial de Coolify (una sola vez tras el boot)
+
+1. Conectar via Tailscale y abrir `http://<tailscale-ip>:8000`
+2. Crear cuenta admin
+3. **Servers** → Add Server → localhost (via SSH local)
+4. **New Project** → New Resource → Docker Compose → Git repository
+   - URL: `https://github.com/aikapenelope/martes.app`
+   - Compose path: `infra/docker-compose.yml`
+   - Branch: `main`
+5. Configurar dominio `api.martes.app` en el servicio `meta-agent`
+6. **Registries** → Add → Custom (`ghcr.io`) + GitHub PAT con `read:packages`
+7. **Environment Variables** → agregar `PG_PASSWORD`, `OPENROUTER_API_KEY`, `META_AGENT_TELEGRAM_TOKEN`
+8. Deploy → copiar el **Webhook URL** del servicio
+9. En GitHub repo → **Settings → Secrets** → agregar `COOLIFY_WEBHOOK_URL` con el valor copiado
+10. Registrar webhook de Telegram:
+    ```bash
+    curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://api.martes.app/telegram/webhook"
+    ```
+
 ---
 
-## Documentación Completa
+## Documentación
 
 | Doc | Contenido |
 |-----|-----------|
 | [00-ARCHITECTURE-PLAN](docs/00-ARCHITECTURE-PLAN.md) | Visión general del SaaS |
 | [01-DEEP-RESEARCH](docs/01-DEEP-RESEARCH-FINDINGS.md) | Browser, tokens, multi-tenant, costos |
 | [02-DOCKER-INFRA](docs/02-DOCKER-INFRA-EXPLAINED.md) | Docker, redes, DB, patrones de producción |
-| [03-DECISIONS](docs/03-WHATS-NEXT-DECISION-MATRIX.md) | Coolify (no), bridge (sí), orden de implementación |
 | [04-PRODUCT](docs/04-PRODUCT-DECISIONS-FINAL.md) | Precio, templates, seguridad, no-pago |
 | [05-MEMORY-WIKI](docs/05-MEMORY-WIKI-LLM-DECISIONS.md) | Wiki, memoria, LLM incluido |
 | [06-ADDONS](docs/06-ADDONS-COMPOSIO-MEMORY.md) | Composio, Honcho, add-ons |
-| [07-IMPLEMENTATION](docs/07-IMPLEMENTATION-START.md) | Sprints, estructura, flujo de pagos |
-| [08-VALIDATION](docs/08-VALIDATION-AUDIT.md) | Auditoría pre-implementación, errores corregidos |
