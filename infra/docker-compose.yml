@@ -112,7 +112,6 @@ services:
           memory: 128M
 
   # Portainer (UI de gestion Docker — accesible solo via Tailscale)
-  portainer:
     image: portainer/portainer-ce:latest
     container_name: martes-portainer
     restart: unless-stopped

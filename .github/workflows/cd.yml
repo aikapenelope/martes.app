@@ -12,25 +12,24 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - name: Setup SSH key
+      - name: Trigger deploy webhook
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.VPS_SSH_KEY }}" | base64 -d > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "X-Deploy-Secret: martes-deploy-2026" \
+            -d '{"ref":"main"}' \
+            http://${{ secrets.VPS_HOST }}:9876/deploy)
 
-      - name: Deploy
+          echo "Response: $response"
+          if [ "$response" != "200" ]; then
+            echo "Deploy webhook failed with status $response"
+            exit 1
+          fi
+          echo "Deploy triggered successfully"
+
+      - name: Wait and verify
         run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} '
-            set -e
-            cd /opt/martes
-            echo "=== Pulling latest code ==="
-            git fetch origin main
-            git checkout main
-            git pull origin main
-            echo "=== Rebuilding services ==="
-            docker compose -f infra/docker-compose.yml up -d --build
-            sleep 15
-            docker ps --format "{{.Names}}: {{.Status}}"
-            echo "=== Deploy complete ==="
-          '
+          echo "Waiting 60s for deploy to complete..."
+          sleep 60
+          echo "Deploy initiated. Check server logs for status."
