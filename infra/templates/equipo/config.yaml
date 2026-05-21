@@ -40,3 +40,12 @@ agent:
 browser:
   provider: firecrawl
   inactivity_timeout: 60
+
+display:
+  tool_progress: all
+  interim_assistant_messages: true
+  cleanup_progress: true
+  busy_input_mode: queue      # Guardar mensajes durante restart
+
+agent:
+  restart_drain_timeout: 60

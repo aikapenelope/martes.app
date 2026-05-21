@@ -47,3 +47,12 @@ code_execution:
   enabled: true
   timeout: 30
   sandbox: true
+
+display:
+  tool_progress: all
+  interim_assistant_messages: true
+  cleanup_progress: true
+  busy_input_mode: steer      # Redirigir sin interrumpir (Pro tiene tareas largas)
+
+agent:
+  restart_drain_timeout: 120  # 2 minutos para proyectos largos

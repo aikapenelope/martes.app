@@ -35,3 +35,9 @@ session_reset:
 agent:
   max_turns: 30
   reasoning_effort: "low"
+  restart_drain_timeout: 30   # Esperar 30s para terminar antes de reiniciar
+
+display:
+  tool_progress: new
+  interim_assistant_messages: false
+  busy_input_mode: queue      # Guardar mensajes durante restart, no perderlos
