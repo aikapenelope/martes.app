@@ -130,19 +130,20 @@ def create_tenant(name: str, plan: str, bot_token: str, email: str = "") -> str:
             "log_config": {"Type": "json-file", "Config": {"max-size": "50m", "max-file": "3"}},
             "labels": {
                 "martes.tenant": tenant_code, "martes.plan": plan,
-                # Traefik labels — compatibles con Coolify's Traefik (certresolver: letsencrypt)
+                # Traefik labels para routing de Coolify.
+                # entryPoints=http — patrón documentado por Coolify para Docker Compose.
+                # Coolify gestiona TLS/HTTPS automáticamente vía su proxy.
+                # Ref: https://coolify.io/docs/knowledge-base/docker/compose
                 "traefik.enable": "true",
                 f"traefik.http.routers.{tenant_code}.rule": f"Host(`{tenant_code}.martes.app`)",
-                f"traefik.http.routers.{tenant_code}.entrypoints": "websecure",
-                f"traefik.http.routers.{tenant_code}.tls.certresolver": "letsencrypt",
+                f"traefik.http.routers.{tenant_code}.entryPoints": "http",
                 f"traefik.http.services.{tenant_code}.loadbalancer.server.port": "8642",
             },
         }
         container = c.containers.run(**kwargs)
-        # Conectar redes adicionales tras el arranque.
-        # "coolify" es la red del proxy de Coolify — necesaria para que su Traefik
-        # enrute tXXX.martes.app al container. En dev local el except la ignora.
-        for network_name in ["martes-tenants", "coolify"]:
+        # Conectar a martes-tenants para aislamiento entre tenants.
+        # Coolify gestiona la conectividad con su proxy via su red interna del stack.
+        for network_name in ["martes-tenants"]:
             try:
                 c.networks.get(network_name).connect(container)
             except (NotFound, APIError):
