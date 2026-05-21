@@ -121,6 +121,35 @@ services:
           memory: 128M
 
   # ==========================================================================
+  # Deploy webhook — hook.martes.app → git pull + docker compose up
+  # ==========================================================================
+  deploy-hook:
+    build:
+      context: .
+      dockerfile: Dockerfile.webhook
+    container_name: martes-deploy-hook
+    restart: unless-stopped
+    environment:
+      DEPLOY_SECRET: ${DEPLOY_SECRET}
+      DEPLOY_PORT: "9876"
+    volumes:
+      - /opt/martes:/opt/martes
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/log:/var/log
+    networks:
+      - platform-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.deploy-hook.rule=Host(`hook.martes.app`)"
+      - "traefik.http.routers.deploy-hook.entrypoints=websecure"
+      - "traefik.http.routers.deploy-hook.tls.certresolver=letsencrypt"
+      - "traefik.http.services.deploy-hook.loadbalancer.server.port=9876"
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+  # ==========================================================================
   # Portainer — UI de gestion Docker en deploy.martes.app
   # ==========================================================================
   portainer:
