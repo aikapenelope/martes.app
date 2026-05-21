@@ -1,0 +1,39 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:   # Permite disparar manualmente desde GitHub UI
+
+jobs:
+  deploy:
+    name: Deploy martes.app
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: 22
+          timeout: 300s
+          script: |
+            set -e
+            cd /opt/martes
+
+            echo "=== Pulling latest code ==="
+            git fetch origin main
+            git checkout main
+            git pull origin main
+
+            echo "=== Rebuilding and restarting services ==="
+            docker compose -f infra/docker-compose.yml up -d --build
+
+            echo "=== Verifying health ==="
+            sleep 15
+            docker ps --format "{{.Names}}: {{.Status}}"
+
+            echo "=== Deploy complete ==="
