@@ -1,0 +1,34 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Trigger deploy webhook
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Send deploy webhook
+        run: |
+          PAYLOAD='{"ref":"main","repo":"martes.app"}'
+          SIGNATURE="sha256=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "${{ secrets.DEPLOY_SECRET }}" | awk '{print $2}')"
+
+          HTTP_CODE=$(curl -s -o /tmp/response.txt -w "%{http_code}" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "X-Hub-Signature-256: $SIGNATURE" \
+            -d "$PAYLOAD" \
+            https://hook.martes.app/deploy)
+
+          echo "Response code: $HTTP_CODE"
+          cat /tmp/response.txt
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Deploy webhook failed"
+            exit 1
+          fi
+          echo "Deploy triggered successfully"
