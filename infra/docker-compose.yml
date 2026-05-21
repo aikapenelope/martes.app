@@ -1,5 +1,8 @@
 services:
+
+  # ==========================================================================
   # PostgreSQL con pgvector (imagen oficial de Agno)
+  # ==========================================================================
   db:
     image: agnohq/pgvector:18
     container_name: martes-db
@@ -36,7 +39,9 @@ services:
         limits:
           memory: 256M
 
-  # Meta-agente (Agno AgentOS con Telegram Interface)
+  # ==========================================================================
+  # Meta-agente Agno (AgentOS + Telegram)
+  # ==========================================================================
   meta-agent:
     build:
       context: ..
@@ -44,7 +49,7 @@ services:
     container_name: martes-meta
     restart: unless-stopped
     ports:
-      - "100.104.89.128:8000:7777"   # AgentOS API via Tailscale → os.agno.com
+      - "100.104.89.128:8000:7777"   # AgentOS API via Tailscale
     environment:
       DATABASE_URL: postgresql+psycopg://martes:${PG_PASSWORD}@db:5432/martes
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
@@ -55,23 +60,26 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /var/lib/martes/tenants:/var/lib/martes/tenants
+      - /var/lib/martes/meta-agent:/var/lib/martes/meta-agent
     depends_on:
       db:
         condition: service_healthy
     networks:
       - platform-net
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:7777/health || exit 1"]
       interval: 30s
       timeout: 10s
-      start_period: 20s
+      start_period: 25s
       retries: 3
     deploy:
       resources:
         limits:
           memory: 512M
 
-  # Traefik (reverse proxy para dashboards de tenants)
+  # ==========================================================================
+  # Traefik v3.4 — reverse proxy + SSL automatico
+  # ==========================================================================
   traefik:
     image: traefik:v3.4
     container_name: martes-traefik
@@ -80,7 +88,7 @@ services:
       - "80:80"
       - "443:443"
     environment:
-      - DOCKER_API_VERSION=1.41
+      - DOCKER_API_VERSION=1.41    # Fix compatibilidad con Docker API 1.54
     command:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
@@ -90,10 +98,8 @@ services:
       - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
       - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
       - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
-      # Security: disable dashboard, enable ping for healthcheck
       - "--api.dashboard=false"
       - "--ping=true"
-      # Logging
       - "--accesslog=true"
       - "--accesslog.bufferingsize=100"
       - "--log.level=WARN"
@@ -113,13 +119,16 @@ services:
         limits:
           memory: 128M
 
-  # Portainer (UI de gestion Docker — accesible solo via Tailscale)
+  # ==========================================================================
+  # Portainer — UI de gestion Docker (solo via Tailscale)
+  # ==========================================================================
+  portainer:
     image: portainer/portainer-ce:latest
     container_name: martes-portainer
     restart: unless-stopped
     ports:
-      - "100.104.89.128:9000:9000"   # Solo via Tailscale IP
-      - "100.104.89.128:9443:9443"   # HTTPS via Tailscale
+      - "100.104.89.128:9000:9000"    # Solo accesible via Tailscale
+      - "100.104.89.128:9443:9443"    # HTTPS via Tailscale
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data
