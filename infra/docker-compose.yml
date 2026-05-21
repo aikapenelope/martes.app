@@ -69,6 +69,7 @@ services:
     networks:
       - platform-net
       - tenant-net
+      - coolify-net
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:7777/health || exit 1"]
       interval: 30s
@@ -93,3 +94,7 @@ networks:
   tenant-net:
     name: martes-tenants
     external: true   # Pre-creada por cloud-init; no se toca en redeploys
+
+  coolify-net:
+    name: coolify
+    external: true   # Red del proxy de Coolify; permite que su Traefik enrute api.martes.app y tXXX.martes.app
