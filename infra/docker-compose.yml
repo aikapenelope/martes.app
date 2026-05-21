@@ -43,9 +43,7 @@ services:
   # Meta-agente Agno (AgentOS + Telegram)
   # ==========================================================================
   meta-agent:
-    build:
-      context: ..
-      dockerfile: apps/meta-agent/Dockerfile
+    image: ghcr.io/aikapenelope/martes-meta-agent:latest
     container_name: martes-meta
     restart: unless-stopped
     ports:
@@ -54,9 +52,16 @@ services:
       DATABASE_URL: postgresql+psycopg://martes:${PG_PASSWORD}@db:5432/martes
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       TELEGRAM_TOKEN: ${META_AGENT_TELEGRAM_TOKEN}
-      APP_ENV: ${APP_ENV:-development}
+      APP_ENV: production
       TENANTS_BASE_PATH: /var/lib/martes/tenants
       HERMES_IMAGE: nousresearch/hermes-agent:0.14.0
+      TEMPLATES_PATH: /app/infra/templates
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.meta-agent.rule=Host(`api.martes.app`)"
+      - "traefik.http.routers.meta-agent.entrypoints=websecure"
+      - "traefik.http.routers.meta-agent.tls.certresolver=letsencrypt"
+      - "traefik.http.services.meta-agent.loadbalancer.server.port=7777"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /var/lib/martes/tenants:/var/lib/martes/tenants

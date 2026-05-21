@@ -1,58 +1,63 @@
 """Entry point del meta-agente martes.app.
 
-Levanta AgentOS con interfaces condicionales:
-- API HTTP siempre activa (health checks, testing)
-- Telegram solo si META_AGENT_TELEGRAM_TOKEN esta configurado
+AgentOS con:
+- Team (Diagnosticador + Operador) como punto de entrada
+- Telegram conectado al Team (patrón correcto de Agno)
+- Webhook mode en producción (APP_ENV=production)
+- Polling en desarrollo (APP_ENV=development)
+- Scheduler habilitado
+- Tracing habilitado
 """
 
 from agno.os.app import AgentOS
 from agno.os.interfaces.telegram import Telegram
 
-from src.agent import create_meta_agent
 from src.config import settings
+from src.team import martes_team
 
-# Crear el meta-agente
-meta_agent = create_meta_agent()
-
-# Interfaces condicionales
+# Telegram interface — conectada al TEAM (no a un agente individual)
+# El Team coordina Diagnosticador + Operador según la intención del mensaje
 interfaces = []
 
-# Telegram: solo si hay un token valido
 if settings.telegram_token and ":" in settings.telegram_token:
     interfaces.append(
         Telegram(
-            agent=meta_agent,
+            team=martes_team,                   # ← TEAM, no agent
             token=settings.telegram_token,
             reply_to_mentions_only=False,
             streaming=True,
             start_message=(
-                "Meta-agente martes.app activo. "
-                "Puedo gestionar tenants Hermes. Escribe 'lista tenants' para empezar."
+                "Meta-agente martes.app activo.\n"
+                "Tengo acceso a: diagnostico, tenants, health, logs, pagos.\n"
+                "Escribe 'health check' para empezar."
             ),
             help_message=(
-                "Comandos disponibles:\n"
-                "- Crea tenant [nombre] plan [basico/equipo/pro] token [bot_token]\n"
-                "- Lista tenants\n"
-                "- Pausa tenant [codigo]\n"
-                "- Reactiva tenant [codigo]\n"
-                "- Health check\n"
-                "- Registra pago [codigo] $[monto] [metodo]\n"
-                "- Logs [codigo]\n"
-                "- Stats [codigo]"
+                "Sin restriccion (diagnostico):\n"
+                "- health check / status\n"
+                "- lista tenants\n"
+                "- logs [codigo] / stats [codigo]\n\n"
+                "Con aprobacion (operaciones):\n"
+                "- crea tenant [nombre] plan [plan] token [token]\n"
+                "- pausa [codigo] / reactiva [codigo]\n"
+                "- registra pago [codigo] $[monto] [metodo]\n"
+                "- conecta [servicio] a [codigo] token [valor]"
             ),
         )
     )
 
-# AgentOS: API siempre activa, Telegram condicional, scheduler habilitado
+# AgentOS — Team + Telegram + Scheduler
 agent_os = AgentOS(
-    agents=[meta_agent],
+    teams=[martes_team],
     interfaces=interfaces,
     scheduler=True,
-    scheduler_poll_interval=60,  # Revisa jobs cada 60 segundos
+    scheduler_poll_interval=60,
+    tracing=True,
 )
 
-# FastAPI app
 app = agent_os.get_app()
 
 if __name__ == "__main__":
-    agent_os.serve(app="src.main:app", reload=(settings.app_env == "development"))
+    agent_os.serve(
+        app="src.main:app",
+        reload=(settings.app_env == "development"),
+    )
