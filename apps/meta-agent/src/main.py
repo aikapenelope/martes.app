@@ -59,5 +59,7 @@ app = agent_os.get_app()
 if __name__ == "__main__":
     agent_os.serve(
         app="src.main:app",
+        host="0.0.0.0",
+        port=7777,
         reload=(settings.app_env == "development"),
     )
