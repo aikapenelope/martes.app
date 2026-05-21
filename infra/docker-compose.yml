@@ -71,6 +71,14 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # Traefik labels — Coolify's Docker provider descubre el container
+    # automáticamente por labels, sin importar el nombre del container.
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.martes-api.rule=Host(`api.martes.app`)"
+      - "traefik.http.routers.martes-api.entrypoints=websecure"
+      - "traefik.http.routers.martes-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.martes-api.loadbalancer.server.port=7777"
     networks:
       - platform-net
       - tenant-net
