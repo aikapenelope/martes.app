@@ -1,22 +1,23 @@
 services:
 
   # ==========================================================================
-  # PostgreSQL con pgvector (imagen oficial de Agno)
-  # Datos en /var/lib/martes/pg-data (volumen host, persistente entre redeploys)
+  # PostgreSQL con pgvector
+  # Imagen oficial de Agno: https://docs.agno.com/runtime/deploy
+  # Datos en host volume para persistencia entre redeploys de Coolify.
+  # Sin container_name — Coolify gestiona el nombre del container.
+  # Sin custom networks — Coolify crea red aislada por stack automáticamente.
+  # Ref: https://coolify.io/docs/applications/build-packs/docker-compose
   # ==========================================================================
   db:
     image: agnohq/pgvector:18
-    container_name: martes-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: martes
-      POSTGRES_PASSWORD: ${PG_PASSWORD}
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?}
       POSTGRES_DB: martes
     volumes:
       - /var/lib/martes/pg-data:/var/lib/postgresql
       - ../db/migrations:/docker-entrypoint-initdb.d:ro
-    networks:
-      - platform-net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U martes -d martes"]
       interval: 10s
@@ -41,46 +42,39 @@ services:
           memory: 256M
 
   # ==========================================================================
-  # Meta-agente Agno (AgentOS + Telegram)
-  # Puerto 8000 en Tailscale: acceso directo a la AgentOS API (estándar Agno)
-  # api.martes.app: enrutado por el Traefik de Coolify via alias "martes-api"
-  #   en la red coolify — estable entre redeployments sin importar el nombre
-  #   del container que Coolify asigne.
+  # Meta-agente Agno AgentOS
+  # Puerto 7777 interno, expuesto en 8000 via Tailscale (patrón Agno estándar).
+  # AGENT_OS_HOST=0.0.0.0 requerido en containers.
+  # Ref: https://docs.agno.com/agent-os/overview
+  # Dominio api.martes.app se configura en Coolify UI (no en labels).
+  # Ref: https://coolify.io/docs/knowledge-base/docker/compose (sección Domains)
   # ==========================================================================
   meta-agent:
     image: ghcr.io/aikapenelope/martes-meta-agent:latest
-    container_name: martes-meta
     restart: unless-stopped
     ports:
-      - "100.104.89.128:8000:7777"   # AgentOS API via Tailscale — puerto 8000 estándar de Agno
+      - "100.104.89.128:8000:7777"   # AgentOS API via Tailscale — solo interfaz Tailscale
     environment:
-      DATABASE_URL: postgresql+psycopg://martes:${PG_PASSWORD}@db:5432/martes
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
-      TELEGRAM_TOKEN: ${META_AGENT_TELEGRAM_TOKEN}
-      # Requerido por Agno en APP_ENV=production — valida X-Telegram-Bot-Api-Secret-Token
-      # en cada webhook. Sin este valor Agno retorna 403 a todos los mensajes.
-      # Registrar el webhook con: curl "https://api.telegram.org/bot${TOKEN}/setWebhook
-      #   ?url=https://api.martes.app/telegram/webhook&secret_token=${TELEGRAM_WEBHOOK_SECRET_TOKEN}"
-      TELEGRAM_WEBHOOK_SECRET_TOKEN: ${TELEGRAM_WEBHOOK_SECRET_TOKEN}
+      DATABASE_URL: postgresql+psycopg://martes:${PG_PASSWORD:?}@db:5432/martes
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?}
+      TELEGRAM_TOKEN: ${META_AGENT_TELEGRAM_TOKEN:?}
+      # TELEGRAM_WEBHOOK_SECRET_TOKEN: requerido por Agno en APP_ENV=production
+      # Valida header X-Telegram-Bot-Api-Secret-Token en cada webhook.
+      # Ref: https://docs.agno.com/agent-os/interfaces/telegram/introduction
+      TELEGRAM_WEBHOOK_SECRET_TOKEN: ${TELEGRAM_WEBHOOK_SECRET_TOKEN:?}
+      # AGENT_OS_HOST requerido para containers — ref: https://docs.agno.com/agent-os/overview
+      AGENT_OS_HOST: "0.0.0.0"
       APP_ENV: production
       TENANTS_BASE_PATH: /var/lib/martes/tenants
       HERMES_IMAGE: nousresearch/hermes-agent:0.14.0
       TEMPLATES_PATH: /app/infra/templates
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock   # Para gestionar containers de tenants
+      - /var/run/docker.sock:/var/run/docker.sock   # Docker SDK para gestionar containers de tenants
       - /var/lib/martes/tenants:/var/lib/martes/tenants
       - /var/lib/martes/meta-agent:/var/lib/martes/meta-agent
     depends_on:
       db:
         condition: service_healthy
-    networks:
-      platform-net: {}
-      tenant-net: {}
-      coolify-net:
-        # Alias estable en la red de Coolify — el proxy siempre llega aquí
-        # independientemente del nombre del container que asigne Coolify.
-        aliases:
-          - martes-api
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:7777/health || exit 1"]
       interval: 30s
@@ -91,21 +85,3 @@ services:
       resources:
         limits:
           memory: 512M
-
-# ==========================================================================
-# Redes
-# platform-net: comunicación interna db <-> meta-agent (gestionada por Coolify)
-# tenant-net:   red compartida con containers de tenants Hermes (external)
-# coolify-net:  red del proxy Coolify/Traefik (external)
-# ==========================================================================
-networks:
-  platform-net:
-    name: martes-platform
-
-  tenant-net:
-    name: martes-tenants
-    external: true   # Pre-creada por cloud-init; no se toca en redeploys
-
-  coolify-net:
-    name: coolify
-    external: true   # Red del proxy de Coolify
