@@ -76,7 +76,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.martes-api.rule=Host(`api.martes.app`)"
-      - "traefik.http.routers.martes-api.entrypoints=websecure"
+      - "traefik.http.routers.martes-api.entrypoints=https"
       - "traefik.http.routers.martes-api.tls.certresolver=letsencrypt"
       - "traefik.http.services.martes-api.loadbalancer.server.port=7777"
     networks:
