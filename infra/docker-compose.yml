@@ -2,6 +2,7 @@ services:
 
   # ==========================================================================
   # PostgreSQL con pgvector (imagen oficial de Agno)
+  # Datos en /var/lib/martes/pg-data (volumen host, persistente entre redeploys)
   # ==========================================================================
   db:
     image: agnohq/pgvector:18
@@ -41,13 +42,15 @@ services:
 
   # ==========================================================================
   # Meta-agente Agno (AgentOS + Telegram)
+  # Coolify gestiona el routing HTTPS hacia api.martes.app → :7777
+  # El binding de Tailscale permite acceso directo a la AgentOS API interna
   # ==========================================================================
   meta-agent:
     image: ghcr.io/aikapenelope/martes-meta-agent:latest
     container_name: martes-meta
     restart: unless-stopped
     ports:
-      - "100.104.89.128:8000:7777"   # AgentOS API via Tailscale
+      - "100.104.89.128:8001:7777"   # AgentOS API via Tailscale (interno)
     environment:
       DATABASE_URL: postgresql+psycopg://martes:${PG_PASSWORD}@db:5432/martes
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
@@ -56,14 +59,8 @@ services:
       TENANTS_BASE_PATH: /var/lib/martes/tenants
       HERMES_IMAGE: nousresearch/hermes-agent:0.14.0
       TEMPLATES_PATH: /app/infra/templates
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.meta-agent.rule=Host(`api.martes.app`)"
-      - "traefik.http.routers.meta-agent.entrypoints=websecure"
-      - "traefik.http.routers.meta-agent.tls.certresolver=letsencrypt"
-      - "traefik.http.services.meta-agent.loadbalancer.server.port=7777"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock   # Para gestionar containers de tenants
       - /var/lib/martes/tenants:/var/lib/martes/tenants
       - /var/lib/martes/meta-agent:/var/lib/martes/meta-agent
     depends_on:
@@ -71,6 +68,7 @@ services:
         condition: service_healthy
     networks:
       - platform-net
+      - tenant-net
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:7777/health || exit 1"]
       interval: 30s
@@ -82,107 +80,16 @@ services:
         limits:
           memory: 512M
 
-  # ==========================================================================
-  # Traefik v2.11 — reverse proxy + SSL automatico
-  # ==========================================================================
-  traefik:
-    image: traefik:v2.11
-    container_name: martes-traefik
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    command:
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--providers.file.directory=/traefik-dynamic"
-      - "--providers.file.watch=true"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
-      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
-      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
-      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
-      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
-      - "--api.dashboard=false"
-      - "--ping=true"
-      - "--accesslog=true"
-      - "--log.level=WARN"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - traefik_certs:/letsencrypt
-      - ./traefik-dynamic:/traefik-dynamic:ro
-    networks:
-      - platform-net
-      - tenant-net
-    healthcheck:
-      test: ["CMD-SHELL", "traefik healthcheck --ping"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-
-  # ==========================================================================
-  # Deploy webhook — hook.martes.app → git pull + docker compose up
-  # ==========================================================================
-  deploy-hook:
-    build:
-      context: .
-      dockerfile: Dockerfile.webhook
-    container_name: martes-deploy-hook
-    restart: unless-stopped
-    environment:
-      DEPLOY_SECRET: ${DEPLOY_SECRET}
-      DEPLOY_PORT: "9876"
-    volumes:
-      - /opt/martes:/opt/martes
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /var/log:/var/log
-    networks:
-      - platform-net
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.deploy-hook.rule=Host(`hook.martes.app`)"
-      - "traefik.http.routers.deploy-hook.entrypoints=websecure"
-      - "traefik.http.routers.deploy-hook.tls.certresolver=letsencrypt"
-      - "traefik.http.services.deploy-hook.loadbalancer.server.port=9876"
-    deploy:
-      resources:
-        limits:
-          memory: 64M
-
-  # ==========================================================================
-  # Portainer — UI de gestion Docker en deploy.martes.app
-  # ==========================================================================
-  portainer:
-    image: portainer/portainer-ce:latest
-    container_name: martes-portainer
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - portainer_data:/data
-    networks:
-      - platform-net
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.portainer.rule=Host(`deploy.martes.app`)"
-      - "traefik.http.routers.portainer.entrypoints=websecure"
-      - "traefik.http.routers.portainer.tls.certresolver=letsencrypt"
-      - "traefik.http.services.portainer.loadbalancer.server.port=9000"
-    deploy:
-      resources:
-        limits:
-          memory: 64M
-
-volumes:
-  traefik_certs:
-  portainer_data:
-
+# ==========================================================================
+# Redes
+# platform-net: comunicación interna db <-> meta-agent
+# tenant-net:   red compartida con los containers de tenants Hermes
+#               marcada external para que Coolify no la recree en redeploys
+# ==========================================================================
 networks:
   platform-net:
     name: martes-platform
+
   tenant-net:
     name: martes-tenants
+    external: true   # Pre-creada por cloud-init; no se toca en redeploys
