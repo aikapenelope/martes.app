@@ -42,8 +42,10 @@ services:
 
   # ==========================================================================
   # Meta-agente Agno (AgentOS + Telegram)
-  # Coolify gestiona el routing HTTPS hacia api.martes.app → :7777
-  # El binding de Tailscale permite acceso directo a la AgentOS API interna
+  # Puerto 8000 en Tailscale: acceso directo a la AgentOS API (estándar Agno)
+  # api.martes.app: enrutado por el Traefik de Coolify via alias "martes-api"
+  #   en la red coolify — estable entre redeployments sin importar el nombre
+  #   del container que Coolify asigne.
   # ==========================================================================
   meta-agent:
     image: ghcr.io/aikapenelope/martes-meta-agent:latest
@@ -71,20 +73,14 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    # Traefik labels — Coolify's Docker provider descubre el container
-    # automáticamente por labels, sin importar el nombre del container.
-    labels:
-      - "traefik.enable=true"
-      # Indicar a Traefik qué red usar para el routing (coolify = red del proxy)
-      - "traefik.docker.network=coolify"
-      - "traefik.http.routers.martes-api.rule=Host(`api.martes.app`)"
-      - "traefik.http.routers.martes-api.entrypoints=https"
-      - "traefik.http.routers.martes-api.tls.certresolver=letsencrypt"
-      - "traefik.http.services.martes-api.loadbalancer.server.port=7777"
     networks:
-      - platform-net
-      - tenant-net
-      - coolify-net
+      platform-net: {}
+      tenant-net: {}
+      coolify-net:
+        # Alias estable en la red de Coolify — el proxy siempre llega aquí
+        # independientemente del nombre del container que asigne Coolify.
+        aliases:
+          - martes-api
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:7777/health || exit 1"]
       interval: 30s
@@ -98,9 +94,9 @@ services:
 
 # ==========================================================================
 # Redes
-# platform-net: comunicación interna db <-> meta-agent
-# tenant-net:   red compartida con los containers de tenants Hermes
-#               marcada external para que Coolify no la recree en redeploys
+# platform-net: comunicación interna db <-> meta-agent (gestionada por Coolify)
+# tenant-net:   red compartida con containers de tenants Hermes (external)
+# coolify-net:  red del proxy Coolify/Traefik (external)
 # ==========================================================================
 networks:
   platform-net:
@@ -112,4 +108,4 @@ networks:
 
   coolify-net:
     name: coolify
-    external: true   # Red del proxy de Coolify; permite que su Traefik enrute api.martes.app y tXXX.martes.app
+    external: true   # Red del proxy de Coolify
