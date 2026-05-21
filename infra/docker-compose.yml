@@ -75,6 +75,8 @@ services:
     # automáticamente por labels, sin importar el nombre del container.
     labels:
       - "traefik.enable=true"
+      # Indicar a Traefik qué red usar para el routing (coolify = red del proxy)
+      - "traefik.docker.network=coolify"
       - "traefik.http.routers.martes-api.rule=Host(`api.martes.app`)"
       - "traefik.http.routers.martes-api.entrypoints=https"
       - "traefik.http.routers.martes-api.tls.certresolver=letsencrypt"
