@@ -34,7 +34,7 @@ class Handler(BaseHTTPRequestHandler):
 
         log.info("Deploy triggered from %s", self.client_address[0])
         subprocess.Popen(
-            ["/opt/martes/scripts/deploy.sh"],
+            ["/app/deploy.sh"],
             stdout=open("/var/log/martes-deploy.log", "a"),
             stderr=subprocess.STDOUT
         )

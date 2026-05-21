@@ -1,12 +1,11 @@
 FROM python:3.12-alpine
 
-# Install docker CLI and git
-RUN apk add --no-cache docker-cli git bash
+# docker CLI + compose plugin + git + bash
+RUN apk add --no-cache docker-cli docker-cli-compose git bash openssh-client
 
 WORKDIR /app
 COPY scripts/webhook.py /app/webhook.py
 COPY scripts/deploy.sh /app/deploy.sh
-RUN chmod +x /app/deploy.sh && \
-    ln -s /app/deploy.sh /opt/martes/scripts/deploy.sh 2>/dev/null || true
+RUN chmod +x /app/deploy.sh
 
 CMD ["python3", "/app/webhook.py"]

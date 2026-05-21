@@ -1,8 +1,16 @@
 #!/bin/bash
 set -e
-echo "[deploy] Started at $(date)" >> /var/log/martes-deploy.log
+LOG=/var/log/martes-deploy.log
+echo "[deploy] Started at $(date)" >> $LOG
 cd /opt/martes
-git pull origin main >> /var/log/martes-deploy.log 2>&1
-docker compose -f infra/docker-compose.yml up -d --build >> /var/log/martes-deploy.log 2>&1
-echo "[deploy] Done at $(date)" >> /var/log/martes-deploy.log
-docker ps --format "{{.Names}}: {{.Status}}" >> /var/log/martes-deploy.log 2>&1
+git fetch origin main >> $LOG 2>&1
+git checkout main >> $LOG 2>&1
+git pull origin main >> $LOG 2>&1
+# Use docker compose v2 plugin if available, else v1
+if docker compose version > /dev/null 2>&1; then
+    docker compose -f infra/docker-compose.yml up -d --build >> $LOG 2>&1
+else
+    docker-compose -f infra/docker-compose.yml up -d --build >> $LOG 2>&1
+fi
+echo "[deploy] Done at $(date)" >> $LOG
+docker ps --format "{{.Names}}: {{.Status}}" >> $LOG 2>&1
