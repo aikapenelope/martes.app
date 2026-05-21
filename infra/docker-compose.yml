@@ -55,6 +55,11 @@ services:
       DATABASE_URL: postgresql+psycopg://martes:${PG_PASSWORD}@db:5432/martes
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       TELEGRAM_TOKEN: ${META_AGENT_TELEGRAM_TOKEN}
+      # Requerido por Agno en APP_ENV=production — valida X-Telegram-Bot-Api-Secret-Token
+      # en cada webhook. Sin este valor Agno retorna 403 a todos los mensajes.
+      # Registrar el webhook con: curl "https://api.telegram.org/bot${TOKEN}/setWebhook
+      #   ?url=https://api.martes.app/telegram/webhook&secret_token=${TELEGRAM_WEBHOOK_SECRET_TOKEN}"
+      TELEGRAM_WEBHOOK_SECRET_TOKEN: ${TELEGRAM_WEBHOOK_SECRET_TOKEN}
       APP_ENV: production
       TENANTS_BASE_PATH: /var/lib/martes/tenants
       HERMES_IMAGE: nousresearch/hermes-agent:0.14.0
