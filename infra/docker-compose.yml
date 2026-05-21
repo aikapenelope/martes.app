@@ -50,7 +50,7 @@ services:
     container_name: martes-meta
     restart: unless-stopped
     ports:
-      - "100.104.89.128:8001:7777"   # AgentOS API via Tailscale (interno)
+      - "100.104.89.128:8000:7777"   # AgentOS API via Tailscale — puerto 8000 estándar de Agno
     environment:
       DATABASE_URL: postgresql+psycopg://martes:${PG_PASSWORD}@db:5432/martes
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
