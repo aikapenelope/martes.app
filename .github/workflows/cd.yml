@@ -1,4 +1,8 @@
-name: Build and Deploy
+name: Build and Push
+
+# Construye la imagen del meta-agent y la sube a GHCR en cada push a main.
+# El redeploy lo dispara Coolify automáticamente via el GitHub App (auto-deploy).
+# Ref: https://coolify.io/docs/applications/ci-cd/github/auto-deploy
 
 on:
   push:
@@ -13,11 +17,7 @@ jobs:
       contents: read
       packages: write
 
-    outputs:
-      image: ${{ steps.meta.outputs.tags }}
-
     steps:
-      # Versions pinned to latest stable — May 2026
       - uses: actions/checkout@v4
 
       - name: Log in to GHCR
@@ -43,19 +43,3 @@ jobs:
           file: apps/meta-agent/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-
-  deploy:
-    name: Trigger Coolify redeploy
-    runs-on: ubuntu-latest
-    needs: build-and-push
-
-    steps:
-      # Patrón documentado por Coolify para GitHub Actions.
-      # Requiere dos GitHub Secrets:
-      #   COOLIFY_WEBHOOK — URL del webhook (Coolify UI → app → Webhooks)
-      #   COOLIFY_TOKEN   — API token con permiso "deploy" (Coolify UI → Settings → API Tokens)
-      # Ref: https://coolify.io/docs/applications/ci-cd/github/actions
-      - name: Deploy to Coolify
-        run: |
-          curl --request GET "${{ secrets.COOLIFY_WEBHOOK }}" \
-            --header "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
