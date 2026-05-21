@@ -1,3 +1,6 @@
+# martes.app — meta-agent (Agno AgentOS + Telegram)
+# Build: GitHub Actions → GHCR
+# Deploy: Coolify auto-deploy via GitHub App
 FROM python:3.12-slim
 
 WORKDIR /app/apps/meta-agent
