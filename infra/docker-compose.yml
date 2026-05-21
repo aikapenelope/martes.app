@@ -81,27 +81,25 @@ services:
   # Traefik v3.4 — reverse proxy + SSL automatico
   # ==========================================================================
   traefik:
-    image: traefik:v3.4
+    image: traefik:v2.11
     container_name: martes-traefik
     restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
-    environment:
-      - DOCKER_API_VERSION=1.41    # Fix compatibilidad con Docker API 1.54
     command:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
-      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
       - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
       - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
       - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
       - "--api.dashboard=false"
       - "--ping=true"
       - "--accesslog=true"
-      - "--accesslog.bufferingsize=100"
       - "--log.level=WARN"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
