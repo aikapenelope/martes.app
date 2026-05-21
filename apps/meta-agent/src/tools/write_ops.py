@@ -115,6 +115,8 @@ def create_tenant(name: str, plan: str, bot_token: str, email: str = "") -> str:
         kwargs: dict[str, Any] = {
             "image": settings.hermes_image, "name": f"hermes-{tenant_code}",
             "detach": True, "restart_policy": {"Name": "unless-stopped"},
+            # Arrancar directamente en la red del tenant — evita la red bridge por defecto
+            "network": net,
             "volumes": {str(tp): {"bind": "/opt/data", "mode": "rw"}},
             "environment": {"HERMES_UID": "1000", "HERMES_GID": "1000",
                             "API_SERVER_ENABLED": "true", "API_SERVER_HOST": "0.0.0.0",
@@ -128,14 +130,19 @@ def create_tenant(name: str, plan: str, bot_token: str, email: str = "") -> str:
             "log_config": {"Type": "json-file", "Config": {"max-size": "50m", "max-file": "3"}},
             "labels": {
                 "martes.tenant": tenant_code, "martes.plan": plan,
+                # Traefik labels — compatibles con Coolify's Traefik (certresolver: letsencrypt)
                 "traefik.enable": "true",
                 f"traefik.http.routers.{tenant_code}.rule": f"Host(`{tenant_code}.martes.app`)",
+                f"traefik.http.routers.{tenant_code}.entrypoints": "websecure",
                 f"traefik.http.routers.{tenant_code}.tls.certresolver": "letsencrypt",
                 f"traefik.http.services.{tenant_code}.loadbalancer.server.port": "8642",
             },
         }
         container = c.containers.run(**kwargs)
-        for network_name in [net, "martes-tenants"]:
+        # Conectar redes adicionales tras el arranque.
+        # "coolify" es la red del proxy de Coolify — necesaria para que su Traefik
+        # enrute tXXX.martes.app al container. En dev local el except la ignora.
+        for network_name in ["martes-tenants", "coolify"]:
             try:
                 c.networks.get(network_name).connect(container)
             except (NotFound, APIError):
