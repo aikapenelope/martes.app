@@ -191,6 +191,20 @@ const firewall = new hcloud.Firewall("martes-firewall", {
             sourceIps: ["0.0.0.0/0", "::/0"],
             description: "Tailscale WireGuard (peer-to-peer directo)",
         },
+        {
+            direction: "in",
+            protocol:  "tcp",
+            port:      "6001",
+            sourceIps: ["0.0.0.0/0", "::/0"],
+            description: "Coolify Soketi WebSocket (real-time UI)",
+        },
+        {
+            direction: "in",
+            protocol:  "tcp",
+            port:      "6002",
+            sourceIps: ["0.0.0.0/0", "::/0"],
+            description: "Coolify terminal access",
+        },
     ],
 });
 
