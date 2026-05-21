@@ -97,6 +97,16 @@ ${tsKey
     : `  # tailscaleAuthKey no configurado -- unirse manualmente despues del boot:`
       + `\n  #   tailscale up --hostname=martes-vps`}
 
+  # --- Swap (4 GB) ------------------------------------------------------------
+  # Sin swap, un OOM con múltiples tenants mata procesos sin aviso.
+  - fallocate -l 4G /swapfile
+  - chmod 600 /swapfile
+  - mkswap /swapfile
+  - swapon /swapfile
+  - echo '/swapfile none swap sw 0 0' >> /etc/fstab
+  - echo 'vm.swappiness=10' >> /etc/sysctl.conf
+  - sysctl vm.swappiness=10
+
   # --- Directorios de datos (host volumes, persistentes entre redeploys) ------
   - mkdir -p /var/lib/martes/pg-data
   - mkdir -p /var/lib/martes/tenants
