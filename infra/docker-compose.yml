@@ -43,6 +43,8 @@ services:
       dockerfile: apps/meta-agent/Dockerfile
     container_name: martes-meta
     restart: unless-stopped
+    ports:
+      - "100.104.89.128:8000:7777"   # AgentOS API via Tailscale → os.agno.com
     environment:
       DATABASE_URL: postgresql+psycopg://martes:${PG_PASSWORD}@db:5432/martes
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
@@ -59,10 +61,10 @@ services:
     networks:
       - platform-net
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:7777/health || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
       interval: 30s
       timeout: 10s
-      start_period: 25s
+      start_period: 20s
       retries: 3
     deploy:
       resources:
@@ -109,13 +111,14 @@ services:
         limits:
           memory: 128M
 
-  # Portainer (UI de emergencia, solo via Tailscale)
+  # Portainer (UI de gestion Docker — accesible solo via Tailscale)
   portainer:
     image: portainer/portainer-ce:latest
     container_name: martes-portainer
     restart: unless-stopped
     ports:
-      - "127.0.0.1:9000:9000"
+      - "100.104.89.128:9000:9000"   # Solo via Tailscale IP
+      - "100.104.89.128:9443:9443"   # HTTPS via Tailscale
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data
