@@ -17,10 +17,11 @@ jobs:
       image: ${{ steps.meta.outputs.tags }}
 
     steps:
+      # Versions pinned to latest stable — May 2026
       - uses: actions/checkout@v4
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4.1.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -28,7 +29,7 @@ jobs:
 
       - name: Docker meta
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6.0.0
         with:
           images: ghcr.io/aikapenelope/martes-meta-agent
           tags: |
@@ -36,7 +37,7 @@ jobs:
             type=raw,value=latest
 
       - name: Build and push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7.1.0
         with:
           context: .
           file: apps/meta-agent/Dockerfile
@@ -49,14 +50,12 @@ jobs:
     needs: build-and-push
 
     steps:
-      # Coolify webhook: GET request. La URL incluye el token — guardarla completa
-      # en el GitHub Secret COOLIFY_WEBHOOK_URL.
-      # Formato: https://<coolify-domain>/api/v1/deploy?uuid=<uuid>&token=<token>
-      # Se obtiene en Coolify UI → proyecto → servicio → Webhooks.
-      - name: Trigger Coolify webhook
+      # Patrón documentado por Coolify para GitHub Actions.
+      # Requiere dos GitHub Secrets:
+      #   COOLIFY_WEBHOOK — URL del webhook (Coolify UI → app → Webhooks)
+      #   COOLIFY_TOKEN   — API token con permiso "deploy" (Coolify UI → Settings → API Tokens)
+      # Ref: https://coolify.io/docs/applications/ci-cd/github/actions
+      - name: Deploy to Coolify
         run: |
-          HTTP=$(curl -s -o /tmp/resp.txt -w "%{http_code}" \
-            -X GET \
-            "${{ secrets.COOLIFY_WEBHOOK_URL }}")
-          cat /tmp/resp.txt
-          [ "$HTTP" = "200" ] || { echo "Coolify webhook returned HTTP $HTTP"; exit 1; }
+          curl --request GET "${{ secrets.COOLIFY_WEBHOOK }}" \
+            --header "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
