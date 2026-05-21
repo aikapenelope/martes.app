@@ -78,7 +78,7 @@ services:
           memory: 512M
 
   # ==========================================================================
-  # Traefik v3.4 — reverse proxy + SSL automatico
+  # Traefik v2.11 — reverse proxy + SSL automatico
   # ==========================================================================
   traefik:
     image: traefik:v2.11
@@ -118,7 +118,7 @@ services:
           memory: 128M
 
   # ==========================================================================
-  # Portainer — UI de gestion Docker via deploy.martes.app
+  # Portainer — UI de gestion Docker en deploy.martes.app
   # ==========================================================================
   portainer:
     image: portainer/portainer-ce:latest
@@ -131,29 +131,10 @@ services:
       - platform-net
     labels:
       - "traefik.enable=true"
-
-      # Ruta 1: UI de Portainer — solo Tailscale (admin)
-      - "traefik.http.routers.portainer.rule=Host(`deploy.martes.app`) && !PathPrefix(`/api/stacks/webhooks`)"
+      - "traefik.http.routers.portainer.rule=Host(`deploy.martes.app`)"
       - "traefik.http.routers.portainer.entrypoints=websecure"
       - "traefik.http.routers.portainer.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.portainer.middlewares=tailscale-only"
-      - "traefik.http.routers.portainer.service=portainer-svc"
-
-      # Ruta 2: Webhook — abierto solo a IPs de GitHub Actions
-      - "traefik.http.routers.portainer-webhook.rule=Host(`deploy.martes.app`) && PathPrefix(`/api/stacks/webhooks`)"
-      - "traefik.http.routers.portainer-webhook.entrypoints=websecure"
-      - "traefik.http.routers.portainer-webhook.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.portainer-webhook.middlewares=github-only"
-      - "traefik.http.routers.portainer-webhook.service=portainer-svc"
-
-      # Servicio backend
-      - "traefik.http.services.portainer-svc.loadbalancer.server.port=9000"
-
-      # Middleware: solo Tailscale (100.x.x.x) y tu red local
-      - "traefik.http.middlewares.tailscale-only.ipwhitelist.sourcerange=100.64.0.0/10,127.0.0.1/32"
-
-      # Middleware: IPs de GitHub Actions (rangos publicos)
-      - "traefik.http.middlewares.github-only.ipwhitelist.sourcerange=4.148.0.0/16,4.149.0.0/16,140.82.112.0/20,143.55.64.0/20,185.199.108.0/22,192.30.252.0/22"
+      - "traefik.http.services.portainer.loadbalancer.server.port=9000"
     deploy:
       resources:
         limits:
