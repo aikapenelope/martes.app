@@ -8,6 +8,9 @@ from pathlib import Path
 
 from agno.compression.manager import CompressionManager
 from agno.db.postgres import PostgresDb
+from agno.knowledge.embedder.openai_like import OpenAILikeEmbedder
+from agno.knowledge.knowledge import Knowledge
+from agno.knowledge.reader.markdown_reader import MarkdownReader
 from agno.learn import (
     DecisionLogConfig,
     EntityMemoryConfig,
@@ -19,6 +22,7 @@ from agno.learn import (
 from agno.learn.machine import LearningMachine
 from agno.models.openai import OpenAIChat
 from agno.skills import LocalSkills, Skills
+from agno.vectordb.pgvector import PgVector
 
 from src.config import settings
 
@@ -72,3 +76,34 @@ compression = CompressionManager(model=FAST_MODEL, compress_tool_results=True)
 # ---------------------------------------------------------------------------
 _SKILLS_DIR = Path(__file__).parent / "skills"
 skills = Skills(loaders=[LocalSkills(str(_SKILLS_DIR))]) if _SKILLS_DIR.exists() else None
+
+# ---------------------------------------------------------------------------
+# Knowledge Base — documentación de Hermes y procedimientos operativos
+#
+# Embedder: OpenAILikeEmbedder con OpenRouter (misma API key que los agentes).
+# Verificado: openrouter.ai/api/v1/embeddings soporta text-embedding-3-small.
+# Vector store: PgVector en la misma PostgreSQL del sistema (pgvector ya instalado).
+# Carga: idempotente — primer arranque indexa los docs, arranques posteriores son no-op.
+#
+# Ref embedder: https://openrouter.ai (probado con text-embedding-3-small, 1536 dims)
+# Ref knowledge: https://docs.agno.com/knowledge/introduction
+# ---------------------------------------------------------------------------
+_KNOWLEDGE_DIR = Path(__file__).parent / "knowledge"
+
+knowledge_base = Knowledge(
+    vector_db=PgVector(
+        table_name="martes_knowledge",
+        db_url=settings.database_url,
+        embedder=OpenAILikeEmbedder(
+            id="openai/text-embedding-3-small",
+            api_key=settings.openrouter_api_key,
+            base_url="https://openrouter.ai/api/v1",
+            dimensions=1536,
+        ),
+    ),
+    readers=[MarkdownReader()],
+    content_sources=[
+        str(_KNOWLEDGE_DIR / "hermes_reference.md"),
+        str(_KNOWLEDGE_DIR / "procedures.md"),
+    ],
+)

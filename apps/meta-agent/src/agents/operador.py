@@ -6,7 +6,7 @@ TODAS las acciones requieren aprobacion humana antes de ejecutarse.
 from agno.agent import Agent
 from agno.tools.docker import DockerTools
 
-from src.shared import MODEL, compression, db, learning, skills
+from src.shared import MODEL, compression, db, knowledge_base, learning, skills
 from src.tools.read_ops import container_health, get_all_tenants, list_containers
 from src.tools.write_ops import (
     create_tenant,
@@ -45,6 +45,8 @@ operador = Agent(
     ],
     tool_call_limit=5,
     retries=1,
+    knowledge=knowledge_base,
+    search_knowledge=True,   # Agentic RAG: busca procedimientos antes de actuar
     learning=learning,
     add_learnings_to_context=True,
     skills=skills,
