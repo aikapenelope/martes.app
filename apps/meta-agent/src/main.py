@@ -15,6 +15,7 @@ from agno.os.interfaces.telegram import Telegram
 from src.agents.diagnosticador import diagnosticador
 from src.agents.operador import operador
 from src.config import settings
+from src.shared import knowledge_base
 from src.team import martes_team
 
 # Telegram interface — conectada al TEAM (no a un agente individual)
@@ -46,6 +47,12 @@ if settings.telegram_token and ":" in settings.telegram_token:
             ),
         )
     )
+
+# Cargar knowledge base al arranque — idempotente.
+# Primer arranque: indexa hermes_reference.md y procedures.md en PgVector.
+# Arranques posteriores: no-op (documentos ya embebidos).
+# Ref: https://docs.agno.com/knowledge/introduction
+knowledge_base.load(recreate=False)
 
 # AgentOS — Agents + Team + Telegram + Scheduler
 # agents: expuestos individualmente en os.agno.com para control y monitoreo directo

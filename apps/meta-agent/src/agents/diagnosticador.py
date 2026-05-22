@@ -7,7 +7,7 @@ Nunca modifica nada. Reporta y sugiere.
 from agno.agent import Agent
 from agno.tools.docker import DockerTools
 
-from src.shared import MODEL, compression, db, learning, skills
+from src.shared import MODEL, compression, db, knowledge_base, learning, skills
 from src.tools.read_ops import (
     check_all_health,
     container_health,
@@ -48,6 +48,8 @@ diagnosticador = Agent(
     ],
     tool_call_limit=10,
     retries=1,
+    knowledge=knowledge_base,
+    search_knowledge=True,   # Agentic RAG: el agente decide cuándo buscar
     learning=learning,
     add_learnings_to_context=True,
     skills=skills,
