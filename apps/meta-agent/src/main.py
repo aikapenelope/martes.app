@@ -12,6 +12,8 @@ AgentOS con:
 from agno.os.app import AgentOS
 from agno.os.interfaces.telegram import Telegram
 
+from src.agents.diagnosticador import diagnosticador
+from src.agents.operador import operador
 from src.config import settings
 from src.team import martes_team
 
@@ -45,8 +47,12 @@ if settings.telegram_token and ":" in settings.telegram_token:
         )
     )
 
-# AgentOS — Team + Telegram + Scheduler
+# AgentOS — Agents + Team + Telegram + Scheduler
+# agents: expuestos individualmente en os.agno.com para control y monitoreo directo
+# teams: entrada unificada para Telegram (coordinate mode — routing dinámico)
+# Ref: https://docs.agno.com/agent-os/overview
 agent_os = AgentOS(
+    agents=[diagnosticador, operador],
     teams=[martes_team],
     interfaces=interfaces,
     scheduler=True,
