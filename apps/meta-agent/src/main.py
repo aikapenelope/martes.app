@@ -48,15 +48,15 @@ if settings.telegram_token and ":" in settings.telegram_token:
         )
     )
 
-# Indexar knowledge base al arranque — idempotente.
-# add_content(skip_if_exists=True): sube embedding solo si el documento
-# no existe aún en martes_knowledge. Arranques posteriores son no-op.
-# API documentada: Knowledge.add_content(path, skip_if_exists)
+# Indexar knowledge base al arranque.
+# upsert=True: si el documento ya existe con ese ID, actualiza el contenido.
+# Esto garantiza que cambios en los archivos .md se reflejen en la DB
+# sin necesidad de borrar manualmente el knowledge previo.
 # Ref: https://docs.agno.com/knowledge/introduction
 for _doc in ["hermes_reference.md", "procedures.md"]:
     knowledge_base.add_content(
         path=str(_KNOWLEDGE_DIR / _doc),
-        skip_if_exists=True,
+        upsert=True,
     )
 
 # AgentOS — Agents + Team + Telegram + Scheduler
