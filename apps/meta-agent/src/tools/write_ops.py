@@ -3,9 +3,12 @@
 import json
 import os
 import shutil
-from datetime import date, timedelta
+import tarfile
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+
+_BACKUPS_DIR = Path("/var/lib/martes/backups")
 
 import docker
 import psycopg
@@ -327,3 +330,93 @@ def inject_wiki_content(tenant_code: str, company_name: str, company_description
                            "message": f"Wiki de {company_name} inicializada."})
     except OSError as e:
         return json.dumps({"error": str(e)})
+
+
+# =============================================================================
+# BACKUP / RESTORE — Hermes tenant data
+#
+# Cada tenant tiene su volumen en /var/lib/martes/tenants/{tenant_code}/
+# que se monta como /opt/data dentro del container Hermes.
+# El backup es un tar.gz de ese directorio completo.
+#
+# Ref estructura de datos: https://github.com/nousresearch/hermes-agent
+# Ref volumen Docker: docker-compose.yml → ~/.hermes:/opt/data
+# =============================================================================
+
+@approval  # type: ignore[arg-type]
+@tool(requires_confirmation=True)
+def backup_tenant(tenant_code: str) -> str:
+    """Crea un backup completo del tenant: tar.gz de su volumen /opt/data.
+    Guarda en /var/lib/martes/backups/{tenant_code}_{YYYYMMDD}_{HHMMSS}.tar.gz.
+    Requiere aprobacion.
+    """
+    tenant_path = Path(settings.tenants_base_path) / tenant_code
+    if not tenant_path.exists():
+        return json.dumps({"error": f"Tenant {tenant_code} no encontrado en disco."})
+    try:
+        _BACKUPS_DIR.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
+        backup_file = _BACKUPS_DIR / f"{tenant_code}_{ts}.tar.gz"
+        with tarfile.open(backup_file, "w:gz") as tar:
+            tar.add(tenant_path, arcname=tenant_code)
+        size_mb = round(backup_file.stat().st_size / (1024 * 1024), 2)
+        return json.dumps({
+            "success": True,
+            "tenant": tenant_code,
+            "backup_file": backup_file.name,
+            "size_mb": size_mb,
+            "message": f"Backup creado: {backup_file.name} ({size_mb} MB)",
+        })
+    except (OSError, tarfile.TarError) as e:
+        return json.dumps({"success": False, "error": str(e)})
+
+
+@approval  # type: ignore[arg-type]
+@tool(requires_confirmation=True)
+def restore_tenant_from_backup(tenant_code: str, backup_filename: str) -> str:
+    """Restaura un tenant desde un backup.
+    Para tenants activos: detener el container ANTES de restaurar.
+    El backup se extrae sobre el directorio actual del tenant (los datos
+    existentes se reemplazan). El container Hermes puede reiniciarse después.
+    Requiere aprobacion — operacion destructiva.
+    """
+    backup_file = _BACKUPS_DIR / backup_filename
+    if not backup_file.exists():
+        return json.dumps({"error": f"Backup no encontrado: {backup_filename}"})
+    if not backup_filename.endswith(".tar.gz"):
+        return json.dumps({"error": "Nombre de backup inválido. Debe terminar en .tar.gz"})
+    tenant_path = Path(settings.tenants_base_path) / tenant_code
+    try:
+        # Verificar que no hay container corriendo (prevenir corrupción)
+        try:
+            c = docker.from_env().containers.get(f"hermes-{tenant_code}")
+            if c.status == "running":
+                return json.dumps({
+                    "error": f"Container hermes-{tenant_code} está corriendo. "
+                             "Usa stop_tenant() primero para evitar corrupción de datos."
+                })
+        except NotFound:
+            pass  # Container no existe, ok para restaurar
+        # Crear directorio del tenant si no existe
+        tenant_path.mkdir(parents=True, exist_ok=True)
+        # Extraer backup (sobreescribe archivos existentes)
+        with tarfile.open(backup_file, "r:gz") as tar:
+            # Validar que el contenido corresponde al tenant_code
+            members = tar.getmembers()
+            if members and not members[0].name.startswith(tenant_code):
+                return json.dumps({
+                    "error": f"El backup no corresponde al tenant {tenant_code}. "
+                             f"Contenido: {members[0].name}"
+                })
+            # Extraer al directorio padre (el tar tiene {tenant_code}/ como raíz)
+            tar.extractall(path=Path(settings.tenants_base_path), filter="data")
+        _chown(tenant_path)
+        return json.dumps({
+            "success": True,
+            "tenant": tenant_code,
+            "restored_from": backup_filename,
+            "message": f"Tenant {tenant_code} restaurado desde {backup_filename}. "
+                       "Puedes reiniciar el container con restart_tenant().",
+        })
+    except (OSError, tarfile.TarError) as e:
+        return json.dumps({"success": False, "error": str(e)})

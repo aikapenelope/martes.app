@@ -119,3 +119,59 @@
 2. Verificar bot token es correcto en .env
 3. Verificar TELEGRAM_ALLOWED_USERS no bloquea al usuario
 4. Restart del container para forzar reconexion
+
+---
+
+## Backup de Tenant
+
+### Cuándo hacer backup
+- Diariamente para todos los tenants activos (verificar con check_backup_status())
+- Antes de operaciones destructivas (archivado, upgrade de imagen)
+- Cuando un tenant no paga y se va a pausar (backup previo a pausa)
+
+### Crear backup
+1. Verificar que el tenant existe: `get_all_tenants()`
+2. Crear backup: `backup_tenant(tenant_code)`
+   - Genera: `/var/lib/martes/backups/{tenant_code}_{YYYYMMDD}_{HHMMSS}.tar.gz`
+   - Incluye TODO el /opt/data: state.db, config.yaml, .env, SOUL.md, sessions/, memories/, wiki/, skills/, cron/
+3. Verificar que el archivo se creó: `list_backups(tenant_code)`
+
+### Restaurar backup
+1. Listar backups disponibles: `list_backups(tenant_code)`
+2. Si el container está corriendo, detenerlo primero: `stop_tenant(tenant_code)`
+3. Restaurar: `restore_tenant_from_backup(tenant_code, "nombre_del_archivo.tar.gz")`
+4. Reiniciar el container: `restart_tenant(tenant_code)` o crear nuevo container
+5. Verificar health: `container_health(tenant_code)`
+
+### Verificar estado de backups
+- `check_backup_status()` — muestra todos los tenants y cuándo fue su último backup
+- Status "ok" = backup en las últimas 26 horas
+- Status "overdue" = más de 26 horas sin backup
+- Status "never" = nunca se ha hecho backup
+
+### Política de retención recomendada
+- Plan básico: 7 días (7 backups)
+- Plan equipo: 14 días
+- Plan pro: 30 días
+- Los backups más antiguos se eliminan manualmente por el admin
+
+---
+
+## Flujo No-Pago con Backup
+
+```
+Día 30: No paga
+  1. backup_tenant(tenant_code)          ← backup antes de pausar
+  2. stop_tenant(tenant_code)            ← detener container
+  3. DB: status → "paused"               ← automático en stop_tenant()
+
+Día 45: Sigue sin pagar
+  1. backup_tenant(tenant_code)          ← backup antes de archivar (redundante pero seguro)
+  2. Archivar volumen a almacenamiento   ← operación futura
+  3. Eliminar directorio local del tenant
+
+Si paga antes del día 90:
+  1. restore_tenant_from_backup(tenant_code, último_backup)
+  2. create_tenant() si el container ya no existe
+  3. restart_tenant(tenant_code)
+```
