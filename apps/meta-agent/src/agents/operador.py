@@ -9,11 +9,13 @@ from agno.tools.docker import DockerTools
 from src.shared import MODEL, compression, db, knowledge_base, learning, skills
 from src.tools.read_ops import container_health, get_all_tenants, list_containers
 from src.tools.write_ops import (
+    backup_tenant,
     create_tenant,
     inject_credential,
     inject_wiki_content,
     register_payment,
     restart_tenant,
+    restore_tenant_from_backup,
     stop_tenant,
 )
 
@@ -35,6 +37,8 @@ operador = Agent(
         create_tenant,
         stop_tenant,
         restart_tenant,
+        backup_tenant,
+        restore_tenant_from_backup,
         inject_credential,
         inject_wiki_content,
         register_payment,

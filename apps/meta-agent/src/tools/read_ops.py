@@ -2,6 +2,8 @@
 
 import json
 import time
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import docker
@@ -9,6 +11,8 @@ import psycopg
 from docker.errors import APIError, NotFound
 
 from src.config import settings
+
+_BACKUPS_DIR = Path("/var/lib/martes/backups")
 
 
 def _docker() -> docker.DockerClient:
@@ -119,6 +123,71 @@ def check_all_health() -> str:
         return json.dumps({"total": len(results), "healthy": healthy,
                            "unhealthy": unhealthy, "stopped": stopped, "tenants": results})
     except APIError as e:
+        return json.dumps({"error": str(e)})
+
+
+def list_backups(tenant_code: str = "") -> str:
+    """Lista backups disponibles. Si se da tenant_code filtra por ese tenant.
+    Backups en /var/lib/martes/backups/ — formato: {tenant_code}_{YYYYMMDD}_{HHMMSS}.tar.gz
+    """
+    try:
+        _BACKUPS_DIR.mkdir(parents=True, exist_ok=True)
+        files = sorted(_BACKUPS_DIR.glob("*.tar.gz"), key=lambda f: f.stat().st_mtime, reverse=True)
+        if tenant_code:
+            files = [f for f in files if f.name.startswith(f"{tenant_code}_")]
+        backups = []
+        for f in files:
+            stat = f.stat()
+            backups.append({
+                "filename": f.name,
+                "tenant": f.name.split("_")[0] if "_" in f.name else "?",
+                "size_mb": round(stat.st_size / (1024 * 1024), 2),
+                "created": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+            })
+        return json.dumps({"count": len(backups), "backups": backups})
+    except OSError as e:
+        return json.dumps({"error": str(e)})
+
+
+def check_backup_status() -> str:
+    """Verifica el estado de backups de todos los tenants.
+    Muestra cuándo fue el último backup de cada tenant y si está al día.
+    """
+    try:
+        tenants_dir = Path(settings.tenants_base_path)
+        _BACKUPS_DIR.mkdir(parents=True, exist_ok=True)
+        results = []
+        if not tenants_dir.exists():
+            return json.dumps({"error": "tenants directory not found"})
+        for tenant_path in sorted(tenants_dir.iterdir()):
+            if not tenant_path.is_dir():
+                continue
+            code = tenant_path.name
+            backups = sorted(
+                _BACKUPS_DIR.glob(f"{code}_*.tar.gz"),
+                key=lambda f: f.stat().st_mtime,
+                reverse=True,
+            )
+            last_backup = None
+            hours_since = None
+            if backups:
+                last_mtime = backups[0].stat().st_mtime
+                last_backup = datetime.fromtimestamp(last_mtime, tz=timezone.utc).isoformat()
+                hours_since = round((datetime.now(tz=timezone.utc).timestamp() - last_mtime) / 3600, 1)
+            results.append({
+                "tenant": code,
+                "last_backup": last_backup,
+                "hours_since_backup": hours_since,
+                "backup_count": len(backups),
+                "status": "ok" if hours_since and hours_since < 26 else "overdue" if last_backup else "never",
+            })
+        overdue = [r for r in results if r["status"] != "ok"]
+        return json.dumps({
+            "total_tenants": len(results),
+            "overdue": len(overdue),
+            "tenants": results,
+        })
+    except OSError as e:
         return json.dumps({"error": str(e)})
 
 

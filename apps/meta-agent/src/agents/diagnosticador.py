@@ -10,10 +10,12 @@ from agno.tools.docker import DockerTools
 from src.shared import MODEL, compression, db, knowledge_base, learning, skills
 from src.tools.read_ops import (
     check_all_health,
+    check_backup_status,
     container_health,
     container_logs,
     container_stats,
     get_all_tenants,
+    list_backups,
     list_containers,
 )
 
@@ -44,6 +46,8 @@ diagnosticador = Agent(
         container_stats,
         check_all_health,
         get_all_tenants,
+        list_backups,
+        check_backup_status,
         _docker_read,
     ],
     tool_call_limit=10,
