@@ -4,7 +4,7 @@
 
 model:
   provider: openrouter
-  default: deepseek/deepseek-chat
+  default: deepseek/deepseek-v4-flash
   base_url: "https://openrouter.ai/api/v1"
 
 # Toolset reducido para messaging (ahorra ~4K tokens/request)

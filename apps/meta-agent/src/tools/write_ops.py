@@ -8,6 +8,8 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 _BACKUPS_DIR = Path("/var/lib/martes/backups")
 
 import docker
@@ -419,4 +421,93 @@ def restore_tenant_from_backup(tenant_code: str, backup_filename: str) -> str:
                        "Puedes reiniciar el container con restart_tenant().",
         })
     except (OSError, tarfile.TarError) as e:
+        return json.dumps({"success": False, "error": str(e)})
+
+
+# =============================================================================
+# CONFIG LIVE-UPDATE — sin reiniciar el container
+#
+# El gateway de Hermes es un proceso long-lived que recarga .env y config.yaml
+# al inicio de CADA turno de conversación:
+#   gateway/run.py:16119 → _reload_runtime_env_preserving_config_authority()
+#
+# Esto significa que editar config.yaml o .env del volumen del tenant tiene
+# efecto en el próximo mensaje del usuario. NO se necesita reiniciar.
+#
+# Ref: https://github.com/nousresearch/hermes-agent (gateway/run.py)
+# =============================================================================
+
+@tool
+def update_tenant_model(tenant_code: str, model_id: str) -> str:
+    """Cambia el modelo LLM de un tenant sin reiniciar su container.
+
+    El gateway de Hermes recarga config.yaml en cada turno, por lo que el
+    cambio tiene efecto en el próximo mensaje del usuario.
+
+    Modelos recomendados (verificados en OpenRouter mayo 2026):
+    - deepseek/deepseek-v4-flash     (default, 1M ctx, plan basico/equipo)
+    - deepseek/deepseek-v4-pro       (1M ctx, más potente)
+    - anthropic/claude-3.5-haiku     (plan pro, más caro)
+    - anthropic/claude-opus-4.6      (plan pro premium)
+    - openai/gpt-4o                  (si el cliente tiene key OpenAI)
+
+    No requiere aprobación — es una configuración, no una acción destructiva.
+    """
+    config_path = Path(settings.tenants_base_path) / tenant_code / "config.yaml"
+    if not config_path.exists():
+        return json.dumps({"error": f"config.yaml no encontrado para {tenant_code}."})
+    try:
+        with open(config_path, encoding="utf-8") as f:
+            config = yaml.safe_load(f) or {}
+        previous = (config.get("model") or {}).get("default", "desconocido")
+        if "model" not in config or not isinstance(config["model"], dict):
+            config["model"] = {}
+        config["model"]["default"] = model_id
+        with open(config_path, "w", encoding="utf-8") as f:
+            yaml.dump(config, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
+        return json.dumps({
+            "success": True,
+            "tenant": tenant_code,
+            "previous_model": previous,
+            "new_model": model_id,
+            "message": (
+                f"Modelo actualizado: {previous} → {model_id}. "
+                "Sin reinicio — el próximo mensaje del usuario ya usa el modelo nuevo."
+            ),
+        })
+    except (OSError, yaml.YAMLError) as e:
+        return json.dumps({"success": False, "error": str(e)})
+
+
+@tool
+def update_tenant_soul(tenant_code: str, soul_content: str) -> str:
+    """Actualiza la personalidad (SOUL.md) de un tenant sin reiniciar.
+
+    El gateway de Hermes carga SOUL.md fresco en cada turno.
+    Útil para personalizar el agente después de onboarding:
+    - Nombre del agente ("Soy Aria, asistente de TechCorp")
+    - Tono y estilo de comunicación
+    - Especialidad del negocio del cliente
+    - Instrucciones específicas del dominio
+
+    No requiere aprobación.
+    """
+    soul_path = Path(settings.tenants_base_path) / tenant_code / "SOUL.md"
+    tenant_dir = Path(settings.tenants_base_path) / tenant_code
+    if not tenant_dir.exists():
+        return json.dumps({"error": f"Tenant {tenant_code} no existe."})
+    try:
+        soul_path.write_text(soul_content, encoding="utf-8")
+        os.chmod(soul_path, 0o644)
+        _chown(soul_path)
+        return json.dumps({
+            "success": True,
+            "tenant": tenant_code,
+            "chars": len(soul_content),
+            "message": (
+                f"SOUL.md actualizado ({len(soul_content)} chars). "
+                "Sin reinicio — el próximo mensaje ya usa la personalidad nueva."
+            ),
+        })
+    except OSError as e:
         return json.dumps({"success": False, "error": str(e)})

@@ -17,6 +17,8 @@ from src.tools.write_ops import (
     restart_tenant,
     restore_tenant_from_backup,
     stop_tenant,
+    update_tenant_model,
+    update_tenant_soul,
 )
 
 _docker_write = DockerTools(
@@ -39,6 +41,8 @@ operador = Agent(
         restart_tenant,
         backup_tenant,
         restore_tenant_from_backup,
+        update_tenant_model,
+        update_tenant_soul,
         inject_credential,
         inject_wiki_content,
         register_payment,
