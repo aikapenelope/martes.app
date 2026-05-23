@@ -8,7 +8,11 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 _BACKUPS_DIR = Path("/var/lib/martes/backups")
+_DEFAULT_TEMPLATE = "default"
+_DEFAULT_MODEL = "openai/gpt-4o-mini"   # modelo inicial — cliente puede cambiar con /model
 
 import docker
 import psycopg
@@ -42,12 +46,165 @@ def _chown(path: Path, uid: int = 1000, gid: int = 1000) -> None:
 
 @approval  # type: ignore[arg-type]
 @tool(requires_confirmation=True)
-def create_tenant(name: str, plan: str, bot_token: str, email: str = "") -> str:
-    """Crea un tenant completo: DB + config en disco + container Docker.
+def create_tenant(
+    name: str,
+    bot_token: str,
+    telegram_user_id: str,
+    model: str = _DEFAULT_MODEL,
+    plan: str = "starter",
+    email: str = "",
+) -> str:
+    """Crea un tenant Hermes completo: DB + volumen + container Docker.
+
+    Paradigma token-budget: Hermes se instala completo y sin restricciones.
+    El cliente tiene libertad total sobre su agente. El límite es el presupuesto
+    de tokens (OpenRouter key con créditos mensuales), no las features.
+
+    Parámetros:
+    - name: nombre del cliente o empresa
+    - bot_token: token del bot de Telegram (de @BotFather, formato 123456:ABC...)
+    - telegram_user_id: ID de Telegram del cliente (para TELEGRAM_ALLOWED_USERS)
+    - model: modelo LLM inicial (default: openai/gpt-4o-mini — cliente puede cambiarlo)
+    - plan: etiqueta comercial del plan (starter/growth/scale — solo para billing)
+    - email: email de contacto (opcional)
+
+    El cliente puede cambiar el modelo en cualquier momento con /model en Telegram.
     Requiere aprobacion humana.
     """
-    if plan not in ("basico", "equipo", "pro"):
-        return json.dumps({"error": f"Plan invalido: {plan}"})
+    tenant_code = ""
+    steps: list[str] = []
+    try:
+        # 1. DB — plan es solo una etiqueta de billing, no determina capacidades técnicas
+        with psycopg.connect(_pg()) as conn:
+            row = conn.execute(
+                "SELECT tenant_code FROM tenants ORDER BY tenant_code DESC LIMIT 1"
+            ).fetchone()
+            n = int(row[0][1:]) if row else 0
+            tenant_code = f"t{n + 1:03d}"
+            conn.execute(
+                "INSERT INTO tenants "
+                "(tenant_code,name,email,plan,status,container_name,network_name) "
+                "VALUES (%s,%s,%s,%s,'creating',%s,%s)",
+                (tenant_code, name, email or None, plan,
+                 f"hermes-{tenant_code}", f"tenant-{tenant_code}-net")
+            )
+            # Recursos uniformes para todos los planes — el límite es el token budget
+            conn.execute(
+                "INSERT INTO instance_configs "
+                "(tenant_id,template,platforms,skills,model,memory_limit_mb,cpu_limit) "
+                "SELECT id,%s,'{telegram}','{}', %s,768,0.75 FROM tenants WHERE tenant_code=%s",
+                (_DEFAULT_TEMPLATE, model, tenant_code)
+            )
+            conn.commit()
+        steps.append("db_record")
+
+        # 2. Volumen — copia template default, escribe .env y SOUL.md
+        tp = Path(settings.tenants_base_path) / tenant_code
+        tmpl = Path(settings.templates_path) / _DEFAULT_TEMPLATE
+        tp.mkdir(parents=True, exist_ok=True)
+        for sd in ["sessions", "memories", "skills", "cron", "logs", "wiki", "workspace", "home"]:
+            (tp / sd).mkdir(exist_ok=True)
+
+        # config.yaml: template default + modelo elegido
+        if (tmpl / "config.yaml").exists():
+            cfg = yaml.safe_load((tmpl / "config.yaml").read_text()) or {}
+            if "model" not in cfg:
+                cfg["model"] = {}
+            cfg["model"]["default"] = model
+            with open(tp / "config.yaml", "w") as f:
+                yaml.dump(cfg, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
+        else:
+            shutil.copy2(tmpl / "config.yaml", tp / "config.yaml")
+
+        # .env: credenciales del tenant
+        # TELEGRAM_ALLOWED_USERS es crítico: sin esto el bot no responde a nadie
+        # Ref: https://hermes-agent.nousresearch.com/docs/user-guide/security
+        env_file = tp / ".env"
+        env_file.write_text(
+            f"OPENROUTER_API_KEY={settings.openrouter_api_key}\n"
+            f"OPENROUTER_BASE_URL=https://openrouter.ai/api/v1\n"
+            f"TELEGRAM_BOT_TOKEN={bot_token}\n"
+            f"TELEGRAM_ALLOWED_USERS={telegram_user_id}\n"
+        )
+        os.chmod(env_file, 0o600)
+
+        # SOUL.md: personalidad inicial
+        if (tmpl / "SOUL.md").exists():
+            soul = (tmpl / "SOUL.md").read_text().replace("{{AGENT_NAME}}", name)
+            (tp / "SOUL.md").write_text(soul)
+
+        _chown(tp)
+        steps.append("volume_configured")
+
+        # 3. Container — Hermes completo, recursos uniformes
+        c = _docker()
+        net = f"tenant-{tenant_code}-net"
+        try:
+            c.networks.get(net)
+        except NotFound:
+            c.networks.create(net, driver="bridge")
+
+        container = c.containers.run(
+            image=settings.hermes_image,
+            name=f"hermes-{tenant_code}",
+            detach=True,
+            restart_policy={"Name": "unless-stopped"},
+            network=net,
+            volumes={str(tp): {"bind": "/opt/data", "mode": "rw"}},
+            environment={
+                "HERMES_UID": "1000",
+                "HERMES_GID": "1000",
+                # API server para health checks desde el meta-agente
+                "API_SERVER_ENABLED": "true",
+                "API_SERVER_HOST": "0.0.0.0",
+            },
+            # Recursos uniformes — el límite real es el token budget de OpenRouter
+            mem_limit="768m",
+            nano_cpus=int(0.75 * 1e9),
+            command=["gateway", "run"],
+            security_opt=["no-new-privileges"],
+            pids_limit=256,
+            cap_drop=["ALL"],
+            cap_add=["NET_RAW", "CHOWN", "SETUID", "SETGID", "DAC_OVERRIDE", "FOWNER"],
+            dns=["1.1.1.1", "8.8.8.8"],
+            tmpfs={"/tmp": "size=100m"},
+            log_config={"Type": "json-file", "Config": {"max-size": "50m", "max-file": "3"}},
+            labels={
+                "martes.tenant": tenant_code,
+                "martes.plan": plan,
+                "martes.model": model,
+            },
+        )
+        steps.append("container_created")
+
+        # 4. Activar en DB
+        with psycopg.connect(_pg()) as conn:
+            conn.execute(
+                "UPDATE tenants SET status='active' WHERE tenant_code=%s", (tenant_code,)
+            )
+            conn.commit()
+        steps.append("activated")
+
+        return json.dumps({
+            "success": True,
+            "tenant_code": tenant_code,
+            "name": name,
+            "plan": plan,
+            "model": model,
+            "steps": steps,
+            "message": (
+                f"Tenant {tenant_code} ({name}) activo. "
+                f"Bot listo en Telegram. Modelo: {model}. "
+                f"El cliente puede cambiar el modelo con /model."
+            ),
+        })
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": str(e),
+            "tenant_code": tenant_code,
+            "steps_completed": steps,
+        })
 
     tenant_code = ""
     steps: list[str] = []
@@ -419,4 +576,65 @@ def restore_tenant_from_backup(tenant_code: str, backup_filename: str) -> str:
                        "Puedes reiniciar el container con restart_tenant().",
         })
     except (OSError, tarfile.TarError) as e:
+        return json.dumps({"success": False, "error": str(e)})
+
+
+# =============================================================================
+# LIVE CONFIG — sin reiniciar el container
+# Hermes recarga config.yaml, .env y SOUL.md en cada turno (gateway/run.py:16119)
+# =============================================================================
+
+@tool
+def update_tenant_model(tenant_code: str, model_id: str) -> str:
+    """Cambia el modelo LLM de un tenant sin reiniciar.
+    Hermes recarga config.yaml en cada turno — efecto en el próximo mensaje.
+    El cliente también puede cambiarlo él mismo con /model en Telegram.
+
+    Modelos disponibles en OpenRouter:
+    - openai/gpt-4o-mini     (default, balanceado)
+    - openai/gpt-4o          (más potente)
+    - deepseek/deepseek-v4-flash  (1M ctx, muy barato)
+    - anthropic/claude-3.5-haiku  (buena calidad)
+    - anthropic/claude-opus-4.6   (premium)
+    No requiere aprobación.
+    """
+    config_path = Path(settings.tenants_base_path) / tenant_code / "config.yaml"
+    if not config_path.exists():
+        return json.dumps({"error": f"config.yaml no encontrado para {tenant_code}."})
+    try:
+        with open(config_path, encoding="utf-8") as f:
+            config = yaml.safe_load(f) or {}
+        previous = (config.get("model") or {}).get("default", "desconocido")
+        if "model" not in config or not isinstance(config["model"], dict):
+            config["model"] = {}
+        config["model"]["default"] = model_id
+        with open(config_path, "w", encoding="utf-8") as f:
+            yaml.dump(config, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
+        return json.dumps({
+            "success": True, "tenant": tenant_code,
+            "previous_model": previous, "new_model": model_id,
+            "message": f"{previous} → {model_id}. Efecto en el próximo mensaje.",
+        })
+    except (OSError, yaml.YAMLError) as e:
+        return json.dumps({"success": False, "error": str(e)})
+
+
+@tool
+def update_tenant_soul(tenant_code: str, soul_content: str) -> str:
+    """Actualiza la personalidad (SOUL.md) de un tenant sin reiniciar.
+    Hermes carga SOUL.md fresco en cada turno.
+    No requiere aprobación.
+    """
+    soul_path = Path(settings.tenants_base_path) / tenant_code / "SOUL.md"
+    if not (Path(settings.tenants_base_path) / tenant_code).exists():
+        return json.dumps({"error": f"Tenant {tenant_code} no existe."})
+    try:
+        soul_path.write_text(soul_content, encoding="utf-8")
+        os.chmod(soul_path, 0o644)
+        _chown(soul_path)
+        return json.dumps({
+            "success": True, "tenant": tenant_code, "chars": len(soul_content),
+            "message": f"SOUL.md actualizado. Efecto en el próximo mensaje.",
+        })
+    except OSError as e:
         return json.dumps({"success": False, "error": str(e)})

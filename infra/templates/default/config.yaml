@@ -1,0 +1,46 @@
+# martes.app — Template base para todos los tenants
+#
+# Hermes completo, sin restricciones de features.
+# El límite del plan se gestiona por presupuesto de tokens (OpenRouter key con limit).
+# El cliente puede cambiar cualquier configuración desde su conversación de Telegram.
+#
+# Ref: docs/token-budget-model.md
+# Ref: https://hermes-agent.nousresearch.com/docs/user-guide/configuration
+
+model:
+  provider: openrouter
+  default: openai/gpt-4o-mini   # cambiable por el cliente con /model
+  base_url: "https://openrouter.ai/api/v1"
+
+# Sin platform_toolsets — Hermes usa el toolset completo por defecto.
+# El cliente activa plataformas adicionales (Discord, WhatsApp) desde conversación.
+
+skills:
+  creation_nudge_interval: 15   # Hermes crea skills desde experiencia automáticamente
+
+compression:
+  enabled: true
+  threshold: 0.40
+  target_ratio: 0.20
+  protect_last_n: 15
+
+memory:
+  memory_enabled: true
+  user_profile_enabled: true
+  memory_char_limit: 2200   # ~800 tokens
+  user_char_limit: 1375     # ~500 tokens
+  nudge_interval: 10        # Actualiza memoria cada 10 turns
+
+session_reset:
+  mode: both
+  idle_minutes: 1440   # 24h — sesión nueva por inactividad
+  at_hour: 4           # Reset diario a las 4 AM
+
+agent:
+  max_turns: 60
+  reasoning_effort: "medium"
+  restart_drain_timeout: 60   # Segundos para terminar antes de reiniciar
+
+display:
+  tool_progress: all
+  busy_input_mode: queue   # Guardar mensajes mientras el agente trabaja

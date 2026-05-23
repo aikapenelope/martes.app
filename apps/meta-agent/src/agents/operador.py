@@ -17,6 +17,8 @@ from src.tools.write_ops import (
     restart_tenant,
     restore_tenant_from_backup,
     stop_tenant,
+    update_tenant_model,
+    update_tenant_soul,
 )
 
 _docker_write = DockerTools(
@@ -29,8 +31,9 @@ operador = Agent(
     id="operador",
     role="Infrastructure operator. All write actions require human approval.",
     description=(
-        "Crea tenants, para containers, inyecta config, registra pagos. "
-        "TODAS las acciones requieren aprobacion del admin."
+        "Crea y gestiona tenants Hermes. Cada tenant es una instancia completa "
+        "sin restricciones de features. El límite es el presupuesto de tokens "
+        "(OpenRouter key). TODAS las acciones destructivas requieren aprobacion del admin."
     ),
     model=MODEL,
     tools=[
@@ -39,6 +42,8 @@ operador = Agent(
         restart_tenant,
         backup_tenant,
         restore_tenant_from_backup,
+        update_tenant_model,
+        update_tenant_soul,
         inject_credential,
         inject_wiki_content,
         register_payment,
@@ -50,7 +55,7 @@ operador = Agent(
     tool_call_limit=5,
     retries=1,
     knowledge=knowledge_base,
-    search_knowledge=True,   # Agentic RAG: busca procedimientos antes de actuar
+    search_knowledge=True,
     learning=learning,
     add_learnings_to_context=True,
     skills=skills,
@@ -63,22 +68,34 @@ operador = Agent(
     compression_manager=compression,
     instructions=[
         "Eres el operador de infraestructura de martes.app.",
-        "TODAS tus acciones de escritura requieren aprobacion humana.",
+        "Gestionas tenants Hermes — agentes IA personales para clientes.",
         "",
-        "## Workflow (Coda pattern)",
-        "1. Entender que se necesita",
-        "2. Buscar en knowledge el procedimiento correcto",
-        "3. Explicar al admin que vas a hacer y el riesgo",
-        "4. Ejecutar (aprobacion pedida automaticamente)",
-        "5. Verificar que funciono",
+        "## Paradigma token-budget",
+        "Cada tenant tiene Hermes COMPLETO y SIN restricciones de features.",
+        "El límite no es lo que puede hacer, sino cuántas llamadas al LLM puede hacer.",
+        "El 'plan' (starter/growth/scale) solo define el presupuesto mensual en USD.",
+        "El cliente puede cambiar su modelo con /model, instalar skills, activar plataformas.",
         "",
         "## Para crear tenant:",
-        "Necesitas: nombre, plan (basico/equipo/pro), bot_token de Telegram.",
-        "Usa create_tenant() — hace todo el flujo completo.",
+        "Necesitas: nombre, bot_token de Telegram, telegram_user_id del cliente.",
+        "Opcional: model (default: openai/gpt-4o-mini), plan (default: starter).",
+        "Usa create_tenant() — crea DB + volumen + container en un solo paso.",
+        "",
+        "## Cambios en caliente (sin reiniciar):",
+        "- Cambiar modelo: update_tenant_model(tenant_code, nuevo_modelo)",
+        "- Cambiar personalidad: update_tenant_soul(tenant_code, nuevo_soul)",
+        "- Cambiar API key: inject_credential(tenant_code, 'openrouter_api_key', nueva_key)",
+        "",
+        "## Workflow antes de actuar:",
+        "1. Entender que se necesita",
+        "2. Buscar en knowledge el procedimiento correcto",
+        "3. Explicar al admin qué vas a hacer y el riesgo",
+        "4. Ejecutar (aprobacion pedida automáticamente para acciones destructivas)",
+        "5. Verificar que funcionó",
         "",
         "## Reglas:",
-        "- NUNCA ejecutes sin explicar primero",
-        "- Despues de cada accion, VERIFICA que funciono",
-        "- Responde en espanol",
+        "- NUNCA ejecutes acciones destructivas sin explicar primero",
+        "- Después de cada accion, VERIFICA que funcionó",
+        "- Responde en español",
     ],
 )
