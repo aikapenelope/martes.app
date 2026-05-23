@@ -17,7 +17,7 @@ services:
       POSTGRES_DB: martes
     volumes:
       - /var/lib/martes/pg-data:/var/lib/postgresql
-      - ../db/migrations:/docker-entrypoint-initdb.d:ro
+      - ./db/migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U martes -d martes"]
       interval: 10s
@@ -62,10 +62,11 @@ services:
   # ==========================================================================
   meta-agent:
     build:
-      # context es el root del repo — necesario para COPY infra/templates en el Dockerfile.
-      # Coolify ejecuta el build desde la raíz del repositorio clonado.
-      # Ref Dockerfile: apps/meta-agent/Dockerfile (requiere context = repo root)
-      context: ..
+      # Coolify pasa --project-directory=<repo-root> cuando ejecuta el build,
+      # así que "." resuelve a la raíz del repo (no a infra/).
+      # Localmente: docker compose --project-directory . -f infra/docker-compose.yml build
+      # Ref comportamiento: https://docs.docker.com/compose/how-tos/project-name/
+      context: .
       dockerfile: apps/meta-agent/Dockerfile
     restart: unless-stopped
     ports:
