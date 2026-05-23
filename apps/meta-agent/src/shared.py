@@ -37,16 +37,18 @@ db = PostgresDb(
 )
 
 # ---------------------------------------------------------------------------
-# Modelos — DeepSeek V4 via OpenRouter
+# Modelos — DeepSeek V4 Flash via OpenRouter
+# deepseek/deepseek-v4-flash: 1M tokens contexto, verificado mayo 2026
+# Ref: https://openrouter.ai/deepseek/deepseek-v4-flash
 # ---------------------------------------------------------------------------
 MODEL = OpenAIChat(
-    id=settings.default_model,
+    id=settings.default_model,   # deepseek/deepseek-v4-flash desde config
     api_key=settings.openrouter_api_key,
     base_url="https://openrouter.ai/api/v1",
 )
 
 FAST_MODEL = OpenAIChat(
-    id="deepseek/deepseek-chat",
+    id="deepseek/deepseek-v4-flash",
     api_key=settings.openrouter_api_key,
     base_url="https://openrouter.ai/api/v1",
 )

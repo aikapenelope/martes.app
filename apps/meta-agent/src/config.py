@@ -10,8 +10,10 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://martes:martes@localhost:5432/martes"
 
     # LLM via OpenRouter
+    # deepseek/deepseek-v4-flash: 1M ctx, verificado disponible mayo 2026
+    # Ref: https://openrouter.ai/deepseek/deepseek-v4-flash
     openrouter_api_key: str = ""
-    default_model: str = "deepseek/deepseek-chat"
+    default_model: str = "deepseek/deepseek-v4-flash"
 
     # Telegram
     telegram_token: str = ""
