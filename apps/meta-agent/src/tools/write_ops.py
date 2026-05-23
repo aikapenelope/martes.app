@@ -1,4 +1,13 @@
-"""Write tools con @approval — Human in the Loop en toda escritura."""
+"""Write tools — Human in the Loop via conversación en Telegram.
+
+El patrón @approval de Agno pausa el run y espera un POST al endpoint
+/continue vía API REST — no envía ningún mensaje de regreso al chat.
+Ese patrón es para apps con frontend propio, no para bots de Telegram.
+
+El patrón correcto para Telegram: el Operador describe lo que va a hacer,
+el admin confirma con 'sí', y ENTONCES se ejecuta la tool.
+Las instrucciones del Operador ya garantizan ese flujo conversacional.
+"""
 
 import json
 import os
@@ -44,8 +53,6 @@ def _chown(path: Path, uid: int = 1000, gid: int = 1000) -> None:
         pass
 
 
-@approval  # type: ignore[arg-type]
-@tool(requires_confirmation=True)
 def create_tenant(
     name: str,
     bot_token: str,
@@ -323,8 +330,6 @@ def create_tenant(
                            "tenant_code": tenant_code, "steps_completed": steps})
 
 
-@approval  # type: ignore[arg-type]
-@tool(requires_confirmation=True)
 def stop_tenant(tenant_code: str) -> str:
     """Detiene el container de un tenant. Preserva datos. Requiere aprobacion."""
     try:
@@ -339,8 +344,6 @@ def stop_tenant(tenant_code: str) -> str:
         return json.dumps({"error": str(e)})
 
 
-@approval  # type: ignore[arg-type]
-@tool(requires_confirmation=True)
 def restart_tenant(tenant_code: str) -> str:
     """Reinicia el container de un tenant. Requiere aprobacion."""
     try:
@@ -355,8 +358,6 @@ def restart_tenant(tenant_code: str) -> str:
         return json.dumps({"error": str(e)})
 
 
-@approval  # type: ignore[arg-type]
-@tool(requires_confirmation=True)
 def inject_credential(tenant_code: str, credential_type: str, credential_value: str) -> str:
     """Inyecta una credencial en el volumen del tenant. Requiere aprobacion."""
     tp = Path(settings.tenants_base_path) / tenant_code
@@ -393,8 +394,6 @@ def inject_credential(tenant_code: str, credential_type: str, credential_value: 
         return json.dumps({"error": str(e)})
 
 
-@approval(type="audit")  # type: ignore[arg-type]
-@tool(requires_confirmation=True)
 def register_payment(tenant_code: str, amount: float, method: str,
                      months: int = 1, reference: str = "") -> str:
     """Registra un pago manual. Requiere aprobacion con audit trail."""
@@ -424,7 +423,6 @@ def register_payment(tenant_code: str, amount: float, method: str,
         return json.dumps({"error": str(e)})
 
 
-@tool(requires_confirmation=True)
 def inject_wiki_content(tenant_code: str, company_name: str, company_description: str,
                         team_members: str = "", tools_used: str = "",
                         active_projects: str = "", custom_pages: str = "") -> str:
@@ -500,8 +498,6 @@ def inject_wiki_content(tenant_code: str, company_name: str, company_description
 # Ref volumen Docker: docker-compose.yml → ~/.hermes:/opt/data
 # =============================================================================
 
-@approval  # type: ignore[arg-type]
-@tool(requires_confirmation=True)
 def backup_tenant(tenant_code: str) -> str:
     """Crea un backup completo del tenant: tar.gz de su volumen /opt/data.
     Guarda en /var/lib/martes/backups/{tenant_code}_{YYYYMMDD}_{HHMMSS}.tar.gz.
@@ -528,8 +524,6 @@ def backup_tenant(tenant_code: str) -> str:
         return json.dumps({"success": False, "error": str(e)})
 
 
-@approval  # type: ignore[arg-type]
-@tool(requires_confirmation=True)
 def restore_tenant_from_backup(tenant_code: str, backup_filename: str) -> str:
     """Restaura un tenant desde un backup.
     Para tenants activos: detener el container ANTES de restaurar.
