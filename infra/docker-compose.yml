@@ -47,6 +47,11 @@ services:
   #   - 8000 via Tailscale (acceso admin directo)
   #   - api.martes.app via Traefik (webhook Telegram + API pública)
   #
+  # Build nativo de Coolify: Coolify construye la imagen desde el repo GitHub.
+  # En cada push a main el GitHub App de Coolify detecta el commit, reconstruye
+  # la imagen en el servidor y redespliega automáticamente.
+  # Ref: https://coolify.io/docs/applications/ci-cd/github/auto-deploy
+  #
   # Raw compose mode requiere labels de Traefik explícitas.
   # Coolify no las inyecta en raw compose — confirmado en source:
   # github.com/coollabsio/coolify ApplicationDeploymentJob.php
@@ -56,7 +61,12 @@ services:
   # Ref: https://coolify.io/docs/applications/build-packs/docker-compose
   # ==========================================================================
   meta-agent:
-    image: ghcr.io/aikapenelope/martes-meta-agent:latest
+    build:
+      # context es el root del repo — necesario para COPY infra/templates en el Dockerfile.
+      # Coolify ejecuta el build desde la raíz del repositorio clonado.
+      # Ref Dockerfile: apps/meta-agent/Dockerfile (requiere context = repo root)
+      context: ..
+      dockerfile: apps/meta-agent/Dockerfile
     restart: unless-stopped
     ports:
       - "100.104.89.128:8000:7777"   # AgentOS API via Tailscale — solo interfaz Tailscale

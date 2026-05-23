@@ -15,21 +15,18 @@ import shutil
 import tarfile
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
-
-import yaml
-
-_BACKUPS_DIR = Path("/var/lib/martes/backups")
-_DEFAULT_TEMPLATE = "default"
-_DEFAULT_MODEL = "openai/gpt-4o-mini"   # modelo inicial — cliente puede cambiar con /model
 
 import docker
 import psycopg
-from agno.approval.decorator import approval
+import yaml
 from agno.tools.decorator import tool
 from docker.errors import APIError, NotFound
 
 from src.config import settings
+
+_BACKUPS_DIR = Path("/var/lib/martes/backups")
+_DEFAULT_TEMPLATE = "default"
+_DEFAULT_MODEL = "openai/gpt-4o-mini"   # modelo inicial — cliente puede cambiar con /model
 
 
 def _docker() -> docker.DockerClient:
@@ -151,11 +148,11 @@ def create_tenant(
         except NotFound:
             c.networks.create(net, driver="bridge")
 
-        container = c.containers.run(
+        c.containers.run(
             image=settings.hermes_image,
             name=f"hermes-{tenant_code}",
             detach=True,
-            restart_policy={"Name": "unless-stopped"},
+            restart_policy={"Name": "unless-stopped"},  # type: ignore[arg-type]
             network=net,
             volumes={str(tp): {"bind": "/opt/data", "mode": "rw"}},
             environment={
@@ -175,7 +172,7 @@ def create_tenant(
             cap_add=["NET_RAW", "CHOWN", "SETUID", "SETGID", "DAC_OVERRIDE", "FOWNER"],
             dns=["1.1.1.1", "8.8.8.8"],
             tmpfs={"/tmp": "size=100m"},
-            log_config={"Type": "json-file", "Config": {"max-size": "50m", "max-file": "3"}},
+            log_config={"Type": "json-file", "Config": {"max-size": "50m", "max-file": "3"}},  # type: ignore[arg-type]
             labels={
                 "martes.tenant": tenant_code,
                 "martes.plan": plan,
@@ -212,123 +209,6 @@ def create_tenant(
             "tenant_code": tenant_code,
             "steps_completed": steps,
         })
-
-    tenant_code = ""
-    steps: list[str] = []
-    try:
-        # 1. DB
-        with psycopg.connect(_pg()) as conn:
-            row = conn.execute(
-                "SELECT tenant_code FROM tenants ORDER BY tenant_code DESC LIMIT 1"
-            ).fetchone()
-            n = int(row[0][1:]) if row else 0
-            tenant_code = f"t{n + 1:03d}"
-            conn.execute(
-                "INSERT INTO tenants "
-                "(tenant_code,name,email,plan,status,container_name,network_name) "
-                "VALUES (%s,%s,%s,%s,'creating',%s,%s)",
-                (tenant_code, name, email or None, plan,
-                 f"hermes-{tenant_code}", f"tenant-{tenant_code}-net")
-            )
-            defaults = {
-                "basico": (["telegram"], "deepseek/deepseek-chat", 512, 0.5),
-                "equipo": (["telegram", "discord"], "deepseek/deepseek-chat", 768, 0.75),
-                "pro": (
-                    ["telegram", "discord", "whatsapp"],
-                    "anthropic/claude-3.5-haiku", 1024, 1.0
-                ),
-            }
-            platforms, model, mem, cpu = defaults[plan]
-            conn.execute(
-                "INSERT INTO instance_configs "
-                "(tenant_id,template,platforms,skills,model,memory_limit_mb,cpu_limit) "
-                "SELECT id,%s,%s,'{}', %s,%s,%s FROM tenants WHERE tenant_code=%s",
-                (plan, platforms, model, mem, cpu, tenant_code)
-            )
-            conn.commit()
-        steps.append("db_record")
-
-        # 2. Config en disco
-        tp = Path(settings.tenants_base_path) / tenant_code
-        tmpl = Path(settings.templates_path) / plan
-        tp.mkdir(parents=True, exist_ok=True)
-        for sd in ["sessions", "memories", "skills", "cron", "logs", "wiki", "workspace"]:
-            (tp / sd).mkdir(exist_ok=True)
-        if (tmpl / "config.yaml").exists():
-            shutil.copy2(tmpl / "config.yaml", tp / "config.yaml")
-        env_file = tp / ".env"
-        env_file.write_text(
-            f"OPENROUTER_API_KEY={settings.openrouter_api_key}\n"
-            f"TELEGRAM_BOT_TOKEN={bot_token}\n"
-            f"OPENROUTER_BASE_URL=https://openrouter.ai/api/v1\n"
-        )
-        os.chmod(env_file, 0o600)
-        if (tmpl / "SOUL.md").exists():
-            soul = (tmpl / "SOUL.md").read_text().replace("{{AGENT_NAME}}", name)
-            (tp / "SOUL.md").write_text(soul)
-        _chown(tp)
-        steps.append("config_written")
-
-        # 3. Container
-        c = _docker()
-        net = f"tenant-{tenant_code}-net"
-        try:
-            c.networks.get(net)
-        except NotFound:
-            c.networks.create(net, driver="bridge")
-
-        limits = {"basico": (512, 0.5), "equipo": (768, 0.75), "pro": (1024, 1.0)}
-        mem_mb, cpus = limits[plan]
-        kwargs: dict[str, Any] = {
-            "image": settings.hermes_image, "name": f"hermes-{tenant_code}",
-            "detach": True, "restart_policy": {"Name": "unless-stopped"},
-            # Arrancar directamente en la red del tenant — evita la red bridge por defecto
-            "network": net,
-            "volumes": {str(tp): {"bind": "/opt/data", "mode": "rw"}},
-            "environment": {"HERMES_UID": "1000", "HERMES_GID": "1000",
-                            "API_SERVER_ENABLED": "true", "API_SERVER_HOST": "0.0.0.0",
-                            "HERMES_DASHBOARD": "1" if plan in ("equipo", "pro") else "0"},
-            "mem_limit": f"{mem_mb}m", "nano_cpus": int(cpus * 1e9),
-            "command": ["gateway", "run"],
-            "security_opt": ["no-new-privileges"],
-            "pids_limit": 256, "cap_drop": ["ALL"],
-            "cap_add": ["NET_RAW", "CHOWN", "SETUID", "SETGID", "DAC_OVERRIDE", "FOWNER"],
-            "dns": ["1.1.1.1", "8.8.8.8"], "tmpfs": {"/tmp": "size=100m"},
-            "log_config": {"Type": "json-file", "Config": {"max-size": "50m", "max-file": "3"}},
-            "labels": {
-                "martes.tenant": tenant_code, "martes.plan": plan,
-                # Traefik labels para routing de Coolify.
-                # entryPoints=http — patrón documentado por Coolify para Docker Compose.
-                # Coolify gestiona TLS/HTTPS automáticamente vía su proxy.
-                # Ref: https://coolify.io/docs/knowledge-base/docker/compose
-                "traefik.enable": "true",
-                f"traefik.http.routers.{tenant_code}.rule": f"Host(`{tenant_code}.martes.app`)",
-                f"traefik.http.routers.{tenant_code}.entryPoints": "http",
-                f"traefik.http.services.{tenant_code}.loadbalancer.server.port": "8642",
-            },
-        }
-        container = c.containers.run(**kwargs)
-        # Conectar a martes-tenants para aislamiento entre tenants.
-        # Coolify gestiona la conectividad con su proxy via su red interna del stack.
-        for network_name in ["martes-tenants"]:
-            try:
-                c.networks.get(network_name).connect(container)
-            except (NotFound, APIError):
-                pass
-        steps.append("container_created")
-
-        # 4. Activar
-        with psycopg.connect(_pg()) as conn:
-            conn.execute("UPDATE tenants SET status='active' WHERE tenant_code=%s", (tenant_code,))
-            conn.commit()
-        steps.append("activated")
-
-        return json.dumps({"success": True, "tenant_code": tenant_code,
-                           "name": name, "plan": plan, "steps": steps})
-    except Exception as e:
-        return json.dumps({"success": False, "error": str(e),
-                           "tenant_code": tenant_code, "steps_completed": steps})
-
 
 def stop_tenant(tenant_code: str) -> str:
     """Detiene el container de un tenant. Preserva datos. Requiere aprobacion."""
@@ -628,7 +508,7 @@ def update_tenant_soul(tenant_code: str, soul_content: str) -> str:
         _chown(soul_path)
         return json.dumps({
             "success": True, "tenant": tenant_code, "chars": len(soul_content),
-            "message": f"SOUL.md actualizado. Efecto en el próximo mensaje.",
+            "message": "SOUL.md actualizado. Efecto en el próximo mensaje.",
         })
     except OSError as e:
         return json.dumps({"success": False, "error": str(e)})
