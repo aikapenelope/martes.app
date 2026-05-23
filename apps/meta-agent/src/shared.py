@@ -102,8 +102,4 @@ knowledge_base = Knowledge(
         ),
     ),
     readers=[MarkdownReader()],
-    content_sources=[
-        str(_KNOWLEDGE_DIR / "hermes_reference.md"),
-        str(_KNOWLEDGE_DIR / "procedures.md"),
-    ],
 )

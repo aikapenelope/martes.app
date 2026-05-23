@@ -15,7 +15,7 @@ from agno.os.interfaces.telegram import Telegram
 from src.agents.diagnosticador import diagnosticador
 from src.agents.operador import operador
 from src.config import settings
-from src.shared import knowledge_base
+from src.shared import _KNOWLEDGE_DIR, knowledge_base
 from src.team import martes_team
 
 # Telegram interface — conectada al TEAM (no a un agente individual)
@@ -48,11 +48,16 @@ if settings.telegram_token and ":" in settings.telegram_token:
         )
     )
 
-# Cargar knowledge base al arranque — idempotente.
-# Primer arranque: indexa hermes_reference.md y procedures.md en PgVector.
-# Arranques posteriores: no-op (documentos ya embebidos).
+# Indexar knowledge base al arranque — idempotente.
+# add_content(skip_if_exists=True): sube embedding solo si el documento
+# no existe aún en martes_knowledge. Arranques posteriores son no-op.
+# API documentada: Knowledge.add_content(path, skip_if_exists)
 # Ref: https://docs.agno.com/knowledge/introduction
-knowledge_base.load(recreate=False)
+for _doc in ["hermes_reference.md", "procedures.md"]:
+    knowledge_base.add_content(
+        path=str(_KNOWLEDGE_DIR / _doc),
+        skip_if_exists=True,
+    )
 
 # AgentOS — Agents + Team + Telegram + Scheduler
 # agents: expuestos individualmente en os.agno.com para control y monitoreo directo
