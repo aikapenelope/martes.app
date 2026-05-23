@@ -26,7 +26,10 @@ class Settings(BaseSettings):
     templates_path: str = "/app/infra/templates"
 
     # Docker
-    hermes_image: str = "nousresearch/hermes-agent:0.14.0"
+    # v2026.5.16 = Hermes Agent v0.14.0 (release tag en Docker Hub)
+    # Los tags de Hermes usan vAÑO.MES.DIA, no semver.
+    # Ref: https://github.com/NousResearch/hermes-agent/releases/tag/v2026.5.16
+    hermes_image: str = "nousresearch/hermes-agent:v2026.5.16"
 
     model_config = {"env_prefix": "", "case_sensitive": False, "extra": "ignore"}
 

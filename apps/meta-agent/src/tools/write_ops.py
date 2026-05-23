@@ -158,9 +158,13 @@ def create_tenant(
             environment={
                 "HERMES_UID": "1000",
                 "HERMES_GID": "1000",
-                # API server para health checks desde el meta-agente
+                # API_SERVER_ENABLED activa el health endpoint en localhost:8642 dentro
+                # del container. Los health checks del meta-agente usan docker exec, no
+                # red, así que localhost (127.0.0.1) es suficiente.
+                # NO se pone API_SERVER_HOST=0.0.0.0 sin API_SERVER_KEY — el doc de
+                # Hermes requiere ambos juntos al exponer fuera de localhost:
+                # Ref: https://hermes-agent.nousresearch.com/docs/user-guide/docker
                 "API_SERVER_ENABLED": "true",
-                "API_SERVER_HOST": "0.0.0.0",
             },
             # Recursos uniformes — el límite real es el token budget de OpenRouter
             mem_limit="768m",

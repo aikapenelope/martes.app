@@ -7,7 +7,7 @@ from agno.agent import Agent
 from agno.tools.docker import DockerTools
 
 from src.shared import MODEL, compression, db, knowledge_base, learning, skills
-from src.tools.read_ops import container_health, get_all_tenants, list_containers
+from src.tools.read_ops import container_health, get_all_tenants
 from src.tools.write_ops import (
     backup_tenant,
     create_tenant,

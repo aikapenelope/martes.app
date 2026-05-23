@@ -107,5 +107,8 @@ knowledge_base = Knowledge(
             base_url="https://openrouter.ai/api/v1",
         ),
     ),
-    readers=[MarkdownReader()],
+    # readers: Dict[str, Reader] — mapea extensión de archivo a reader.
+    # ".md" es el ContentType correcto para MarkdownReader.
+    # Ref: agno==2.6.8 source, knowledge/types.py (ContentType enum)
+    readers={".md": MarkdownReader()},
 )
