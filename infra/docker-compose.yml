@@ -43,17 +43,40 @@ services:
 
   # ==========================================================================
   # Meta-agente Agno AgentOS
-  # Puerto 7777 interno, expuesto en 8000 via Tailscale (patrón Agno estándar).
-  # AGENT_OS_HOST=0.0.0.0 requerido en containers.
-  # Ref: https://docs.agno.com/agent-os/overview
-  # Dominio api.martes.app se configura en Coolify UI (no en labels).
-  # Ref: https://coolify.io/docs/knowledge-base/docker/compose (sección Domains)
+  # Puerto 7777 interno, expuesto en:
+  #   - 8000 via Tailscale (acceso admin directo)
+  #   - api.martes.app via Traefik (webhook Telegram + API pública)
+  #
+  # Raw compose mode requiere labels de Traefik explícitas.
+  # Coolify no las inyecta en raw compose — confirmado en source:
+  # github.com/coollabsio/coolify ApplicationDeploymentJob.php
+  #
+  # El container debe estar en la red "coolify" para que Traefik lo descubra.
+  # Ref entrypoints: /data/coolify/proxy/dynamic/coolify.yaml
+  # Ref: https://coolify.io/docs/applications/build-packs/docker-compose
   # ==========================================================================
   meta-agent:
     image: ghcr.io/aikapenelope/martes-meta-agent:latest
     restart: unless-stopped
     ports:
       - "100.104.89.128:8000:7777"   # AgentOS API via Tailscale — solo interfaz Tailscale
+    networks:
+      - default    # red del stack — comunicación con db
+      - coolify    # red de Traefik — routing de api.martes.app
+    labels:
+      # Traefik routing: api.martes.app → AgentOS puerto 7777
+      # HTTPS con TLS via Let's Encrypt (certresolver de Coolify)
+      - "traefik.enable=true"
+      - "traefik.docker.network=coolify"
+      - "traefik.http.routers.meta-agent-https.rule=Host(`api.martes.app`)"
+      - "traefik.http.routers.meta-agent-https.entrypoints=https"
+      - "traefik.http.routers.meta-agent-https.tls=true"
+      - "traefik.http.routers.meta-agent-https.tls.certresolver=letsencrypt"
+      - "traefik.http.services.meta-agent.loadbalancer.server.port=7777"
+      # HTTP redirect → HTTPS
+      - "traefik.http.routers.meta-agent-http.rule=Host(`api.martes.app`)"
+      - "traefik.http.routers.meta-agent-http.entrypoints=http"
+      - "traefik.http.routers.meta-agent-http.middlewares=redirect-to-https@docker"
     environment:
       DATABASE_URL: postgresql+psycopg://martes:${PG_PASSWORD:?}@db:5432/martes
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?}
@@ -85,3 +108,11 @@ services:
       resources:
         limits:
           memory: 512M
+
+networks:
+  # Red externa de Coolify/Traefik — necesaria para routing HTTP/HTTPS.
+  # Creada automáticamente por Coolify al instalar. No se gestiona desde aquí.
+  # Ref: https://coolify.io/docs/knowledge-base/docker/compose
+  coolify:
+    external: true
+    name: coolify
