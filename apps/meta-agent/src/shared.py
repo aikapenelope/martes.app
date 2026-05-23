@@ -8,7 +8,7 @@ from pathlib import Path
 
 from agno.compression.manager import CompressionManager
 from agno.db.postgres import PostgresDb
-from agno.knowledge.embedder.openai_like import OpenAILikeEmbedder
+from agno.knowledge.embedder.openai import OpenAIEmbedder
 from agno.knowledge.knowledge import Knowledge
 from agno.knowledge.reader.markdown_reader import MarkdownReader
 from agno.learn import (
@@ -94,11 +94,15 @@ knowledge_base = Knowledge(
     vector_db=PgVector(
         table_name="martes_knowledge",
         db_url=settings.database_url,
-        embedder=OpenAILikeEmbedder(
+        # OpenAIEmbedder (no OpenAILikeEmbedder) — la clase base inicializa
+        # el cliente OpenAI con api_key y base_url correctamente.
+        # OpenAILikeEmbedder sobreescribe __post_init__ con pass y nunca
+        # instancia el cliente, causando 401 al llamar a OpenRouter.
+        # Ref: agno==2.6.8 source, knowledge/embedder/openai_like.py
+        embedder=OpenAIEmbedder(
             id="openai/text-embedding-3-small",
             api_key=settings.openrouter_api_key,
             base_url="https://openrouter.ai/api/v1",
-            dimensions=1536,
         ),
     ),
     readers=[MarkdownReader()],
