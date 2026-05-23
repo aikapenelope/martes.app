@@ -52,5 +52,3 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           provenance: false
-          cache-from: type=registry,ref=ghcr.io/aikapenelope/martes-meta-agent:cache
-          cache-to: type=registry,ref=ghcr.io/aikapenelope/martes-meta-agent:cache,mode=max
