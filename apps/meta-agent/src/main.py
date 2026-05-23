@@ -25,25 +25,27 @@ interfaces = []
 if settings.telegram_token and ":" in settings.telegram_token:
     interfaces.append(
         Telegram(
-            team=martes_team,                   # ← TEAM, no agent
+            team=martes_team,
             token=settings.telegram_token,
             reply_to_mentions_only=False,
             streaming=True,
             start_message=(
                 "Meta-agente martes.app activo.\n"
-                "Tengo acceso a: diagnostico, tenants, health, logs, pagos.\n"
-                "Escribe 'health check' para empezar."
+                "Gestiono tenants Hermes — agentes IA completos y sin restricciones.\n"
+                "Escribe 'health check' para empezar o 'ayuda' para ver opciones."
             ),
             help_message=(
-                "Sin restriccion (diagnostico):\n"
+                "Diagnóstico (sin aprobación):\n"
                 "- health check / status\n"
                 "- lista tenants\n"
-                "- logs [codigo] / stats [codigo]\n\n"
-                "Con aprobacion (operaciones):\n"
-                "- crea tenant [nombre] plan [plan] token [token]\n"
+                "- logs [codigo] / stats [codigo]\n"
+                "- cuanto hemos gastado\n\n"
+                "Operaciones (con aprobación):\n"
+                "- crea tenant [nombre] token [bot_token] telegram_id [id]\n"
+                "- cambia modelo [codigo] a [modelo]\n"
                 "- pausa [codigo] / reactiva [codigo]\n"
                 "- registra pago [codigo] $[monto] [metodo]\n"
-                "- conecta [servicio] a [codigo] token [valor]"
+                "- backup [codigo] / restaura [codigo] desde [archivo]"
             ),
         )
     )
