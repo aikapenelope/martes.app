@@ -172,14 +172,21 @@ def check_backup_status() -> str:
             hours_since = None
             if backups:
                 last_mtime = backups[0].stat().st_mtime
-                last_backup = datetime.fromtimestamp(last_mtime, tz=timezone.utc).isoformat()
-                hours_since = round((datetime.now(tz=timezone.utc).timestamp() - last_mtime) / 3600, 1)
+                last_backup = datetime.fromtimestamp(
+                    last_mtime, tz=timezone.utc
+                ).isoformat()
+                hours_since = round(
+                    (datetime.now(tz=timezone.utc).timestamp() - last_mtime) / 3600, 1
+                )
             results.append({
                 "tenant": code,
                 "last_backup": last_backup,
                 "hours_since_backup": hours_since,
                 "backup_count": len(backups),
-                "status": "ok" if hours_since and hours_since < 26 else "overdue" if last_backup else "never",
+                "status": (
+                    "ok" if hours_since and hours_since < 26
+                    else "overdue" if last_backup else "never"
+                ),
             })
         overdue = [r for r in results if r["status"] != "ok"]
         return json.dumps({
