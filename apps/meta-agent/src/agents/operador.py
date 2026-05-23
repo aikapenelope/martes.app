@@ -47,10 +47,9 @@ operador = Agent(
         inject_credential,
         inject_wiki_content,
         register_payment,
-        list_containers,
         container_health,
         get_all_tenants,
-        _docker_write,
+        _docker_write,   # incluye list_containers, start/stop/run container, logs, inspect
     ],
     tool_call_limit=5,
     retries=1,
@@ -60,7 +59,9 @@ operador = Agent(
     add_learnings_to_context=True,
     skills=skills,
     db=db,
-    enable_agentic_memory=True,
+    # enable_agentic_memory desactivado — LearningMachine con UserMemoryConfig
+    # ya gestiona la memoria del usuario. Activar ambos registra 'update_user_memory'
+    # dos veces y genera duplicate tool warning en logs.
     add_history_to_context=True,
     num_history_runs=5,
     add_datetime_to_context=True,

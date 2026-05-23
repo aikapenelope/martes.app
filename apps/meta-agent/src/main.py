@@ -15,7 +15,7 @@ from agno.os.interfaces.telegram import Telegram
 from src.agents.diagnosticador import diagnosticador
 from src.agents.operador import operador
 from src.config import settings
-from src.shared import _KNOWLEDGE_DIR, knowledge_base
+from src.shared import _KNOWLEDGE_DIR, db, knowledge_base
 from src.team import martes_team
 
 # Telegram interface — conectada al TEAM (no a un agente individual)
@@ -62,13 +62,17 @@ for _doc in ["hermes_reference.md", "procedures.md"]:
     )
 
 # AgentOS — Agents + Team + Telegram + Scheduler
-# agents: expuestos individualmente en os.agno.com para control y monitoreo directo
+# db: requerido para HITL approvals (@approval decorator en tools).
+#     Sin db, create_tenant/stop_tenant/backup devuelven 503 en lugar de pausar.
+#     Ref: https://docs.agno.com/agent-os/approvals
+# agents: expuestos individualmente en os.agno.com para control y monitoreo
 # teams: entrada unificada para Telegram (coordinate mode — routing dinámico)
 # Ref: https://docs.agno.com/agent-os/overview
 agent_os = AgentOS(
     agents=[diagnosticador, operador],
     teams=[martes_team],
     interfaces=interfaces,
+    db=db,
     scheduler=True,
     scheduler_poll_interval=60,
     tracing=True,
