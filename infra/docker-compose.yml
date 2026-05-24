@@ -96,6 +96,10 @@ services:
       # Valida header X-Telegram-Bot-Api-Secret-Token en cada webhook.
       # Ref: https://docs.agno.com/agent-os/interfaces/telegram/introduction
       TELEGRAM_WEBHOOK_SECRET_TOKEN: ${TELEGRAM_WEBHOOK_SECRET_TOKEN:?}
+      # TELEGRAM_ADMIN_IDS: IDs de Telegram autorizados para hablar al meta-agente.
+      # Separa múltiples IDs con coma. Tu ID lo obtiene @userinfobot en Telegram.
+      # Obligatorio en producción — sin esto cualquier persona puede usar el bot.
+      TELEGRAM_ADMIN_IDS: ${TELEGRAM_ADMIN_IDS:?}
       # AGENT_OS_HOST requerido para containers — ref: https://docs.agno.com/agent-os/overview
       AGENT_OS_HOST: "0.0.0.0"
       APP_ENV: production

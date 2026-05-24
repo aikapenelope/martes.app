@@ -18,6 +18,13 @@ class Settings(BaseSettings):
     # Telegram
     telegram_token: str = ""
 
+    # Guardrail: IDs de Telegram autorizados para hablar al meta-agente.
+    # Formato: IDs numéricos separados por coma. Ej: "563825119,987654321"
+    # Si está vacío, el bot responde a cualquier usuario (solo para desarrollo).
+    # En producción SIEMPRE debe tener al menos el ID del admin.
+    # El ID se obtiene hablándole a @userinfobot en Telegram.
+    telegram_admin_ids: str = ""
+
     # Entorno
     app_env: str = "development"
 

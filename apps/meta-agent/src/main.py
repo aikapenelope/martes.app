@@ -7,6 +7,7 @@ AgentOS con:
 - Polling en desarrollo (APP_ENV=development)
 - Scheduler habilitado
 - Tracing habilitado
+- Guardrail de Telegram: solo responde a IDs autorizados
 """
 
 import json
@@ -14,7 +15,9 @@ import logging
 
 from agno.os.app import AgentOS
 from agno.os.interfaces.telegram import Telegram
-from fastapi.responses import JSONResponse
+from fastapi.requests import Request
+from fastapi.responses import JSONResponse, Response
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from src.agents.diagnosticador import diagnosticador
 from src.agents.operador import operador
@@ -24,8 +27,70 @@ from src.team import martes_team
 
 logger = logging.getLogger(__name__)
 
+
+# =============================================================================
+# Guardrail de Telegram — capa dura de seguridad, independiente del LLM
+#
+# El middleware inspecciona cada update de Telegram ANTES de que Agno lo
+# procese. Si el from.id del remitente no está en la lista de IDs autorizados,
+# responde 200 OK a Telegram (para que no reintente) y descarta el mensaje.
+#
+# Esto no es una instrucción al LLM — es una barrera a nivel HTTP que ningún
+# usuario puede bypassear desde Telegram.
+#
+# Ref: patrón "Custom Middleware" documentado en Agno AgentOS:
+# https://docs.agno.com/agent-os/overview (BYO FastAPI App section)
+# =============================================================================
+
+class TelegramAllowlistMiddleware(BaseHTTPMiddleware):
+    """Descarta updates de Telegram de usuarios no autorizados.
+
+    Sólo actúa en POST /telegram/webhook. Todos los demás paths pasan sin
+    modificación. Si TELEGRAM_ADMIN_IDS está vacío (desarrollo), permite todo.
+    """
+
+    def __init__(self, app, allowed_ids: frozenset[str]) -> None:
+        super().__init__(app)
+        self.allowed_ids = allowed_ids
+
+    async def dispatch(self, request: Request, call_next: object) -> Response:
+        if "/telegram/webhook" in str(request.url.path) and request.method == "POST":
+            body = await request.body()
+
+            if self.allowed_ids:
+                try:
+                    update = json.loads(body)
+                    # El update puede venir de message, edited_message, callback_query, etc.
+                    from_id: int | None = None
+                    for field in ("message", "edited_message", "callback_query",
+                                  "inline_query", "my_chat_member", "chat_member"):
+                        if field in update:
+                            from_id = update[field].get("from", {}).get("id")
+                            break
+
+                    if from_id is not None and str(from_id) not in self.allowed_ids:
+                        logger.warning(
+                            "Telegram update descartado: user_id=%s no autorizado", from_id
+                        )
+                        # Responder 200 para que Telegram no reintente
+                        return Response(status_code=200)
+                except (json.JSONDecodeError, AttributeError):
+                    # Payload malformado — dejamos que Agno lo maneje
+                    pass
+
+            # Re-inyectar body en el request (fue consumido por await request.body())
+            # Necesario porque Starlette/FastAPI solo permite leer el body una vez.
+            async def receive() -> dict:
+                return {"type": "http.request", "body": body, "more_body": False}
+
+            request._receive = receive  # type: ignore[attr-defined]
+
+        return await call_next(request)  # type: ignore[arg-type]
+
+
+# =============================================================================
 # Telegram interface — conectada al TEAM (no a un agente individual)
-# El Team coordina Diagnosticador + Operador según la intención del mensaje
+# =============================================================================
 interfaces = []
 
 if settings.telegram_token and ":" in settings.telegram_token:
@@ -58,8 +123,6 @@ if settings.telegram_token and ":" in settings.telegram_token:
 
 # Indexar knowledge base al arranque.
 # upsert=True: si el documento ya existe con ese ID, actualiza el contenido.
-# Esto garantiza que cambios en los archivos .md se reflejen en la DB
-# sin necesidad de borrar manualmente el knowledge previo.
 # Ref: https://docs.agno.com/knowledge/introduction
 for _doc in ["hermes_reference.md", "procedures.md"]:
     knowledge_base.add_content(
@@ -67,12 +130,7 @@ for _doc in ["hermes_reference.md", "procedures.md"]:
         upsert=True,
     )
 
-# AgentOS — Agents + Team + Telegram + Scheduler
-# db: requerido para HITL approvals (@approval decorator en tools).
-#     Sin db, create_tenant/stop_tenant/backup devuelven 503 en lugar de pausar.
-#     Ref: https://docs.agno.com/agent-os/approvals
-# agents: expuestos individualmente en os.agno.com para control y monitoreo
-# teams: entrada unificada para Telegram (coordinate mode — routing dinámico)
+# AgentOS
 # Ref: https://docs.agno.com/agent-os/overview
 agent_os = AgentOS(
     agents=[diagnosticador, operador],
@@ -86,22 +144,28 @@ agent_os = AgentOS(
 
 app = agent_os.get_app()
 
+# Añadir guardrail DESPUÉS de get_app() para que envuelva al router de Agno.
+# Si TELEGRAM_ADMIN_IDS está vacío → frozenset vacío → middleware permite todo.
+_allowed_ids: frozenset[str] = (
+    frozenset(uid.strip() for uid in settings.telegram_admin_ids.split(",") if uid.strip())
+    if settings.telegram_admin_ids
+    else frozenset()
+)
+app.add_middleware(TelegramAllowlistMiddleware, allowed_ids=_allowed_ids)
+
+if _allowed_ids:
+    logger.info("Telegram guardrail activo — IDs autorizados: %s", _allowed_ids)
+else:
+    logger.warning("Telegram guardrail DESACTIVADO — TELEGRAM_ADMIN_IDS no configurado")
+
 
 # =============================================================================
 # Maintenance endpoints — llamados por el Agno scheduler (0 tokens, sin LLM)
-#
-# El scheduler llama POST /maintenance/backup-all cada noche a las 3 AM UTC.
-# No pasa por ningún agente LLM — ejecuta el backup directamente.
-# Ref Agno scheduler: https://docs.agno.com/agent-os/scheduler
 # =============================================================================
 
 @app.post("/maintenance/backup-all")
 async def run_daily_backups() -> JSONResponse:
-    """Backup automático de todos los tenants activos. Sin LLM, 0 tokens.
-
-    Llamado por el Agno scheduler (POST /maintenance/backup-all).
-    Ejecuta backup_tenant() para cada tenant con status='active'.
-    """
+    """Backup automático de todos los tenants activos. Sin LLM, 0 tokens."""
     from src.tools.read_ops import get_all_tenants
     from src.tools.write_ops import backup_tenant
 
@@ -139,8 +203,7 @@ async def run_daily_backups() -> JSONResponse:
 async def register_maintenance_schedules() -> None:
     """Registra el schedule de backup diario en el Agno scheduler al arrancar.
 
-    Solo crea el schedule si no existe ya (idempotente — seguro en redeployos).
-    El scheduler llama POST /maintenance/backup-all cada noche a las 3 AM UTC.
+    Idempotente — seguro en redeployos. Solo crea si no existe.
     Ref: https://docs.agno.com/examples/agent-os/scheduler/schedule-management
     """
     import httpx
@@ -150,9 +213,6 @@ async def register_maintenance_schedules() -> None:
 
     try:
         async with httpx.AsyncClient(base_url=base, timeout=10) as client:
-            # Verificar si el schedule ya existe
-            # El API de Agno devuelve {"data": [...], "meta": {...}} no un array plano
-            # Ref: https://docs.agno.com/examples/agent-os/scheduler/schedule-management
             resp = await client.get("/schedules")
             if resp.status_code == 200:
                 payload = resp.json()
@@ -161,21 +221,19 @@ async def register_maintenance_schedules() -> None:
                 if schedule_name in existing:
                     logger.info("Schedule '%s' ya existe — sin cambios.", schedule_name)
                     return
-            # Crear el schedule
             resp = await client.post("/schedules", json={
                 "name": schedule_name,
-                "cron_expr": "0 3 * * *",          # 3 AM UTC diario
+                "cron_expr": "0 3 * * *",
                 "endpoint": "/maintenance/backup-all",
                 "method": "POST",
                 "timezone": "UTC",
                 "max_retries": 2,
-                "retry_delay_seconds": 300,         # 5 min entre reintentos
+                "retry_delay_seconds": 300,
             })
             if resp.status_code in (200, 201):
-                data = resp.json()
                 logger.info(
                     "Schedule '%s' creado. Próxima ejecución: %s",
-                    schedule_name, data.get("next_run_at"),
+                    schedule_name, resp.json().get("next_run_at"),
                 )
             else:
                 logger.warning(
@@ -183,8 +241,6 @@ async def register_maintenance_schedules() -> None:
                     schedule_name, resp.status_code, resp.text[:200],
                 )
     except Exception as e:
-        # No es fatal — el sistema funciona sin el schedule automático.
-        # El admin puede crear el schedule manualmente via Agno UI.
         logger.warning("Error registrando schedule de backup: %s", e)
 
 
