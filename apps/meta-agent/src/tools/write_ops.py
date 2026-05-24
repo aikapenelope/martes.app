@@ -55,30 +55,31 @@ def create_tenant(
     bot_token: str,
     telegram_user_id: str,
     model: str = _DEFAULT_MODEL,
-    plan: str = "starter",
     email: str = "",
 ) -> str:
     """Crea un tenant Hermes completo: DB + volumen + container Docker.
 
-    Paradigma token-budget: Hermes se instala completo y sin restricciones.
-    El cliente tiene libertad total sobre su agente. El límite es el presupuesto
-    de tokens (OpenRouter key con créditos mensuales), no las features.
+    Modelo Hermes libre: cada tenant tiene Hermes COMPLETO sin restricciones.
+    No hay planes ni tiers — todos los tenants son iguales técnicamente.
+    El único límite es el presupuesto de tokens (créditos en OpenRouter).
+    El cliente puede cambiar cualquier configuración desde Telegram (/model, /skills, etc.).
 
     Parámetros:
     - name: nombre del cliente o empresa
     - bot_token: token del bot de Telegram (de @BotFather, formato 123456:ABC...)
     - telegram_user_id: ID de Telegram del cliente (para TELEGRAM_ALLOWED_USERS)
     - model: modelo LLM inicial (default: openai/gpt-4o-mini — cliente puede cambiarlo)
-    - plan: etiqueta comercial del plan (starter/growth/scale — solo para billing)
     - email: email de contacto (opcional)
 
-    El cliente puede cambiar el modelo en cualquier momento con /model en Telegram.
     Requiere aprobacion humana.
     """
+    # "basico" es la etiqueta de billing interna. Siempre la misma —
+    # no existe diferenciación técnica entre tenants.
+    _billing_plan = "basico"
     tenant_code = ""
     steps: list[str] = []
     try:
-        # 1. DB — plan es solo una etiqueta de billing, no determina capacidades técnicas
+        # 1. DB
         with psycopg.connect(_pg()) as conn:
             row = conn.execute(
                 "SELECT tenant_code FROM tenants ORDER BY tenant_code DESC LIMIT 1"
@@ -89,10 +90,10 @@ def create_tenant(
                 "INSERT INTO tenants "
                 "(tenant_code,name,email,plan,status,container_name,network_name) "
                 "VALUES (%s,%s,%s,%s,'creating',%s,%s)",
-                (tenant_code, name, email or None, plan,
+                (tenant_code, name, email or None, _billing_plan,
                  f"hermes-{tenant_code}", f"tenant-{tenant_code}-net")
             )
-            # Recursos uniformes para todos los planes — el límite es el token budget
+            # Recursos uniformes — mismo hardware para todos los tenants
             conn.execute(
                 "INSERT INTO instance_configs "
                 "(tenant_id,template,platforms,skills,model,memory_limit_mb,cpu_limit) "
@@ -179,7 +180,7 @@ def create_tenant(
             log_config={"Type": "json-file", "Config": {"max-size": "50m", "max-file": "3"}},  # type: ignore[arg-type]
             labels={
                 "martes.tenant": tenant_code,
-                "martes.plan": plan,
+                "martes.plan": _billing_plan,
                 "martes.model": model,
             },
         )
@@ -197,7 +198,6 @@ def create_tenant(
             "success": True,
             "tenant_code": tenant_code,
             "name": name,
-            "plan": plan,
             "model": model,
             "steps": steps,
             "message": (
