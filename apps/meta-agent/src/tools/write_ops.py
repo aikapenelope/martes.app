@@ -30,6 +30,10 @@ _BACKUPS_DIR = Path("/var/lib/martes/backups")
 _DEFAULT_TEMPLATE = "default"
 _DEFAULT_MODEL = "openai/gpt-4o-mini"  # modelo inicial — cliente puede cambiar con /model
 
+# Archivo marker de expiración de la platform key en el volumen del tenant.
+# El maintenance job lo lee; cuando expira, blanquea OPENROUTER_API_KEY en .env.
+_PLATFORM_KEY_EXPIRES_FILE = ".platform_key_expires"
+
 
 def _docker() -> docker.DockerClient:
     return docker.from_env()
@@ -173,6 +177,17 @@ def create_tenant(
             f"TELEGRAM_ALLOWED_USERS={telegram_user_id}\n"
         )
         os.chmod(env_file, 0o600)
+
+        # Marker de expiración de la platform key.
+        # El cliente debe configurar su propia OPENROUTER_API_KEY antes de que
+        # expire este TTL. El maintenance job lee este archivo y blanquea la key
+        # en .env cuando el tiempo expira.
+        # platform_key_ttl_hours=0 desactiva la expiración.
+        if settings.platform_key_ttl_hours > 0:
+            expires_at = datetime.now(tz=timezone.utc) + timedelta(
+                hours=settings.platform_key_ttl_hours
+            )
+            (tp / _PLATFORM_KEY_EXPIRES_FILE).write_text(expires_at.isoformat())
 
         # SOUL.md: personalidad inicial
         if (tmpl / "SOUL.md").exists():
@@ -1455,6 +1470,136 @@ def upgrade_tenant(tenant_code: str, new_image: str) -> str:
 
     except Exception as e:
         return json.dumps({"success": False, "error": str(e), "steps_completed": steps})
+
+
+def expire_platform_key(tenant_code: str, dry_run: bool = True) -> str:
+    """Blanquea la OPENROUTER_API_KEY de plataforma del tenant si ha expirado.
+
+    Al crear el tenant, el meta-agente escribe la key de la plataforma en el
+    .env del tenant para que el bot funcione desde el minuto 0. El cliente debe
+    configurar su propia key antes de que expire el TTL (PLATFORM_KEY_TTL_HOURS).
+
+    Este tool verifica si la key ha expirado y la blanquea si es necesario.
+    Hermes recarga .env en cada turno — el cambio toma efecto en el SIGUIENTE
+    mensaje del cliente, sin restart del container.
+    Ref: hermes/gateway/run.py:_reload_runtime_env_preserving_config_authority()
+
+    Comportamiento según estado:
+    - Si ya no tiene la platform key: NO modifica nada (el cliente ya configuró la suya).
+    - Si tiene la platform key pero no ha expirado: reporta tiempo restante.
+    - Si tiene la platform key y ha expirado: blanquea la key (si dry_run=False).
+
+    dry_run=True (default): solo reporta estado. dry_run=False: aplica el blankeo.
+    No requiere restart del container.
+    """
+    tenant_path = Path(settings.tenants_base_path) / tenant_code
+    env_file = tenant_path / ".env"
+    marker_file = tenant_path / _PLATFORM_KEY_EXPIRES_FILE
+
+    if not env_file.exists():
+        return json.dumps({"error": f"Tenant {tenant_code}: .env no encontrado."})
+
+    # Leer key actual del .env
+    current_key = ""
+    env_content = env_file.read_text()
+    for line in env_content.splitlines():
+        if line.startswith("OPENROUTER_API_KEY="):
+            current_key = line.split("=", 1)[1].strip()
+            break
+
+    # Si la key ya no es la platform key → el cliente configuró la suya
+    if current_key != settings.openrouter_api_key:
+        # Limpiar marker si existe (ya no es necesario)
+        if marker_file.exists():
+            marker_file.unlink(missing_ok=True)
+        return json.dumps(
+            {
+                "tenant": tenant_code,
+                "status": "client_key_active",
+                "action": "none",
+                "message": (
+                    "El tenant ya usa su propia key de OpenRouter. "
+                    "Platform key no presente en .env."
+                ),
+            }
+        )
+
+    # Si no hay marker → TTL desactivado o tenant creado antes de esta feature
+    if not marker_file.exists():
+        return json.dumps(
+            {
+                "tenant": tenant_code,
+                "status": "no_expiry_marker",
+                "action": "none",
+                "message": (
+                    "No hay marker de expiración (.platform_key_expires). "
+                    "Usa inject_credential() para actualizar la key manualmente."
+                ),
+            }
+        )
+
+    # Leer expiración del marker
+    try:
+        expires_at = datetime.fromisoformat(marker_file.read_text().strip())
+    except ValueError as e:
+        return json.dumps({"error": f"Marker inválido: {e}"})
+
+    now = datetime.now(tz=timezone.utc)
+    remaining_seconds = (expires_at - now).total_seconds()
+
+    if remaining_seconds > 0:
+        minutes_left = int(remaining_seconds / 60)
+        return json.dumps(
+            {
+                "tenant": tenant_code,
+                "status": "not_expired",
+                "expires_at": expires_at.isoformat(),
+                "minutes_remaining": minutes_left,
+                "action": "none",
+                "message": f"Platform key expira en {minutes_left} minutos.",
+            }
+        )
+
+    # Key expirada — blanquear si no es dry_run
+    if dry_run:
+        return json.dumps(
+            {
+                "tenant": tenant_code,
+                "status": "expired",
+                "expires_at": expires_at.isoformat(),
+                "minutes_overdue": int(abs(remaining_seconds) / 60),
+                "dry_run": True,
+                "action": "would_blank",
+                "message": (
+                    f"Platform key expiró hace {int(abs(remaining_seconds) / 60)} minutos. "
+                    "Llama expire_platform_key(tenant_code, dry_run=False) para blanquearla."
+                ),
+            }
+        )
+
+    # Blanquear OPENROUTER_API_KEY en .env
+    new_lines = [
+        "OPENROUTER_API_KEY=" if ln.startswith("OPENROUTER_API_KEY=") else ln
+        for ln in env_content.splitlines()
+    ]
+    env_file.write_text("\n".join(new_lines) + "\n")
+    os.chmod(env_file, 0o600)
+    marker_file.unlink(missing_ok=True)
+
+    return json.dumps(
+        {
+            "tenant": tenant_code,
+            "status": "expired_and_blanked",
+            "dry_run": False,
+            "action": "blanked",
+            "message": (
+                f"OPENROUTER_API_KEY blanqueada en el .env de {tenant_code}. "
+                "Hermes cargará el valor vacío en el próximo mensaje del cliente. "
+                "Si el cliente tiene su propia auth configurada (auth.json), "
+                "el bot sigue funcionando normalmente."
+            ),
+        }
+    )
 
 
 @tool

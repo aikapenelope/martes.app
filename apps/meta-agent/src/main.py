@@ -454,14 +454,17 @@ async def run_docker_cleanup() -> JSONResponse:
     c_client = docker.from_env()
 
     # Imágenes actualmente usadas por algún container de tenant
+    # Docker SDK: Container.image y Image.id son Optional — se guarda solo si no None.
     used_image_ids: set[str] = set()
     for container in c_client.containers.list(all=True, filters={"label": "martes.tenant"}):
-        used_image_ids.add(container.image.id)
+        if container.image and container.image.id:
+            used_image_ids.add(container.image.id)
 
     # También proteger la imagen actual configurada en HERMES_IMAGE
     try:
         current = c_client.images.get(settings.hermes_image)
-        used_image_ids.add(current.id)
+        if current.id:
+            used_image_ids.add(current.id)
     except Exception:
         pass  # Si no existe localmente, no hay nada que proteger
 
@@ -472,18 +475,20 @@ async def run_docker_cleanup() -> JSONResponse:
     freed_bytes = 0
 
     for img in hermes_images:
-        if img.id in used_image_ids:
+        img_id: str = img.id or ""
+        if not img_id or img_id in used_image_ids:
             continue
-        tags = img.tags or [img.id[:12]]
+        img_id_short = img_id[:12]
+        tags = img.tags or [img_id_short]
         size_mb = round(img.attrs.get("Size", 0) / (1 << 20), 1)
         try:
-            c_client.images.remove(img.id, force=False)
-            removed.append({"id": img.id[:12], "tags": tags, "size_mb": size_mb})
+            c_client.images.remove(img_id, force=False)
+            removed.append({"id": img_id_short, "tags": tags, "size_mb": size_mb})
             freed_bytes += img.attrs.get("Size", 0)
-            logger.info("Docker cleanup: removed image %s (%s MB)", img.id[:12], size_mb)
+            logger.info("Docker cleanup: removed image %s (%s MB)", img_id_short, size_mb)
         except Exception as exc:
-            errors.append({"id": img.id[:12], "tags": tags, "error": str(exc)})
-            logger.debug("Docker cleanup: could not remove %s: %s", img.id[:12], exc)
+            errors.append({"id": img_id_short, "tags": tags, "error": str(exc)})
+            logger.debug("Docker cleanup: could not remove %s: %s", img_id_short, exc)
 
     freed_mb = round(freed_bytes / (1 << 20), 1)
     logger.info(
@@ -502,6 +507,68 @@ async def run_docker_cleanup() -> JSONResponse:
     return JSONResponse(
         content={"removed": len(removed), "freed_mb": freed_mb, "images": removed, "errors": errors}
     )
+
+
+@app.post("/maintenance/expire-platform-keys")
+async def run_expire_platform_keys() -> JSONResponse:
+    """Blanquea platform keys de OpenRouter expiradas en todos los tenants. Sin LLM.
+
+    Para cada tenant activo con marker .platform_key_expires:
+    - Si la key en .env ya es la propia del cliente → limpia el marker, no modifica.
+    - Si la platform key está expirada → blanquea OPENROUTER_API_KEY en .env.
+    - Hermes recarga .env en cada turno → efecto en el próximo mensaje, sin restart.
+
+    Llamado por el scheduler cada 30 minutos.
+    Ref: hermes/gateway/run.py:_reload_runtime_env_preserving_config_authority()
+    """
+    from pathlib import Path as _Path
+
+    from src.tools.write_ops import _PLATFORM_KEY_EXPIRES_FILE, expire_platform_key
+
+    tenants_dir = _Path(settings.tenants_base_path)
+    if not tenants_dir.exists():
+        return JSONResponse(status_code=200, content={"checked": 0})
+
+    results: dict = {"blanked": [], "client_key": [], "not_expired": [], "errors": []}
+
+    for tenant_dir in sorted(tenants_dir.iterdir()):
+        if not tenant_dir.is_dir():
+            continue
+        marker = tenant_dir / _PLATFORM_KEY_EXPIRES_FILE
+        if not marker.exists():
+            continue  # Sin marker → no hay platform key temporal
+
+        code = tenant_dir.name
+        result = json.loads(expire_platform_key(code, dry_run=False))
+        status = result.get("status", "error")
+
+        if status == "expired_and_blanked":
+            results["blanked"].append(code)
+            msg = (
+                f"🔑 martes.app — Platform key expirada\n"
+                f"OPENROUTER_API_KEY blanqueada para {code}.\n"
+                f"El cliente debe configurar su propia key en OpenRouter."
+            )
+            await _send_telegram_alert(msg)
+            logger.info("expire-platform-keys: blanked key for %s", code)
+        elif status == "client_key_active":
+            results["client_key"].append(code)
+            logger.info("expire-platform-keys: %s already has own key", code)
+        elif status == "not_expired":
+            results["not_expired"].append(code)
+        else:
+            results["errors"].append({"tenant": code, "error": result.get("error", status)})
+
+    total = sum(len(v) for v in results.values())
+    logger.info(
+        "expire-platform-keys: %d total — blanked=%d, own_key=%d, not_expired=%d, errors=%d",
+        total,
+        len(results["blanked"]),
+        len(results["client_key"]),
+        len(results["not_expired"]),
+        len(results["errors"]),
+    )
+    return JSONResponse(content=results)
 
 
 @app.on_event("startup")
@@ -537,6 +604,14 @@ async def register_maintenance_schedules() -> None:
             "name": "billing-check",
             "cron_expr": "0 9 * * *",  # 9 AM UTC diario
             "endpoint": "/maintenance/billing-check",
+            "method": "POST",
+            "timezone": "UTC",
+            "max_retries": 0,
+        },
+        {
+            "name": "expire-platform-keys",
+            "cron_expr": "*/30 * * * *",  # cada 30 minutos
+            "endpoint": "/maintenance/expire-platform-keys",
             "method": "POST",
             "timezone": "UTC",
             "max_retries": 0,

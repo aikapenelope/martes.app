@@ -179,6 +179,59 @@ services:
         limits:
           memory: 512M
 
+  # ==========================================================================
+  # Metabase — Super Admin dashboard para gestión de tenants
+  #
+  # Solo accesible por Tailscale (100.104.89.128:3000) — nunca expuesto
+  # a internet. El admin accede desde su dispositivo con Tailscale activo.
+  #
+  # Conectado a la red 'default' del stack → puede conectar a db:5432.
+  # Al configurar la fuente de datos, usar host='db', puerto=5432,
+  # usuario='martes', contraseña=PG_PASSWORD, base de datos='martes'.
+  #
+  # Versión pineada: v0.61.2.6 (última estable, 22 mayo 2026)
+  # Compatible con PostgreSQL 18 + pgvector (Metabase ignora extensiones).
+  # Ref: https://www.metabase.com/docs/latest/databases/connections/postgresql
+  # Ref Docker: https://www.metabase.com/docs/latest/installation-and-operation/running-metabase-on-docker
+  # ==========================================================================
+  metabase:
+    image: metabase/metabase:v0.61.2.6
+    restart: unless-stopped
+    ports:
+      - "100.104.89.128:3000:3000"   # Solo interfaz Tailscale — no expuesto a internet
+    environment:
+      # H2 embebido — suficiente para uso de admin personal (un solo usuario).
+      # Si en el futuro se necesita alta disponibilidad, migrar a PostgreSQL.
+      # Ref: https://www.metabase.com/docs/latest/installation-and-operation/configuring-application-database
+      MB_DB_FILE: /metabase-data/metabase.db
+      MB_SITE_URL: http://100.104.89.128:3000
+      MB_EMOJI_IN_LOGS: "false"
+      # Limitar heap JVM — el servidor tiene 16 GB pero conviene reservar
+      # RAM para los containers de tenants Hermes.
+      JAVA_OPTS: "-Xmx768m"
+    volumes:
+      # Volumen nombrado: Docker gestiona permisos automáticamente,
+      # evitando el problema de root:root en bind mounts con imágenes no-root.
+      - metabase_data:/metabase-data
+    networks:
+      - default   # misma red que 'db' → alcanza db:5432
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      # Metabase expone GET /api/health cuando está listo.
+      # start_period largo porque la primera inicialización tarda ~90s.
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 15s
+      start_period: 120s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1G    # Metabase (JVM) necesita mínimo 1 GB
+
+
 networks:
   # Red externa de Coolify/Traefik — necesaria para routing HTTP/HTTPS.
   # Creada automáticamente por Coolify al instalar. No se gestiona desde aquí.
@@ -186,3 +239,10 @@ networks:
   coolify:
     external: true
     name: coolify
+
+
+volumes:
+  # Volumen de datos de Metabase (metadata interna: dashboards, preguntas, usuarios).
+  # Docker gestiona el lifecycle. Los datos de negocio (tenants, pagos) viven en
+  # el PostgreSQL del stack, no aquí.
+  metabase_data:

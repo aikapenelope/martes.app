@@ -72,6 +72,26 @@ class Settings(BaseSettings):
     billing_auto_suspend: bool = True
     billing_alert_days: str = "7,3"  # Lista separada por comas
 
+    # ---------------------------------------------------------------------------
+    # Platform key TTL — expiración automática de la key de plataforma en tenants
+    #
+    # Al crear un tenant, el meta-agente escribe OPENROUTER_API_KEY (la key de la
+    # plataforma) en el .env del tenant para que el bot funcione desde el minuto 0.
+    # El cliente debe configurar su propia key durante este período.
+    #
+    # Hermes recarga .env en CADA turno de conversación, no solo al arrancar:
+    # Ref: hermes/gateway/run.py:_reload_runtime_env_preserving_config_authority()
+    # Esto garantiza que blanquear la key toma efecto en el siguiente mensaje del
+    # cliente SIN necesitar restart del container. Cero downtime.
+    #
+    # Si el cliente ya configuró su propia key en auth.json (via /model en Hermes),
+    # el blankeo de .env no afecta su servicio — Hermes usa auth.json con prioridad.
+    # Si no configuró su propia key, el siguiente mensaje retorna error de credencial.
+    #
+    # platform_key_ttl_hours=0 desactiva la expiración automática.
+    # ---------------------------------------------------------------------------
+    platform_key_ttl_hours: int = 2
+
     model_config = {"env_prefix": "", "case_sensitive": False, "extra": "ignore"}
 
 
