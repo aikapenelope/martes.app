@@ -227,11 +227,17 @@ def create_tenant(
         )
         steps.append("container_created")
 
-        # 4. Activar en DB
+        # 4. Activar en DB + iniciar período de trial
+        # paid_until = hoy + billing_trial_days — inicia el reloj de billing
+        # desde el primer día. El admin extiende con register_payment().
+        trial_ends = date.today() + timedelta(days=settings.billing_trial_days)
         with psycopg.connect(_pg()) as conn:
-            conn.execute("UPDATE tenants SET status='active' WHERE tenant_code=%s", (tenant_code,))
+            conn.execute(
+                "UPDATE tenants SET status='active', paid_until=%s WHERE tenant_code=%s",
+                (trial_ends, tenant_code),
+            )
             conn.commit()
-        steps.append("activated")
+        steps.append(f"activated:trial_until_{trial_ends.isoformat()}")
 
         # 5. Registrar perfil en EntityMemory para que el agente recuerde este tenant
         # entre sesiones sin consultar la DB. Fallo silencioso — no bloquea el onboarding.
