@@ -2,6 +2,117 @@
 
 ---
 
+## [Sprints 4–7] — 24 mayo – 2 junio 2026
+
+### Infraestructura
+
+- **Metabase v0.61.2.6** — Super Admin dashboard (PR #67)
+  - Servicio añadido al compose: expuesto solo en Tailscale (`100.104.89.128:3000`)
+  - Conectado a la red `default` del stack → alcanza `db:5432` directamente
+  - H2 embebido para metadata interna (un admin personal — suficiente)
+  - JAVA_OPTS=-Xmx768m — limita heap JVM para conservar RAM del servidor
+  - Compatible con PostgreSQL 18 + pgvector (extensiones transparentes a Metabase)
+  - Las tablas de Agno viven en schema `ai` (default de PostgresDb cuando db_schema=None)
+  - Las tablas de negocio viven en schema `public` — Metabase debe configurarse para schema `public` únicamente
+  - Ref: `agno/db/postgres/db.py` línea 99: `self.db_schema: str = db_schema if db_schema is not None else "ai"`
+
+- **Gitleaks secret scanner en CI** (PR #66)
+  - Job `secret-scan` corre ANTES del build check — bloquea si detecta credenciales hardcodeadas
+  - `gitleaks-action@v2.3.9` con `fetch-depth: 0` (historial completo)
+  - Detecta: bot tokens de Telegram, API keys de OpenRouter, y 100+ formatos de secrets
+
+- **Eliminada red legacy `martes-tenants` del cloud-init** (PR #66)
+  - La arquitectura actual usa redes aisladas por tenant (`tenant-tXXX-net`)
+  - La red compartida era dead code de un diseño anterior
+  - Solo aplica a nuevos servidores (ignoreChanges: userData)
+
+### Meta-agente (Agno AgentOS)
+
+- **Sprint A — Robustez del agente** (PR #57–58)
+  - **A3 — Validación Pydantic en tools críticos**:
+    - `inject_credential()`: `credential_type` tipado como `Literal[5 valores]` → Agno genera enum en el schema del tool
+    - `register_payment()`: `method` como `Literal`, `amount > 0`, `months` entre 1 y 12
+    - `create_tenant()`: validación de `bot_token` (regex oficial Telegram) y `telegram_user_id` (numérico)
+  - **A1 — Resolución nombre→código**: ambos agentes llaman `get_all_tenants()` antes de operar cuando el admin menciona un tenant por nombre
+  - **A2 — EntityMemory wire-up**: `LearningMachine` recibe `db=db` explícito; `create_tenant()` llama `entity_memory_store.create_entity()` al activar el tenant
+
+- **Sprint B — Herramientas de producción** (PR #59)
+  - **B0 — Monitoreo automático**: `/maintenance/health-check-all` (cada 5 min) + `/maintenance/billing-check` (9 AM UTC) + `_send_telegram_alert()` centralizado
+  - Fix bug en startup handler: early return al encontrar primer schedule existente — corregido para iterar todos
+  - **B1 — `get_server_capacity()`**: RAM, disco, RAM asignada a tenants, slots disponibles
+  - **B2 — `diagnose_container_error()`**: OOMKill, API key, token, permisos, imagen, crash loop, exit 75 clasificados automáticamente
+  - **B3 — `upgrade_tenant()`**: pull nueva imagen → backup → stop → recreate → health check (30s) → rollback automático si falla
+
+- **Sprint C+D — Backups y hardening** (PR #60)
+  - **C3 — Lifecycle rules SeaweedFS**: `ensure_bucket_lifecycle()` configura expiración de objetos a 30 días vía `PutBucketLifecycleConfiguration`. Safety net sobre `cleanup_old_backups()`
+  - **D2 — Fix SeaweedFS healthcheck**: `curl -sf http://localhost:8888/dir/status` → `curl -sf http://localhost:8333/healthz` (bug de puerto: `/dir/status` está en el master :9333, no el filer :8888). `curl` SÍ está en la imagen
+
+- **Fix health check localhost→127.0.0.1** (PR #61)
+  - `container_health()` y `check_all_health()` usaban `localhost` que resuelve a `::1` en Docker con IPv6
+  - Hermes `DEFAULT_HOST = "127.0.0.1"` (confirmado en `gateway/platforms/api_server.py`)
+  - Eliminaba el falso positivo de "unhealthy" en todos los tenants
+
+- **`recreate_tenant_container()`** (PR #61)
+  - Nuevo tool para recrear el container después de `restore_tenant_from_backup()` cuando el container original fue eliminado con `delete_tenant()`
+  - Lee recursos de `instance_configs` en DB, verifica volumen y `.env`, salud post-creación
+
+- **Fix restore con caché de uv** (PR #61)
+  - `filter="data"` en `extractall()` abortaba el restore al encontrar symlinks absolutos de la caché de uv
+  - `_restore_filter()`: usa `tarfile.data_filter` pero captura `FilterError` → omite el symlink, continúa extrayendo
+  - `_BACKUP_EXCLUDE_DIRS`: añadidos `.cache` y `archive-v0` para futuros backups
+
+- **`purge_archived_tenant()` + skill COMANDOS** (PR #62)
+  - Hard delete de la fila de un tenant archivado en DB (CASCADE elimina instance_configs, payments, health_checks)
+  - Primer skill del meta-agente (`src/skills/comandos/SKILL.md`): glosario de todos los tools con parámetros, enums y flujos
+
+- **Sprint D1 — Billing SaaS** (PR #63)
+  - `create_tenant()` activa trial de 30 días desde el día 0: `paid_until = hoy + BILLING_TRIAL_DAYS`
+  - `/maintenance/billing-check` refactorizado con ciclo completo de 4 estados: recordatorio (7d/3d antes), vence hoy (gracia), auto-suspend tras grace period
+  - `stop_tenant()` automático cuando `paid_until + BILLING_GRACE_DAYS < hoy` si `BILLING_AUTO_SUSPEND=True`
+  - 4 variables de entorno nuevas configurables en Coolify: `BILLING_TRIAL_DAYS`, `BILLING_GRACE_DAYS`, `BILLING_AUTO_SUSPEND`, `BILLING_ALERT_DAYS`
+  - El admin reactiva con `register_payment()` + `restart_tenant()`
+
+- **Sprint F2 — Recursos huérfanos + limpieza Docker** (PR #64)
+  - `find_stale_resources()`: detecta tenants con `status='creating'` sin container, redes Docker huérfanas, directorios sin registro en DB
+  - `/maintenance/docker-cleanup`: elimina imágenes `nousresearch/hermes-agent` no usadas por ningún container. Solo toca imágenes Hermes — no afecta Coolify, PostgreSQL, SeaweedFS
+  - Schedule semanal `docker-cleanup`: domingos 4 AM UTC. Alerta Telegram si liberó espacio
+
+- **Platform key expiry — BYOK bootstrapping** (PR #67, #68)
+  - Al crear un tenant, `create_tenant()` escribe `.platform_key_expires` (ISO timestamp de now + TTL)
+  - `expire_platform_key()`: detecta en dos niveles si el cliente configuró su propia auth:
+    1. `OPENROUTER_API_KEY` en `.env` diferente de la platform key
+    2. `auth.json` existe con contenido → cliente autenticó cualquier proveedor en Hermes (incluye Anthropic, Google, etc. — los 20+ del `PROVIDER_REGISTRY`)
+  - Patrón BYOK validado contra: Hermes source, guías de producción de bitdoze.com, estándares de Augment Code Enterprise. El modelo "plataforma provisiona key inicial, cliente migra a la suya" es exactamente el estándar de la industria
+  - Schedule `expire-platform-keys`: cada 30 minutos. No requiere restart del container — Hermes recarga `.env` en cada turno de conversación
+  - `PLATFORM_KEY_TTL_HOURS=0` desactiva la expiración
+  - `PLATFORM_KEY_TTL_HOURS=2` default
+  - Ref: `hermes/gateway/run.py:_reload_runtime_env_preserving_config_authority()` — "per-turn code reloads ~/.hermes/.env to pick up rotated API keys"
+
+- **Observabilidad — health_checks y error_logs** (PR #68)
+  - `container_health()` y `check_all_health()`: INSERT en `health_checks` después de cada check → Metabase tiene historial de uptime, SLA, response_time
+  - `diagnose_container_error()`: INSERT en `error_logs` cuando clasifica un error (OOMKill→critical, auth→error, exit_75→info)
+  - `run_health_check()`: INSERT en `error_logs` cuando detecta tenants unhealthy (source='system')
+  - Helpers: `_get_tenant_db_id()`, `_record_health_check()`, `_record_error_log()` — todos fallo silencioso
+
+### Schedules automáticos (estado actual)
+
+| Schedule | Cron | Qué hace |
+|---|---|---|
+| `daily-backup-all` | `0 3 * * *` | Backup todos los tenants activos |
+| `health-check-all` | `*/5 * * * *` | Health + alerta Telegram si unhealthy o disco >80% |
+| `billing-check` | `0 9 * * *` | Ciclo de billing: recordatorios + auto-suspend |
+| `expire-platform-keys` | `*/30 * * * *` | Blanquea platform keys expiradas (BYOK) |
+| `docker-cleanup` | `0 4 * * 0` | Limpia imágenes Hermes huérfanas |
+
+### Lecciones técnicas nuevas
+
+- **Agno `PostgresDb` usa schema `ai` por defecto** — todas las tablas operacionales de Agno (sessions, memories, traces, knowledge) viven en schema `ai`, no en `public`. Las tablas de negocio de martes.app están en `public`. Separación limpia sin configuración adicional. Metabase debe conectarse solo a schema `public` para ver únicamente datos de negocio
+- **Hermes dashboard NO se expone externamente** — el dashboard (puerto 9119) fue investigado para exposición por tenant. Conclusión: demasiado complejo (segundo container por tenant, credenciales efímeras, CORS restrictivo) y demasiado riesgoso (expone API keys y config completa). Descartado
+- **`tarfile.FilterError`** es la excepción base para todos los errores de seguridad del filtro en Python 3.12+. Capturarla permite restore robusto sin abortar por symlinks de herramientas de build como uv
+- **Hermes `auth.json`** en `/opt/data/auth.json` (= `tenant_path/auth.json` en el host) indica que el cliente autenticó algún proveedor vía el sistema nativo de Hermes. Sirve como señal de "BYOK completado" independiente del proveedor elegido
+
+---
+
 ## [Sprint 3] — 23–24 mayo 2026
 
 ### Infraestructura
@@ -161,9 +272,11 @@
 - `agno[telegram,scheduler]` siempre — `agno[telegram]` no incluye `croniter`
 - `GET /schedules` devuelve `{"data": [...], "meta": {...}}` — parsear `.get("data", [])`
 - `EntityMemoryConfig(mode=LearningMode.AGENTIC, namespace="martes")` ya está configurado
-  pero NO se popula automáticamente — requiere llamada explícita en create_tenant()
+  pero NO se popula automáticamente — requiere llamada explícita en `create_tenant()`
 - El Team coordinator en modo HITL: el "sí" del admin puede no llegar al Operador
   si el Team lo redirige al Diagnosticador — ser explícito: "sí, confirmo la creación"
+- `PostgresDb` usa schema `"ai"` por defecto (cuando `db_schema=None`) — Agno NO toca schema `public`
+  Ref: `agno/db/postgres/db.py` línea 99: `self.db_schema: str = db_schema if db_schema is not None else "ai"`
 
 ### Hermes Docker
 
@@ -173,6 +286,9 @@
 - `API_SERVER_ENABLED=true` sin `API_SERVER_HOST=0.0.0.0` → API en localhost (correcto)
 - `restart: unless-stopped` + exit 75 = restart graceful del cliente vía `/restart`
 - Nunca dos gateways sobre el mismo `/opt/data` simultáneamente
+- `auth.json` en `/opt/data/auth.json` indica que el cliente autenticó algún proveedor via Hermes
+- El dashboard (puerto 9119) NO debe exponerse — no tiene auth propia, expone API keys y config completa
+- `PROVIDER_REGISTRY` en `hermes_cli/auth.py` mapea 20+ proveedores a sus env vars. Todos se cargan desde `.env` en cada turno
 
 ### SeaweedFS
 
@@ -182,6 +298,8 @@
 - Puerto S3: 8333 | Master UI: 9333 | Filer: 8888
 - `boto3` con `signature_version="s3v4"` + `region_name="us-east-1"` (ignorado por SeaweedFS)
 - Backup NUNCA debe incluir `*.db-wal`, `*.db-shm` — torn restore con SQLite
+- `/healthz` en :8333 (S3 API) es el endpoint correcto para healthcheck. `/dir/status` está en :9333 (master)
+- `PutBucketLifecycleConfiguration` soportado — Expiration funciona, Transition no
 
 ### Docker SDK Python
 
@@ -189,3 +307,4 @@
 - `container.remove(force=True)` — elimina aunque esté corriendo (equivalent a `docker rm -f`)
 - `restart_policy={"Name": "unless-stopped"}` → `# type: ignore[arg-type]` (docker SDK typing bug)
 - `log_config={"Type": "json-file", ...}` → `# type: ignore[arg-type]` (mismo)
+- `Container.image` y `Image.id` son `Optional` en los stubs — siempre hacer guard antes de usar
