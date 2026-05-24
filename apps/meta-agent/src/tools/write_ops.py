@@ -1507,7 +1507,7 @@ def expire_platform_key(tenant_code: str, dry_run: bool = True) -> str:
             current_key = line.split("=", 1)[1].strip()
             break
 
-    # Si la key ya no es la platform key → el cliente configuró la suya
+    # Si la key ya no es la platform key → el cliente configuró la suya (OpenRouter propio)
     if current_key != settings.openrouter_api_key:
         # Limpiar marker si existe (ya no es necesario)
         if marker_file.exists():
@@ -1520,6 +1520,27 @@ def expire_platform_key(tenant_code: str, dry_run: bool = True) -> str:
                 "message": (
                     "El tenant ya usa su propia key de OpenRouter. "
                     "Platform key no presente en .env."
+                ),
+            }
+        )
+
+    # Nivel 2: auth.json existe con contenido → cliente autenticó cualquier proveedor
+    # en Hermes (OpenRouter OAuth, Anthropic, Google, etc.). El cliente tiene su propia
+    # configuración de credenciales independiente del .env.
+    # Ref: hermes_cli/auth.py — _auth_file_path() → HERMES_HOME / "auth.json"
+    # En el container, HERMES_HOME=/opt/data → montado en tenant_path del host.
+    auth_json = tenant_path / "auth.json"
+    if auth_json.exists() and auth_json.stat().st_size > 50:
+        if marker_file.exists():
+            marker_file.unlink(missing_ok=True)
+        return json.dumps(
+            {
+                "tenant": tenant_code,
+                "status": "client_auth_active",
+                "action": "none",
+                "message": (
+                    "El cliente tiene auth.json con credenciales propias de proveedor. "
+                    "Platform key no es necesaria."
                 ),
             }
         )

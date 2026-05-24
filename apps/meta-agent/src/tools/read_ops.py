@@ -25,6 +25,70 @@ def _pg() -> str:
     return url.replace("+psycopg", "") if "+psycopg" in url else url
 
 
+def _get_tenant_db_id(tenant_code: str) -> str | None:
+    """Obtiene el UUID interno del tenant desde la DB. None si no existe."""
+    try:
+        with psycopg.connect(_pg()) as conn:
+            row = conn.execute(
+                "SELECT id FROM tenants WHERE tenant_code = %s", (tenant_code,)
+            ).fetchone()
+            return str(row[0]) if row else None
+    except Exception:
+        return None
+
+
+def _record_health_check(tenant_code: str, status: str, response_ms: int, details: str) -> None:
+    """Persiste el resultado de un health check en la tabla health_checks. Fallo silencioso.
+
+    Permite que Metabase muestre historial de uptime, SLA y response time por tenant.
+    La tabla health_checks tiene índice por checked_at DESC para queries eficientes.
+    """
+    try:
+        tenant_id = _get_tenant_db_id(tenant_code)
+        if tenant_id:
+            with psycopg.connect(_pg()) as conn:
+                conn.execute(
+                    "INSERT INTO health_checks (tenant_id, status, response_ms, details)"
+                    " VALUES (%s, %s, %s, %s)",
+                    (tenant_id, status, response_ms, json.dumps({"raw": details[:500]})),
+                )
+                conn.commit()
+    except Exception:
+        pass  # Non-fatal — el health check se devuelve igual si la DB falla
+
+
+def _record_error_log(
+    tenant_code: str | None,
+    source: str,
+    severity: str,
+    message: str,
+    details: dict,
+) -> None:
+    """Persiste un error en la tabla error_logs. Fallo silencioso.
+
+    Permite que Metabase muestre historial de incidentes, tasa de errores,
+    tiempo de resolución, y distribución por tipo.
+
+    Args:
+        tenant_code: código del tenant afectado, o None para errores sistémicos.
+        source: 'container' | 'meta-agent' | 'system'
+        severity: 'info' | 'warning' | 'error' | 'critical'
+        message: descripción del error (texto libre)
+        details: datos adicionales (ej: exit_code, oom_killed, log_tail)
+    """
+    try:
+        tenant_id = _get_tenant_db_id(tenant_code) if tenant_code else None
+        with psycopg.connect(_pg()) as conn:
+            conn.execute(
+                "INSERT INTO error_logs (tenant_id, source, severity, message, details)"
+                " VALUES (%s, %s, %s, %s, %s)",
+                (tenant_id, source, severity, message, json.dumps(details)),
+            )
+            conn.commit()
+    except Exception:
+        pass  # Non-fatal
+
+
 def list_containers() -> str:
     """Lista todos los containers de tenants Hermes."""
     try:
@@ -69,15 +133,20 @@ def container_health(tenant_code: str) -> str:
         ms = int((time.time() - start) * 1000)
         exit_code: int = result.exit_code or 1
         output: bytes = result.output  # type: ignore[assignment]
+        output_str = output.decode("utf-8", errors="replace")[:200]
+        status = "healthy" if exit_code == 0 else "unhealthy"
+        # Persistir resultado en health_checks para Metabase (SLA histórico)
+        _record_health_check(tenant_code, status, ms, output_str)
         return json.dumps(
             {
                 "tenant": tenant_code,
-                "status": "healthy" if exit_code == 0 else "unhealthy",
+                "status": status,
                 "response_ms": ms,
-                "details": output.decode("utf-8", errors="replace")[:200],
+                "details": output_str,
             }
         )
     except NotFound:
+        _record_health_check(tenant_code, "not_found", 0, "container not found")
         return json.dumps({"tenant": tenant_code, "status": "not_found"})
     except APIError as e:
         return json.dumps({"error": str(e)})
@@ -135,19 +204,27 @@ def check_all_health() -> str:
             t = c.labels.get("martes.tenant", "?")
             if c.status != "running":
                 results.append({"tenant": t, "status": "stopped"})
+                _record_health_check(t, "stopped", 0, "container not running")
                 stopped += 1
             else:
                 try:
+                    start_t = time.time()
                     r = c.exec_run("curl -sf http://127.0.0.1:8642/health")
+                    ms_t = int((time.time() - start_t) * 1000)
                     ec: int = r.exit_code or 1
+                    raw_out: bytes = r.output or b""  # type: ignore[assignment]
+                    raw_str = raw_out.decode("utf-8", errors="replace")[:200]
                     if ec == 0:
                         results.append({"tenant": t, "status": "healthy"})
+                        _record_health_check(t, "healthy", ms_t, raw_str)
                         healthy += 1
                     else:
                         results.append({"tenant": t, "status": "unhealthy"})
+                        _record_health_check(t, "unhealthy", ms_t, raw_str)
                         unhealthy += 1
                 except Exception:
                     results.append({"tenant": t, "status": "unhealthy"})
+                    _record_health_check(t, "unhealthy", 0, "exec_run failed")
                     unhealthy += 1
         return json.dumps(
             {
@@ -384,6 +461,34 @@ def diagnose_container_error(tenant_code: str) -> str:
         elif status == "created" and exit_code == 0:
             cause = "Container creado pero nunca arrancó"
             solution = "Usa restart_tenant() para iniciarlo."
+
+        # Persistir el error en error_logs para historial en Metabase.
+        # Solo se registran causas clasificadas (no "desconocido") para reducir ruido.
+        # Exit 75 es normal — se registra como 'info', no como error.
+        if cause != "desconocido":
+            _severity = (
+                "critical"
+                if oom_killed
+                else "info"
+                if exit_code == 75
+                else "warning"
+                if status == "created"
+                else "error"
+            )
+            _record_error_log(
+                tenant_code=tenant_code,
+                source="container",
+                severity=_severity,
+                message=cause,
+                details={
+                    "exit_code": exit_code,
+                    "oom_killed": oom_killed,
+                    "restart_count": restart_count,
+                    "status": status,
+                    "image": image,
+                    "solution": solution,
+                },
+            )
 
         return json.dumps(
             {
