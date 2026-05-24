@@ -81,6 +81,25 @@ Modelos disponibles en OpenRouter:
 
 El cliente también puede cambiar su propio modelo desde Telegram con `/model`.
 
+### Actualizar recursos (RAM / CPU) sin reiniciar
+
+Modifica cgroups del container en caliente. Efecto inmediato, sin restart.
+
+```
+update_tenant_resources("t001", memory_mb=1024, cpu_cores=1.0)
+```
+
+| Perfil | RAM | CPU | Cuándo usar |
+|---|---|---|---|
+| Ligero | 512 MB | 0.5 | Tareas simples, conversación básica |
+| Estándar | 768 MB | 0.75 | Default al crear — uso normal |
+| Pesado | 1024 MB | 1.0 | Contexto largo, skills complejos |
+| Intensivo | 2048 MB | 2.0 | Subagentes, code execution, tasks largas |
+
+Límite mínimo seguro: 256 MB RAM, 0.1 CPU (por debajo puede causar OOM kills).
+
+---
+
 ### Cambiar personalidad
 
 ```
@@ -108,6 +127,34 @@ inject_credential("t001", "openrouter_api_key", "sk-or-v1-xxxxx")
 1. `restart_tenant(tenant_code)` — si el container sigue existiendo
 2. `container_health(tenant_code)` — verificar que arrancó
 3. DB queda en `status='active'`
+
+---
+
+## Eliminar Tenant (baja permanente)
+
+`delete_tenant()` hace el ciclo completo de baja en un solo paso.
+Siempre hace backup final a SeaweedFS antes de eliminar.
+
+```
+delete_tenant("t002")                    # borra volumen del disco también
+delete_tenant("t002", keep_volume=True)  # preserva /var/lib/martes/tenants/t002/
+```
+
+**Flujo interno** (automático):
+1. Backup final → SeaweedFS (`tenants/t002/t002_YYYYMMDD_HHMMSS.tar.gz`)
+2. Stop del container si está corriendo
+3. `container.remove(force=True)` — elimina el container de Docker
+4. Elimina la red `tenant-t002-net`
+5. `shutil.rmtree(/var/lib/martes/tenants/t002/)` si `keep_volume=False`
+6. DB → `status='archived'`
+
+**Los backups en SeaweedFS SIEMPRE se conservan** independientemente de `keep_volume`.
+Si el cliente regresa, se puede restaurar con `restore_tenant_from_backup()` + `create_tenant()`.
+
+**Cuándo usar `keep_volume=True`**:
+- El cliente puede volver en los próximos 90 días
+- Los datos locales son grandes y no están todos en SeaweedFS aún
+- Preferir `keep_volume=False` cuando hay certeza de que no volverá (ahorra disco)
 
 ---
 
