@@ -253,17 +253,26 @@ async def run_health_check() -> JSONResponse:
     """
     import shutil
 
-    from src.tools.read_ops import check_all_health
+    from src.tools.read_ops import _record_error_log, check_all_health
 
     result = json.loads(check_all_health())
     alerts: list[str] = []
 
-    # Tenants que no están healthy
+    # Tenants que no están healthy — registrar en error_logs para Metabase
     unhealthy = [t for t in result.get("tenants", []) if t.get("status") != "healthy"]
     if unhealthy:
         tenant_list = ", ".join(f"{t['tenant']}({t['status']})" for t in unhealthy)
         alerts.append(f"⚠️ {len(unhealthy)} tenant(s) unhealthy: {tenant_list}")
         logger.warning("Health check: unhealthy tenants: %s", tenant_list)
+        # Persistir en error_logs: source='system' porque fue el scheduler quien lo detectó
+        for t in unhealthy:
+            _record_error_log(
+                tenant_code=t["tenant"],
+                source="system",
+                severity="warning",
+                message=f"Container unhealthy detectado por scheduler (status: {t['status']})",
+                details={"detected_by": "health-check-all", "status": t["status"]},
+            )
 
     # Disco en /var/lib/martes — alerta si > 80%
     try:
