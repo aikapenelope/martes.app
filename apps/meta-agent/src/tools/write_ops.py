@@ -742,7 +742,16 @@ _BACKUP_EXCLUDE_SUFFIXES: tuple[str, ...] = (
 )
 
 # Directorios que nunca deben ir en un backup.
-_BACKUP_EXCLUDE_DIRS: frozenset[str] = frozenset({"checkpoints", "__pycache__"})
+#
+# .cache       — caché general del SO y herramientas (pip, uv, apt, etc.)
+# archive-v0   — directorio interno del archive-cache de uv. Contiene symlinks
+#                absolutos no portables que Python 3.12 tarfile.data_filter
+#                rechaza con AbsoluteLinkError al restaurar en otro host.
+#                uv recrea estos archivos automáticamente al primer arranque.
+# Ref: https://github.com/astral-sh/uv (uv archive cache design)
+_BACKUP_EXCLUDE_DIRS: frozenset[str] = frozenset(
+    {"checkpoints", "__pycache__", ".cache", "archive-v0"}
+)
 
 # Archivos estériles a eliminar DESPUÉS de restaurar un backup.
 _RESTORE_STALE_FILES: tuple[str, ...] = ("gateway.pid", "gateway.lock", "cron.pid")
@@ -766,6 +775,28 @@ def _tar_filter(tarinfo: tarfile.TarInfo) -> tarfile.TarInfo | None:
     if any(p in _BACKUP_EXCLUDE_DIRS for p in parts):
         return None
     return tarinfo
+
+
+def _restore_filter(member: tarfile.TarInfo, dest_path: str) -> tarfile.TarInfo | None:
+    """Filter para extractall() que omite entradas no portables en lugar de abortar.
+
+    Python 3.12+ tarfile.data_filter lanza tarfile.FilterError (y sus subclases
+    AbsoluteLinkError, LinkOutsideDestinationError) cuando encuentra symlinks con
+    targets absolutos, como los que genera la caché de uv en el volumen de Hermes.
+
+    Estos symlinks son artefactos de build no esenciales — uv los recrea
+    automáticamente al primer arranque del container tras el restore. Omitirlos
+    es seguro y permite que el resto del backup se restaure correctamente.
+
+    Ref tarfile filters: https://docs.python.org/3/library/tarfile.html#tarfile-extraction-filter
+    Ref uv archive cache: https://github.com/astral-sh/uv
+    """
+    try:
+        return tarfile.data_filter(member, dest_path)
+    except tarfile.FilterError:
+        # Omitir entradas que data_filter rechaza (symlinks absolutos, etc.)
+        # Son cachés de herramientas de build — no son datos del tenant.
+        return None
 
 
 def backup_tenant(tenant_code: str) -> str:
@@ -889,7 +920,7 @@ def restore_tenant_from_backup(tenant_code: str, backup_filename: str) -> str:
                         f"Contenido: {members[0].name}"
                     }
                 )
-            tar.extractall(path=Path(settings.tenants_base_path), filter="data")
+            tar.extractall(path=Path(settings.tenants_base_path), filter=_restore_filter)
 
         # Limpiar archivos estériles del backup
         cleaned: list[str] = []
