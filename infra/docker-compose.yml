@@ -120,6 +120,48 @@ services:
         limits:
           memory: 512M
 
+  # ==========================================================================
+  # SeaweedFS — Object storage S3-compatible para backups de tenants
+  #
+  # Corre como single-node (weed mini) — arquitectura documentada para
+  # despliegues single-server:
+  # Ref: https://github.com/seaweedfs/seaweedfs?tab=readme-ov-file#quick-start-with-weed-mini
+  #
+  # Acceso SOLO por red Docker interna (sin puerto expuesto al host).
+  # El meta-agente lo alcanza en http://seaweedfs:8333 via la red del stack.
+  # Ref S3 API: https://github.com/seaweedfs/seaweedfs/wiki/Amazon-S3-API
+  #
+  # Credenciales en Coolify UI → Environment Variables:
+  #   SEAWEEDFS_ACCESS_KEY  — generar: openssl rand -hex 16
+  #   SEAWEEDFS_SECRET_KEY  — generar: openssl rand -hex 32
+  # ==========================================================================
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.28
+    restart: unless-stopped
+    environment:
+      # Credenciales S3 — el mismo valor va en config.py del meta-agente
+      # Ref env vars: https://github.com/seaweedfs/seaweedfs#quick-start-for-s3-api-on-docker
+      AWS_ACCESS_KEY_ID: ${SEAWEEDFS_ACCESS_KEY:?}
+      AWS_SECRET_ACCESS_KEY: ${SEAWEEDFS_SECRET_KEY:?}
+      S3_BUCKET: martes-backups
+    volumes:
+      # Volumen persistente para datos de SeaweedFS (objetos, índice, metadatos)
+      # El directorio se crea en cloud-init del servidor.
+      - /var/lib/martes/seaweedfs:/data
+    networks:
+      - default    # solo red del stack — sin exposición a Traefik ni al host
+    # Sin ports: el meta-agente accede por http://seaweedfs:8333 (Docker DNS)
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8888/dir/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
 networks:
   # Red externa de Coolify/Traefik — necesaria para routing HTTP/HTTPS.
   # Creada automáticamente por Coolify al instalar. No se gestiona desde aquí.

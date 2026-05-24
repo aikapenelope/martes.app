@@ -112,6 +112,12 @@ ${tsKey
   - mkdir -p /var/lib/martes/tenants
   - mkdir -p /var/lib/martes/backups
   - mkdir -p /var/lib/martes/meta-agent
+  # Directorio de datos de SeaweedFS (object storage S3-compatible para backups).
+  # chrislusf/seaweedfs:4.28 corre como usuario 1000. El directorio debe
+  # existir antes del primer deploy.
+  # Ref: https://github.com/seaweedfs/seaweedfs/wiki/Production-Setup
+  - mkdir -p /var/lib/martes/seaweedfs
+  - chown -R 1000:1000 /var/lib/martes/seaweedfs
 
   # --- Red Docker de tenants --------------------------------------------------
   # martes-tenants es "external: true" en el compose. Debe existir antes del
