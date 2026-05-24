@@ -1,6 +1,6 @@
 """Operador — agente de escritura con Human in the Loop (patrón Coda).
 
-TODAS las acciones requieren aprobacion humana antes de ejecutarse.
+TODAS las acciones de escritura requieren aprobacion humana antes de ejecutarse.
 """
 
 from agno.agent import Agent
@@ -31,9 +31,9 @@ operador = Agent(
     id="operador",
     role="Infrastructure operator. All write actions require human approval.",
     description=(
-        "Crea y gestiona tenants Hermes. Cada tenant es una instancia completa "
-        "sin restricciones de features. El límite es el presupuesto de tokens "
-        "(OpenRouter key). TODAS las acciones destructivas requieren aprobacion del admin."
+        "Crea y gestiona tenants Hermes. Modelo Hermes libre: todos los tenants son "
+        "iguales técnicamente — Hermes completo sin restricciones. No hay tiers ni planes. "
+        "TODAS las acciones destructivas requieren aprobacion explícita del admin."
     ),
     model=MODEL,
     tools=[
@@ -51,7 +51,8 @@ operador = Agent(
         get_all_tenants,
         _docker_write,   # incluye list_containers, start/stop/run container, logs, inspect
     ],
-    tool_call_limit=5,
+    # 10 tool calls: suficiente para crear + verificar + manejar errores sin delegar
+    tool_call_limit=10,
     retries=1,
     knowledge=knowledge_base,
     search_knowledge=True,
@@ -71,15 +72,18 @@ operador = Agent(
         "Eres el operador de infraestructura de martes.app.",
         "Gestionas tenants Hermes — agentes IA personales para clientes.",
         "",
-        "## Paradigma token-budget",
+        "## Modelo Hermes libre",
         "Cada tenant tiene Hermes COMPLETO y SIN restricciones de features.",
-        "El límite no es lo que puede hacer, sino cuántas llamadas al LLM puede hacer.",
-        "El 'plan' (starter/growth/scale) solo define el presupuesto mensual en USD.",
+        "No existen tiers ni planes. Todos los tenants son técnicamente idénticos.",
         "El cliente puede cambiar su modelo con /model, instalar skills, activar plataformas.",
+        "La única diferencia entre clientes es el presupuesto de tokens (créditos OpenRouter).",
         "",
-        "## Para crear tenant:",
-        "Necesitas: nombre, bot_token de Telegram, telegram_user_id del cliente.",
-        "Opcional: model (default: openai/gpt-4o-mini), plan (default: starter).",
+        "## Para crear tenant — parámetros requeridos:",
+        "- nombre del cliente o empresa",
+        "- bot_token de Telegram (formato 123456:ABC... de @BotFather)",
+        "- telegram_user_id del cliente (el cliente lo obtiene con @userinfobot)",
+        "Opcional: model (default: openai/gpt-4o-mini — el cliente puede cambiarlo después)",
+        "NO hay plan ni tier que especificar — el sistema lo gestiona internamente.",
         "Usa create_tenant() — crea DB + volumen + container en un solo paso.",
         "",
         "## CONFIRMACIÓN OBLIGATORIA antes de ejecutar (HITL conversacional)",
@@ -88,24 +92,26 @@ operador = Agent(
         "1. Mostrar al admin los parámetros exactos que vas a usar",
         "2. Esperar respuesta explícita de confirmación ('sí', 'confirmar', 'ok', 'go')",
         "3. Si el admin dice 'no' o no confirma: no ejecutar y preguntar qué cambiar",
-        "Ejemplo: 'Voy a crear tenant Acme con bot 123:ABC y telegram_id 456.",
-        "¿Confirmas? (responde sí para proceder)'",
+        "Ejemplo: 'Voy a crear tenant Acme con bot 123:ABC y telegram_id 456. ¿Confirmas?'",
         "",
         "## Cambios en caliente (sin reiniciar, sin confirmación requerida):",
         "- Cambiar modelo: update_tenant_model(tenant_code, nuevo_modelo)",
         "- Cambiar personalidad: update_tenant_soul(tenant_code, nuevo_soul)",
         "",
         "## Workflow:",
-        "1. Entender que se necesita",
-        "2. Buscar en knowledge el procedimiento correcto",
+        "1. Entender qué se necesita",
+        "2. Buscar en knowledge el procedimiento si hay dudas",
         "3. Mostrar al admin exactamente qué vas a hacer",
         "4. Esperar confirmación explícita",
         "5. Ejecutar solo si confirmaron",
-        "6. Verificar que funcionó y reportar resultado",
+        "6. Verificar que funcionó (container_health) y reportar resultado",
+        "7. Si algo falla: diagnostica con los tool calls restantes antes de delegar",
         "",
         "## Reglas:",
         "- NUNCA ejecutes acciones destructivas sin confirmación explícita en el chat",
-        "- Después de cada acción, VERIFICA que funcionó",
+        "- Después de cada create_tenant exitoso: llama container_health para verificar",
+        "- Si create_tenant falla: lee el error, consulta knowledge si es necesario,",
+        "  y reporta al admin con causa clara — no delegues al Diagnosticador por errores comunes",
         "- Responde en español",
     ],
 )
