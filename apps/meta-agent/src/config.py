@@ -31,6 +31,17 @@ class Settings(BaseSettings):
     # Ref: https://github.com/NousResearch/hermes-agent/releases/tag/v2026.5.16
     hermes_image: str = "nousresearch/hermes-agent:v2026.5.16"
 
+    # Object storage — SeaweedFS S3-compatible (corriendo en el mismo stack Docker)
+    # El endpoint apunta al servicio 'seaweedfs' por Docker DNS interno.
+    # Si storage_endpoint está vacío, los backups quedan solo en disco local (fallback).
+    # Ref: https://github.com/seaweedfs/seaweedfs/wiki/Amazon-S3-API
+    storage_endpoint: str = "http://seaweedfs:8333"
+    storage_access_key: str = ""
+    storage_secret_key: str = ""
+    storage_bucket: str = "martes-backups"
+    # Número de backups a retener por tenant. Los más antiguos se borran automáticamente.
+    storage_keep_last: int = 7
+
     model_config = {"env_prefix": "", "case_sensitive": False, "extra": "ignore"}
 
 

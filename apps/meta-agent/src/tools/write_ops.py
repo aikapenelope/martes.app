@@ -378,49 +378,88 @@ def inject_wiki_content(tenant_code: str, company_name: str, company_description
 # que se monta como /opt/data dentro del container Hermes.
 # El backup es un tar.gz de ese directorio completo.
 #
-# Ref estructura de datos: https://github.com/nousresearch/hermes-agent
-# Ref volumen Docker: docker-compose.yml → ~/.hermes:/opt/data
+# Flujo de backup:
+#   1. Crear tar.gz local en /var/lib/martes/backups/ (temporal)
+#   2. Subir a SeaweedFS S3 → tenants/{code}/{code}_{ts}.tar.gz
+#   3. Borrar archivo local (solo se retiene en SeaweedFS)
+#   4. Cleanup: mantener últimos settings.storage_keep_last backups
+#
+# Flujo de restore:
+#   1. Descargar de SeaweedFS a /tmp/ (temporal)
+#   2. Extraer sobre el directorio del tenant
+#   3. Borrar archivo temporal
+#
+# Ref estructura de datos: https://hermes-agent.nousresearch.com/docs
 # =============================================================================
 
 def backup_tenant(tenant_code: str) -> str:
-    """Crea un backup completo del tenant: tar.gz de su volumen /opt/data.
-    Guarda en /var/lib/martes/backups/{tenant_code}_{YYYYMMDD}_{HHMMSS}.tar.gz.
+    """Crea backup completo del tenant y lo sube a SeaweedFS.
+
+    Si SeaweedFS no está disponible, el backup queda en disco local como fallback.
     Requiere aprobacion.
     """
+    from src import storage
+
     tenant_path = Path(settings.tenants_base_path) / tenant_code
     if not tenant_path.exists():
         return json.dumps({"error": f"Tenant {tenant_code} no encontrado en disco."})
     try:
         _BACKUPS_DIR.mkdir(parents=True, exist_ok=True)
         ts = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
-        backup_file = _BACKUPS_DIR / f"{tenant_code}_{ts}.tar.gz"
+        filename = f"{tenant_code}_{ts}.tar.gz"
+        backup_file = _BACKUPS_DIR / filename
+
+        # 1. Crear tar.gz local
         with tarfile.open(backup_file, "w:gz") as tar:
             tar.add(tenant_path, arcname=tenant_code)
         size_mb = round(backup_file.stat().st_size / (1024 * 1024), 2)
+
+        # 2. Subir a SeaweedFS si está disponible
+        remote_key: str | None = None
+        deleted_old: list[str] = []
+        if storage.storage_available():
+            remote_key = storage.upload_backup(backup_file, tenant_code, filename)
+            # 3. Borrar el archivo local (ya está en SeaweedFS)
+            backup_file.unlink()
+            # 4. Cleanup: conservar solo los últimos N backups
+            deleted_old = storage.cleanup_old_backups(tenant_code)
+        else:
+            remote_key = None  # quedó solo en disco local
+
         return json.dumps({
             "success": True,
             "tenant": tenant_code,
-            "backup_file": backup_file.name,
+            "backup_file": filename,
             "size_mb": size_mb,
-            "message": f"Backup creado: {backup_file.name} ({size_mb} MB)",
+            "storage": "seaweedfs" if remote_key else "local",
+            "remote_key": remote_key,
+            "deleted_old": deleted_old,
+            "message": (
+                f"Backup {filename} ({size_mb} MB) "
+                + (f"subido a SeaweedFS. {len(deleted_old)} backups antiguos eliminados."
+                   if remote_key else "guardado en disco local (SeaweedFS no disponible).")
+            ),
         })
     except (OSError, tarfile.TarError) as e:
         return json.dumps({"success": False, "error": str(e)})
 
 
 def restore_tenant_from_backup(tenant_code: str, backup_filename: str) -> str:
-    """Restaura un tenant desde un backup.
+    """Restaura un tenant desde un backup en SeaweedFS o disco local.
+
+    Si el backup está en SeaweedFS, lo descarga a /tmp/ primero.
     Para tenants activos: detener el container ANTES de restaurar.
-    El backup se extrae sobre el directorio actual del tenant (los datos
-    existentes se reemplazan). El container Hermes puede reiniciarse después.
+    El backup se extrae sobre el directorio actual del tenant.
     Requiere aprobacion — operacion destructiva.
     """
-    backup_file = _BACKUPS_DIR / backup_filename
-    if not backup_file.exists():
-        return json.dumps({"error": f"Backup no encontrado: {backup_filename}"})
+    from src import storage
+
     if not backup_filename.endswith(".tar.gz"):
         return json.dumps({"error": "Nombre de backup inválido. Debe terminar en .tar.gz"})
+
     tenant_path = Path(settings.tenants_base_path) / tenant_code
+    temp_file: Path | None = None
+
     try:
         # Verificar que no hay container corriendo (prevenir corrupción)
         try:
@@ -432,19 +471,32 @@ def restore_tenant_from_backup(tenant_code: str, backup_filename: str) -> str:
                 })
         except NotFound:
             pass  # Container no existe, ok para restaurar
-        # Crear directorio del tenant si no existe
+
+        # Localizar el backup: SeaweedFS primero, disco local como fallback
+        local_path = _BACKUPS_DIR / backup_filename
+        if storage.storage_available():
+            # Descargar de SeaweedFS a /tmp/
+            temp_dir = Path("/tmp/martes_restore")
+            temp_file = storage.download_backup(tenant_code, backup_filename, temp_dir)
+            backup_file = temp_file
+        elif local_path.exists():
+            backup_file = local_path
+        else:
+            return json.dumps({
+                "error": f"Backup '{backup_filename}' no encontrado en SeaweedFS ni en disco local."
+            })
+
+        # Extraer backup
         tenant_path.mkdir(parents=True, exist_ok=True)
-        # Extraer backup (sobreescribe archivos existentes)
         with tarfile.open(backup_file, "r:gz") as tar:
-            # Validar que el contenido corresponde al tenant_code
             members = tar.getmembers()
             if members and not members[0].name.startswith(tenant_code):
                 return json.dumps({
                     "error": f"El backup no corresponde al tenant {tenant_code}. "
                              f"Contenido: {members[0].name}"
                 })
-            # Extraer al directorio padre (el tar tiene {tenant_code}/ como raíz)
             tar.extractall(path=Path(settings.tenants_base_path), filter="data")
+
         _chown(tenant_path)
         return json.dumps({
             "success": True,
@@ -455,6 +507,10 @@ def restore_tenant_from_backup(tenant_code: str, backup_filename: str) -> str:
         })
     except (OSError, tarfile.TarError) as e:
         return json.dumps({"success": False, "error": str(e)})
+    finally:
+        # Limpiar archivo temporal de descarga
+        if temp_file and temp_file.exists():
+            temp_file.unlink(missing_ok=True)
 
 
 # =============================================================================

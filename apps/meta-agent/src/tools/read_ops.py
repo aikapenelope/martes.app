@@ -127,12 +127,40 @@ def check_all_health() -> str:
 
 
 def list_backups(tenant_code: str = "") -> str:
-    """Lista backups disponibles. Si se da tenant_code filtra por ese tenant.
-    Backups en /var/lib/martes/backups/ — formato: {tenant_code}_{YYYYMMDD}_{HHMMSS}.tar.gz
+    """Lista backups disponibles en SeaweedFS (o disco local como fallback).
+
+    Si tenant_code se proporciona, filtra por ese tenant.
+    Orden: más reciente primero.
     """
+    from src import storage
+
     try:
+        if storage.storage_available():
+            # Listar desde SeaweedFS
+            if tenant_code:
+                backups = storage.list_tenant_backups(tenant_code)
+                for b in backups:
+                    b["tenant"] = tenant_code
+            else:
+                # Sin filtro: listar todos los tenants desde disco y agregar
+                tenants_dir = Path(settings.tenants_base_path)
+                backups = []
+                if tenants_dir.exists():
+                    for tp in sorted(tenants_dir.iterdir()):
+                        if tp.is_dir():
+                            for b in storage.list_tenant_backups(tp.name):
+                                b["tenant"] = tp.name
+                                backups.append(b)
+                    backups.sort(key=lambda b: b["created_at"], reverse=True)
+            return json.dumps({"count": len(backups), "source": "seaweedfs", "backups": backups})
+
+        # Fallback: listar desde disco local
         _BACKUPS_DIR.mkdir(parents=True, exist_ok=True)
-        files = sorted(_BACKUPS_DIR.glob("*.tar.gz"), key=lambda f: f.stat().st_mtime, reverse=True)
+        files = sorted(
+            _BACKUPS_DIR.glob("*.tar.gz"),
+            key=lambda f: f.stat().st_mtime,
+            reverse=True,
+        )
         if tenant_code:
             files = [f for f in files if f.name.startswith(f"{tenant_code}_")]
         backups = []
@@ -142,59 +170,81 @@ def list_backups(tenant_code: str = "") -> str:
                 "filename": f.name,
                 "tenant": f.name.split("_")[0] if "_" in f.name else "?",
                 "size_mb": round(stat.st_size / (1024 * 1024), 2),
-                "created": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+                "created_at": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
             })
-        return json.dumps({"count": len(backups), "backups": backups})
-    except OSError as e:
+        return json.dumps({"count": len(backups), "source": "local", "backups": backups})
+    except Exception as e:
         return json.dumps({"error": str(e)})
 
 
 def check_backup_status() -> str:
     """Verifica el estado de backups de todos los tenants.
-    Muestra cuándo fue el último backup de cada tenant y si está al día.
+
+    Consulta SeaweedFS para saber cuándo fue el último backup de cada tenant.
+    Fallback a disco local si SeaweedFS no está disponible.
     """
+    from src import storage
+
     try:
         tenants_dir = Path(settings.tenants_base_path)
-        _BACKUPS_DIR.mkdir(parents=True, exist_ok=True)
-        results = []
         if not tenants_dir.exists():
             return json.dumps({"error": "tenants directory not found"})
+
+        results = []
+        use_seaweedfs = storage.storage_available()
+
         for tenant_path in sorted(tenants_dir.iterdir()):
             if not tenant_path.is_dir():
                 continue
             code = tenant_path.name
-            backups = sorted(
-                _BACKUPS_DIR.glob(f"{code}_*.tar.gz"),
-                key=lambda f: f.stat().st_mtime,
-                reverse=True,
-            )
-            last_backup = None
-            hours_since = None
-            if backups:
-                last_mtime = backups[0].stat().st_mtime
-                last_backup = datetime.fromtimestamp(
-                    last_mtime, tz=timezone.utc
-                ).isoformat()
-                hours_since = round(
-                    (datetime.now(tz=timezone.utc).timestamp() - last_mtime) / 3600, 1
+            last_backup: str | None = None
+            hours_since: float | None = None
+            backup_count = 0
+
+            if use_seaweedfs:
+                backups = storage.list_tenant_backups(code)  # más reciente primero
+                backup_count = len(backups)
+                if backups:
+                    # list_tenant_backups siempre devuelve created_at como str
+                    last_backup = backups[0]["created_at"]
+                    last_dt = datetime.fromisoformat(last_backup)  # type: ignore[arg-type]
+                    hours_since = round(
+                        (datetime.now(tz=timezone.utc) - last_dt).total_seconds() / 3600, 1
+                    )
+            else:
+                # Fallback a disco local
+                local_backups = sorted(
+                    _BACKUPS_DIR.glob(f"{code}_*.tar.gz"),
+                    key=lambda f: f.stat().st_mtime,
+                    reverse=True,
                 )
+                backup_count = len(local_backups)
+                if local_backups:
+                    mtime = local_backups[0].stat().st_mtime
+                    last_backup = datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat()
+                    hours_since = round(
+                        (datetime.now(tz=timezone.utc).timestamp() - mtime) / 3600, 1
+                    )
+
             results.append({
                 "tenant": code,
                 "last_backup": last_backup,
                 "hours_since_backup": hours_since,
-                "backup_count": len(backups),
+                "backup_count": backup_count,
                 "status": (
-                    "ok" if hours_since and hours_since < 26
+                    "ok" if hours_since is not None and hours_since < 26
                     else "overdue" if last_backup else "never"
                 ),
             })
+
         overdue = [r for r in results if r["status"] != "ok"]
         return json.dumps({
             "total_tenants": len(results),
             "overdue": len(overdue),
+            "source": "seaweedfs" if use_seaweedfs else "local",
             "tenants": results,
         })
-    except OSError as e:
+    except Exception as e:
         return json.dumps({"error": str(e)})
 
 
