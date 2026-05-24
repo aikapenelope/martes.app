@@ -21,6 +21,58 @@ No se inventa nada. No se itera con parches hasta que "algo funcione".
 
 ---
 
+## REGLA ABSOLUTA — Acceso al servidor de producción
+
+> **Neo NUNCA accede directamente al servidor de producción (204.168.169.254)
+> para ejecutar comandos de escritura sin aprobación explícita del usuario.**
+
+### Prohibido sin aprobación explícita:
+
+```
+docker restart <container>        ← interrumpe servicios activos
+docker stop / docker rm           ← destruye containers
+pip install / apt install         ← modifica containers corriendo (no reproducible)
+pulumi up / pulumi destroy        ← cambia infraestructura
+docker exec ... escribir archivos ← modifica estado en producción
+ssh ... && <cualquier mutación>   ← acción no rastreable
+```
+
+### Permitido (solo lectura, y aún así reportar antes):
+
+```
+docker ps / docker logs           ← diagnóstico
+docker inspect                    ← diagnóstico
+curl <endpoint>                   ← verificación de salud
+cat / ls                          ← lectura de archivos
+```
+
+### Por qué esta regla es crítica:
+
+Coolify gestiona el ciclo de vida de los containers del compose stack.
+Cualquier acción fuera de Coolify (restart, modificación directa de
+containers) **desincroniza el estado interno de Coolify** de lo que
+realmente hay en el servidor. Esto puede causar:
+
+- Coolify marca el container como en estado inesperado
+- El próximo deploy de Coolify entra en conflicto con el estado actual
+- Datos del deployment tracker quedan inconsistentes
+- Pérdida de visibilidad sobre qué versión está corriendo realmente
+
+### El único flujo válido para cambios en producción:
+
+```
+1. SPEC     — Neo describe el cambio, cita fuente oficial
+2. REVIEW   — Usuario aprueba
+3. IMPLEMENT — PR con el cambio mínimo
+4. MERGE    — Usuario mergea el PR
+5. DEPLOY   — Coolify detecta el merge y redespliega automáticamente
+              (o usuario hace click en "Redeploy" en la UI de Coolify)
+```
+
+**No existe paso intermedio de "lo arreglo rápido en el servidor".**
+
+---
+
 ## Reglas antes de escribir código
 
 1. **Leer los docs oficiales actuales** de la herramienta afectada.
@@ -44,7 +96,7 @@ No se inventa nada. No se itera con parches hasta que "algo funcione".
 ### Versiones
 - Todas pineadas a versión exacta: `==x.y.z`
 - No rangos abiertos (`>=x.y.z`) salvo que la herramienta lo requiera explícitamente
-- Ejemplo correcto: `agno[telegram]==2.6.8`
+- Ejemplo correcto: `agno[telegram,scheduler]==2.6.8`
 
 ### Variables de entorno
 - Siempre en `.env` o en Pulumi ESC / GitHub Secrets
@@ -56,11 +108,18 @@ No se inventa nada. No se itera con parches hasta que "algo funcione".
 - Redes: `external: true` para redes que existen antes del compose
 - Alias de red para routing estable entre servicios
 - Sin labels de Traefik en el compose salvo que Coolify los requiera documentadamente
+- `context:` en build siempre relativo al `--project-directory` de Coolify (= raíz del repo)
+  → usar `context: .` no `context: ..` cuando el compose está en `infra/`
+  Ref: PR #45 — https://github.com/aikapenelope/martes.app/pull/45
 
 ### Infraestructura
 - Coolify gestiona: routing HTTP/HTTPS, SSL, deploys automáticos
 - No crear configs manuales de Traefik salvo patrón documentado en Coolify docs
 - Cambios al servidor van en `pulumi/index.ts`, no se hacen a mano
+- **Coolify --project-directory**: Coolify pasa `--project-directory=<repo-root>` al ejecutar
+  `docker compose`. Las rutas relativas en el compose se resuelven desde la raíz del repo,
+  no desde el directorio del compose file. Siempre verificar esto al usar `context:` o volúmenes
+  con rutas relativas.
 
 ### Commits y PRs
 - Un PR = un cambio atómico. No mezclar concerns.
