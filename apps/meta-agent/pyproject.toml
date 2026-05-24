@@ -6,7 +6,11 @@ requires-python = ">=3.12"
 dependencies = [
     # Versiones pineadas exactas (==x.y.z) — filosofía martes.app
     # Refs verificadas en PyPI mayo 2026
-    "agno[telegram]==2.6.8",
+    # Agno AgentOS con extras telegram + scheduler.
+    # telegram: Telegram interface (bot, webhook, polling)
+    # scheduler: habilita POST /schedules en AgentOS (requiere croniter)
+    # Ref: https://docs.agno.com/agent-os/scheduler
+    "agno[telegram,scheduler]==2.6.8",
     "fastapi==0.136.1",
     "uvicorn[standard]==0.47.0",
     "openai==2.37.0",
