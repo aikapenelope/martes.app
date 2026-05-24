@@ -81,6 +81,7 @@ No se inventa nada. No se itera con parches hasta que "algo funcione".
 | Meta-agente | Agno AgentOS | `==2.6.8` | https://docs.agno.com |
 | Base de datos | PostgreSQL + pgvector | `agnohq/pgvector:18` | https://docs.agno.com |
 | Tenants | Hermes Agent | `v2026.5.16` (= v0.14.0, tag Docker Hub) | — |
+| Object storage | SeaweedFS | `4.28` | https://github.com/seaweedfs/seaweedfs |
 | VPN admin | Tailscale | latest (gestiona su propia actualización) | https://tailscale.com/kb |
 
 ---
