@@ -163,7 +163,13 @@ services:
       - default    # solo red del stack — sin exposición a Traefik ni al host
     # Sin ports: el meta-agente accede por http://seaweedfs:8333 (Docker DNS)
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8888/dir/status || exit 1"]
+      # Usa el endpoint /healthz del S3 API (puerto 8333).
+      # Bug anterior: :8888/dir/status — el filer (8888) no tiene /dir/status;
+      # ese endpoint pertenece al master (9333). /healthz en el S3 port es la
+      # opción correcta porque es lo que usamos en producción.
+      # curl está disponible en chrislusf/seaweedfs:4.28 (confirmado en Dockerfile).
+      # Ref: seaweedfs/weed/s3api/s3api_server.go — Path("/healthz").HandlerFunc(...)
+      test: ["CMD-SHELL", "curl -sf http://localhost:8333/healthz || exit 1"]
       interval: 30s
       timeout: 10s
       start_period: 30s

@@ -58,6 +58,7 @@ def ensure_bucket() -> None:
 
     SeaweedFS auto-crea el bucket via S3_BUCKET env var al arrancar,
     pero esta función garantiza que exista antes de subir objetos.
+    Después de confirmar el bucket, aplica la lifecycle rule de 30 días.
     """
     client = _s3()
     bucket = settings.storage_bucket
@@ -69,6 +70,54 @@ def ensure_bucket() -> None:
             logger.info("Bucket '%s' creado en SeaweedFS", bucket)
         else:
             raise
+    # Lifecycle rule — safety net sobre cleanup_old_backups(keep_last=7)
+    ensure_bucket_lifecycle()
+
+
+def ensure_bucket_lifecycle(days: int = 30) -> bool:
+    """Configura lifecycle rule en SeaweedFS para expirar objetos tras N días.
+
+    Capa de seguridad adicional sobre cleanup_old_backups(keep_last=7):
+    si el cleanup programado falla silenciosamente, los objetos se eliminan
+    automáticamente a los 30 días por la lifecycle rule del bucket.
+
+    Idempotente — reemplaza cualquier configuración anterior con la misma rule.
+    Solo aplica al prefix 'tenants/' para no afectar otros posibles objetos en
+    el bucket.
+
+    SeaweedFS soporta Expiration en lifecycle rules. Transition no está soportado.
+    Ref: https://github.com/seaweedfs/seaweedfs/wiki/Amazon-S3-API
+    Ref source: seaweedfs/weed/s3api/s3api_bucket_lifecycle_config.go
+    Ref boto3: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/
+               services/s3/client/put_bucket_lifecycle_configuration.html
+
+    Returns:
+        True si la rule fue configurada correctamente, False en caso de error.
+    """
+    try:
+        _s3().put_bucket_lifecycle_configuration(
+            Bucket=settings.storage_bucket,
+            LifecycleConfiguration={
+                "Rules": [
+                    {
+                        "ID": "expire-old-backups",
+                        "Status": "Enabled",
+                        "Filter": {"Prefix": "tenants/"},
+                        "Expiration": {"Days": days},
+                    }
+                ]
+            },
+        )
+        logger.info(
+            "Lifecycle rule configurada: objetos en tenants/ expiran a los %d días",
+            days,
+        )
+        return True
+    except Exception as exc:
+        # No-fatal — el cleanup programado sigue siendo la línea primaria.
+        # SeaweedFS más antiguo o mal configurado puede no soportar lifecycle.
+        logger.debug("No se pudo configurar lifecycle rule en SeaweedFS: %s", exc)
+        return False
 
 
 def upload_backup(local_path: Path, tenant_code: str, filename: str) -> str:
@@ -141,12 +190,14 @@ def list_tenant_backups(tenant_code: str) -> list[dict[str, Any]]:
         if not filename.endswith(".tar.gz"):
             continue
         last_modified: datetime = obj["LastModified"]
-        backups.append({
-            "filename": filename,
-            "key": key,
-            "size_mb": round(obj["Size"] / (1024 * 1024), 2),
-            "created_at": last_modified.astimezone(timezone.utc).isoformat(),
-        })
+        backups.append(
+            {
+                "filename": filename,
+                "key": key,
+                "size_mb": round(obj["Size"] / (1024 * 1024), 2),
+                "created_at": last_modified.astimezone(timezone.utc).isoformat(),
+            }
+        )
     # Más reciente primero
     backups.sort(key=lambda b: b["created_at"], reverse=True)
     return backups
@@ -179,6 +230,8 @@ def cleanup_old_backups(tenant_code: str, keep_last: int | None = None) -> list[
     if deleted:
         logger.info(
             "Cleanup tenant %s: %d backups eliminados (keep_last=%d)",
-            tenant_code, len(deleted), limit,
+            tenant_code,
+            len(deleted),
+            limit,
         )
     return deleted
