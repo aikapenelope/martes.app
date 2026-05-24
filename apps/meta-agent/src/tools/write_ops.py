@@ -1238,6 +1238,96 @@ def upgrade_tenant(tenant_code: str, new_image: str) -> str:
         return json.dumps({"success": False, "error": str(e), "steps_completed": steps})
 
 
+def rotate_api_key_all_tenants(new_api_key: str, dry_run: bool = True) -> str:
+    """Actualiza OPENROUTER_API_KEY en el .env de todos los tenants activos o pausados.
+
+    Caso de uso: cuando la API key de OpenRouter se compromete, expira, o se quiere
+    migrar a una cuenta nueva. La key está escrita en el .env de cada tenant al crearlo.
+
+    dry_run=True (default): lista qué tenants se verían afectados, SIN modificar.
+    dry_run=False: actualiza el .env de cada tenant. Requiere restart_tenant()
+    después para que Hermes cargue la nueva key en el próximo arranque.
+
+    Solo procesa tenants con status IN ('active', 'paused') — no toca archivados.
+
+    IMPORTANTE: usa dry_run=True primero para revisar el alcance antes de confirmar.
+    La nueva key debe ser válida y tener créditos en OpenRouter antes de aplicar.
+
+    Requiere aprobación — operación en batch sobre todos los tenants.
+    """
+    tenants_dir = Path(settings.tenants_base_path)
+    if not tenants_dir.exists():
+        return json.dumps({"error": "Directorio de tenants no encontrado."})
+
+    # Obtener lista de tenants elegibles desde DB
+    try:
+        with psycopg.connect(_pg()) as conn:
+            eligible_codes = {
+                r[0]
+                for r in conn.execute(
+                    "SELECT tenant_code FROM tenants WHERE status IN ('active', 'paused')"
+                ).fetchall()
+            }
+    except psycopg.Error as e:
+        return json.dumps({"error": f"Error consultando DB: {e}"})
+
+    affected: list[str] = []
+    skipped: list[str] = []
+    errors: list[dict] = []
+
+    for tenant_dir in sorted(tenants_dir.iterdir()):
+        if not tenant_dir.is_dir():
+            continue
+        code = tenant_dir.name
+        if code not in eligible_codes:
+            skipped.append(code)
+            continue
+        env_file = tenant_dir / ".env"
+        if not env_file.exists():
+            skipped.append(code)
+            continue
+        content = env_file.read_text()
+        if "OPENROUTER_API_KEY=" not in content:
+            skipped.append(code)
+            continue
+        if not dry_run:
+            try:
+                lines = content.splitlines()
+                new_lines = [
+                    f"OPENROUTER_API_KEY={new_api_key}"
+                    if ln.startswith("OPENROUTER_API_KEY=")
+                    else ln
+                    for ln in lines
+                ]
+                env_file.write_text("\n".join(new_lines) + "\n")
+                os.chmod(env_file, 0o600)
+                affected.append(code)
+            except OSError as e:
+                errors.append({"tenant": code, "error": str(e)})
+        else:
+            affected.append(code)
+
+    return json.dumps(
+        {
+            "dry_run": dry_run,
+            "affected_count": len(affected),
+            "affected_tenants": affected,
+            "skipped_tenants": skipped,
+            "errors": errors,
+            "next_step": (
+                "Revisa la lista y llama rotate_api_key_all_tenants(new_key, dry_run=False) "
+                "para aplicar los cambios."
+                if dry_run
+                else (
+                    f"Key actualizada en {len(affected)} tenant(s). "
+                    "Haz restart_tenant() a cada tenant para que Hermes cargue la nueva key. "
+                    "O espera al próximo restart natural de cada container."
+                )
+            ),
+        }
+    )
+
+
 @tool
 def update_tenant_model(tenant_code: str, model_id: str) -> str:
     """Cambia el modelo LLM de un tenant sin reiniciar.
