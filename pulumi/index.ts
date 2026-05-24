@@ -120,10 +120,12 @@ ${tsKey
   - chown -R 1000:1000 /var/lib/martes/seaweedfs
 
   # --- Red Docker de tenants --------------------------------------------------
-  # martes-tenants es "external: true" en el compose. Debe existir antes del
-  # primer deploy. Coolify no la recrea en redeploys, preservando los containers
-  # de tenants Hermes que ya estén corriendo.
-  - docker network create martes-tenants || true
+  # Cada tenant tiene su propia red aislada 'tenant-tXXX-net' creada por
+  # create_tenant(). No se necesita una red compartida entre tenants —
+  # el aislamiento por red es parte del modelo de seguridad.
+  # Nota: la red 'martes-tenants' existía en versiones anteriores del diseño
+  # (red compartida) y puede estar presente en el servidor de producción actual.
+  # No se crea ni se elimina aquí — si existe, no afecta a nada.
 
   # --- Coolify ----------------------------------------------------------------
   # Instala Coolify en /data/coolify. Trae su propio Traefik para 80/443.
