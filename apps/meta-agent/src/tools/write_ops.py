@@ -409,6 +409,101 @@ def delete_tenant(tenant_code: str, keep_volume: bool = False) -> str:
         return json.dumps({"success": False, "error": str(e), "steps_completed": steps})
 
 
+def purge_archived_tenant(tenant_code: str, delete_backups: bool = False) -> str:
+    """Elimina permanentemente el registro de un tenant archivado de la base de datos.
+
+    Solo funciona sobre tenants con status='archived'. Si el tenant está activo
+    o pausado, usa delete_tenant() primero.
+
+    Qué elimina:
+    - Registro en tabla 'tenants' (CASCADE elimina instance_configs, payments,
+      health_checks automáticamente por las foreign keys ON DELETE CASCADE)
+    - Opcionalmente: todos los backups del tenant en SeaweedFS (delete_backups=True)
+
+    Qué NO elimina:
+    - El volumen en disco (si existe) — debe haberse borrado con delete_tenant()
+    - Los backups en SeaweedFS (por defecto) — permanecen como histórico
+
+    Parámetros:
+    - tenant_code: código del tenant archivado (ej: t002)
+    - delete_backups: si True, elimina también los backups en SeaweedFS.
+      Default False — los backups se conservan hasta que expire la lifecycle rule.
+
+    Requiere aprobación — operación irreversible.
+    """
+    from src import storage
+
+    try:
+        # Verificar que el tenant existe y está archivado
+        with psycopg.connect(_pg()) as conn:
+            row = conn.execute(
+                "SELECT tenant_code, name, status FROM tenants WHERE tenant_code = %s",
+                (tenant_code,),
+            ).fetchone()
+
+        if not row:
+            return json.dumps({"error": f"Tenant {tenant_code} no encontrado en DB."})
+
+        _, tenant_name, current_status = row
+        if current_status != "archived":
+            return json.dumps(
+                {
+                    "error": (
+                        f"Tenant {tenant_code} tiene status='{current_status}', no 'archived'. "
+                        "Usa delete_tenant() para archivarlo primero."
+                    )
+                }
+            )
+
+        # Verificar que el container no está corriendo (safety)
+        try:
+            c = _docker().containers.get(f"hermes-{tenant_code}")
+            if c.status == "running":
+                return json.dumps(
+                    {
+                        "error": (
+                            f"Container hermes-{tenant_code} está corriendo. "
+                            "Usa delete_tenant() para un baja completa."
+                        )
+                    }
+                )
+        except NotFound:
+            pass  # Container no existe — correcto para un tenant archivado
+
+        deleted_backups: list[str] = []
+        if delete_backups and storage.storage_available():
+            backups = storage.list_tenant_backups(tenant_code)
+            for b in backups:
+                storage.delete_backup(tenant_code, b["filename"])
+                deleted_backups.append(b["filename"])
+
+        # Hard delete del registro — CASCADE borra instance_configs, payments,
+        # health_checks. error_logs.tenant_id queda en NULL (ON DELETE SET NULL).
+        with psycopg.connect(_pg()) as conn:
+            conn.execute("DELETE FROM tenants WHERE tenant_code = %s", (tenant_code,))
+            conn.commit()
+
+        return json.dumps(
+            {
+                "success": True,
+                "tenant": tenant_code,
+                "name": tenant_name,
+                "deleted_from_db": True,
+                "deleted_backups": deleted_backups,
+                "message": (
+                    f"Registro de {tenant_code} ({tenant_name}) eliminado de la DB. "
+                    + (
+                        f"{len(deleted_backups)} backup(s) eliminados de SeaweedFS."
+                        if deleted_backups
+                        else "Backups en SeaweedFS conservados (expirarán en 30 días)."
+                    )
+                ),
+            }
+        )
+    except psycopg.Error as e:
+        return json.dumps({"success": False, "error": str(e)})
+
+
 def update_tenant_resources(
     tenant_code: str,
     memory_mb: int | None = None,
