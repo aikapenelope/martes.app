@@ -151,9 +151,13 @@ async def register_maintenance_schedules() -> None:
     try:
         async with httpx.AsyncClient(base_url=base, timeout=10) as client:
             # Verificar si el schedule ya existe
+            # El API de Agno devuelve {"data": [...], "meta": {...}} no un array plano
+            # Ref: https://docs.agno.com/examples/agent-os/scheduler/schedule-management
             resp = await client.get("/schedules")
             if resp.status_code == 200:
-                existing = [s["name"] for s in resp.json()]
+                payload = resp.json()
+                schedules = payload.get("data", []) if isinstance(payload, dict) else payload
+                existing = [s["name"] for s in schedules if isinstance(s, dict)]
                 if schedule_name in existing:
                     logger.info("Schedule '%s' ya existe — sin cambios.", schedule_name)
                     return
