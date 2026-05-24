@@ -151,20 +151,28 @@ check_all_health()
 
 ## Backup y Restore
 
-### Crear backup
+Los backups se almacenan en SeaweedFS (object storage S3 interno al stack).
+El backup diario automático corre a las 3 AM UTC via Agno scheduler.
+
+### Crear backup manual
 
 ```
 backup_tenant("t001")
 ```
 
-Genera: `/var/lib/martes/backups/t001_20260523_123456.tar.gz`
-Incluye: sessions, memories, skills, wiki, config.yaml, .env, SOUL.md
+Excluye automáticamente archivos estériles: `gateway.pid`, `cron.pid`,
+`*.db-wal`, `*.db-shm` (según prácticas oficiales de Hermes).
+Sube a SeaweedFS → `tenants/t001/t001_YYYYMMDD_HHMMSS.tar.gz`.
+Retiene los últimos 7 backups, elimina los más antiguos.
 
-### Listar backups
+### Listar backups de un tenant
 
 ```
 list_backups("t001")
 ```
+
+Responde con lista de backups en SeaweedFS, ordenados del más reciente al más antiguo.
+Incluye: `filename`, `size_mb`, `created_at` (ISO 8601).
 
 ### Verificar estado de todos los backups
 
@@ -176,12 +184,49 @@ check_backup_status()
 - `overdue`: más de 26 horas sin backup
 - `never`: nunca se ha hecho backup
 
-### Restaurar
+### Restaurar — flujo completo y correcto
 
-1. `stop_tenant("t001")` — container debe estar detenido
-2. `restore_tenant_from_backup("t001", "t001_20260523_123456.tar.gz")`
-3. `restart_tenant("t001")`
-4. `container_health("t001")`
+**IMPORTANTE**: el container DEBE estar detenido antes de restaurar.
+
+```
+1. stop_tenant("t001")
+2. list_backups("t001")    → ver backups disponibles y elegir el correcto
+3. restore_tenant_from_backup("t001", "t001_20260522_030000.tar.gz")
+
+   La tool automáticamente:
+   a. Descarga el backup de SeaweedFS a /tmp/
+   b. Extrae sobre /var/lib/martes/tenants/t001/
+   c. Elimina gateway.pid, gateway.lock, cron.pid (PIDs stale)
+   d. Elimina *.db-wal, *.db-shm (sidecars WAL — producen BD corrupta si quedan)
+   e. chmod 600 en .env, auth.json, state.db
+   f. chown 1000:1000 recursivo
+
+4. restart_tenant("t001")
+5. container_health("t001")   → verificar que el gateway arrancó
+```
+
+**Por qué el container nuevo no sobreescribe los datos restaurados:**
+El entrypoint de Hermes (`docker/entrypoint.sh`) solo crea `.env`,
+`config.yaml` y `SOUL.md` si NO existen. Al restaurar, estos archivos
+ya están del backup — el entrypoint los respeta sin tocarlos.
+
+**Escenario de recuperación total (servidor perdido o nuevo deploy):**
+
+```
+1. Desplegar nuevo stack (Coolify + meta-agent + db)
+2. Para cada tenant:
+   a. create_tenant(name, bot_token, telegram_user_id)
+      → crea DB + directorios + container nuevo (datos en blanco)
+   b. stop_tenant(tenant_code)
+      → parar el container antes de restaurar
+   c. list_backups(tenant_code)
+      → SeaweedFS tiene los backups del tenant anterior
+   d. restore_tenant_from_backup(tenant_code, backup_filename)
+      → restaura datos del backup sobre el directorio recién creado
+   e. restart_tenant(tenant_code)
+      → container arranca con datos restaurados
+   f. container_health(tenant_code)
+```
 
 ---
 

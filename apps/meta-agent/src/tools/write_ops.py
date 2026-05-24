@@ -376,24 +376,76 @@ def inject_wiki_content(tenant_code: str, company_name: str, company_description
 #
 # Cada tenant tiene su volumen en /var/lib/martes/tenants/{tenant_code}/
 # que se monta como /opt/data dentro del container Hermes.
-# El backup es un tar.gz de ese directorio completo.
 #
-# Flujo de backup:
-#   1. Crear tar.gz local en /var/lib/martes/backups/ (temporal)
+# EXCLUSIONES OBLIGATORIAS (extraídas del repo oficial de Hermes):
+# Ref: https://github.com/NousResearch/hermes-agent/blob/main/hermes_cli/backup.py
+#
+#   gateway.pid / cron.pid   — PIDs del proceso. Stale en cualquier restore.
+#   *.db-wal / *.db-shm      — Sidecars WAL de SQLite. Si se incluyen junto al
+#   *.db-journal               .db principal produce un "torn restore" (BD corrompida).
+#   checkpoints/             — Caches locales de sesión, no portables.
+#
+# PERMISOS OBLIGATORIOS EN RESTORE:
+#   .env, auth.json, state.db → chmod 600
+#
+# FLUJO DE BACKUP:
+#   1. Crear tar.gz local excluyendo archivos estériles (_BACKUP_EXCLUDE_*)
 #   2. Subir a SeaweedFS S3 → tenants/{code}/{code}_{ts}.tar.gz
-#   3. Borrar archivo local (solo se retiene en SeaweedFS)
+#   3. Borrar archivo local (ya está en SeaweedFS)
 #   4. Cleanup: mantener últimos settings.storage_keep_last backups
 #
-# Flujo de restore:
+# FLUJO DE RESTORE (SOLO CON CONTAINER DETENIDO):
 #   1. Descargar de SeaweedFS a /tmp/ (temporal)
 #   2. Extraer sobre el directorio del tenant
-#   3. Borrar archivo temporal
-#
-# Ref estructura de datos: https://hermes-agent.nousresearch.com/docs
+#   3. Eliminar archivos estériles: gateway.pid, gateway.lock, *.db-wal, *.db-shm
+#   4. Corregir permisos: .env 0600, auth.json 0600, state.db 0600
+#   5. _chown() → permisos para usuario hermes (1000:1000)
 # =============================================================================
+
+# Nombres de archivo que nunca deben ir en un backup.
+# Ref: hermes_cli/backup.py:_EXCLUDED_NAMES
+_BACKUP_EXCLUDE_NAMES: frozenset[str] = frozenset({"gateway.pid", "cron.pid"})
+
+# Sufijos de archivo que nunca deben ir en un backup.
+# Ref: hermes_cli/backup.py:_EXCLUDED_SUFFIXES
+_BACKUP_EXCLUDE_SUFFIXES: tuple[str, ...] = (
+    ".db-wal", ".db-shm", ".db-journal",
+    ".pyc", ".pyo",
+)
+
+# Directorios que nunca deben ir en un backup.
+_BACKUP_EXCLUDE_DIRS: frozenset[str] = frozenset({"checkpoints", "__pycache__"})
+
+# Archivos estériles a eliminar DESPUÉS de restaurar un backup.
+_RESTORE_STALE_FILES: tuple[str, ...] = ("gateway.pid", "gateway.lock", "cron.pid")
+
+# Archivos sensibles que necesitan chmod 600 tras el restore.
+_RESTORE_SECRET_FILES: tuple[str, ...] = (".env", "auth.json", "state.db")
+
+
+def _tar_filter(tarinfo: tarfile.TarInfo) -> tarfile.TarInfo | None:
+    """Filter para tarfile.add() que excluye archivos estériles de Hermes.
+
+    Compatible con el parámetro filter= de TarFile.add() en Python 3.12+.
+    Ref: https://docs.python.org/3/library/tarfile.html#tarfile.TarFile.add
+    """
+    name = Path(tarinfo.name).name
+    if name in _BACKUP_EXCLUDE_NAMES:
+        return None
+    if name.endswith(_BACKUP_EXCLUDE_SUFFIXES):
+        return None
+    parts = Path(tarinfo.name).parts
+    if any(p in _BACKUP_EXCLUDE_DIRS for p in parts):
+        return None
+    return tarinfo
+
 
 def backup_tenant(tenant_code: str) -> str:
     """Crea backup completo del tenant y lo sube a SeaweedFS.
+
+    Excluye archivos estériles siguiendo las prácticas oficiales de Hermes:
+    gateway.pid, cron.pid, *.db-wal, *.db-shm, *.db-journal, checkpoints/
+    Ref: https://github.com/NousResearch/hermes-agent/blob/main/hermes_cli/backup.py
 
     Si SeaweedFS no está disponible, el backup queda en disco local como fallback.
     Requiere aprobacion.
@@ -409,9 +461,9 @@ def backup_tenant(tenant_code: str) -> str:
         filename = f"{tenant_code}_{ts}.tar.gz"
         backup_file = _BACKUPS_DIR / filename
 
-        # 1. Crear tar.gz local
+        # 1. Crear tar.gz excluyendo archivos estériles
         with tarfile.open(backup_file, "w:gz") as tar:
-            tar.add(tenant_path, arcname=tenant_code)
+            tar.add(tenant_path, arcname=tenant_code, filter=_tar_filter)
         size_mb = round(backup_file.stat().st_size / (1024 * 1024), 2)
 
         # 2. Subir a SeaweedFS si está disponible
@@ -419,12 +471,10 @@ def backup_tenant(tenant_code: str) -> str:
         deleted_old: list[str] = []
         if storage.storage_available():
             remote_key = storage.upload_backup(backup_file, tenant_code, filename)
-            # 3. Borrar el archivo local (ya está en SeaweedFS)
             backup_file.unlink()
-            # 4. Cleanup: conservar solo los últimos N backups
             deleted_old = storage.cleanup_old_backups(tenant_code)
         else:
-            remote_key = None  # quedó solo en disco local
+            remote_key = None
 
         return json.dumps({
             "success": True,
@@ -443,13 +493,16 @@ def backup_tenant(tenant_code: str) -> str:
     except (OSError, tarfile.TarError) as e:
         return json.dumps({"success": False, "error": str(e)})
 
-
 def restore_tenant_from_backup(tenant_code: str, backup_filename: str) -> str:
     """Restaura un tenant desde un backup en SeaweedFS o disco local.
 
-    Si el backup está en SeaweedFS, lo descarga a /tmp/ primero.
-    Para tenants activos: detener el container ANTES de restaurar.
-    El backup se extrae sobre el directorio actual del tenant.
+    IMPORTANTE: el container DEBE estar detenido antes de restaurar.
+    Tras extraer el backup, limpia archivos estériles:
+    - gateway.pid, gateway.lock, cron.pid (PIDs stale)
+    - *.db-wal, *.db-shm (sidecars WAL — producen BD corrupta si quedan)
+    - Permisos: .env, auth.json, state.db → chmod 600
+    Ref: https://github.com/NousResearch/hermes-agent/blob/main/hermes_cli/backup.py
+
     Requiere aprobacion — operacion destructiva.
     """
     from src import storage
@@ -472,10 +525,9 @@ def restore_tenant_from_backup(tenant_code: str, backup_filename: str) -> str:
         except NotFound:
             pass  # Container no existe, ok para restaurar
 
-        # Localizar el backup: SeaweedFS primero, disco local como fallback
+        # Localizar backup: SeaweedFS primero, disco local como fallback
         local_path = _BACKUPS_DIR / backup_filename
         if storage.storage_available():
-            # Descargar de SeaweedFS a /tmp/
             temp_dir = Path("/tmp/martes_restore")
             temp_file = storage.download_backup(tenant_code, backup_filename, temp_dir)
             backup_file = temp_file
@@ -497,26 +549,42 @@ def restore_tenant_from_backup(tenant_code: str, backup_filename: str) -> str:
                 })
             tar.extractall(path=Path(settings.tenants_base_path), filter="data")
 
+        # Limpiar archivos estériles del backup
+        cleaned: list[str] = []
+        for name in _RESTORE_STALE_FILES:
+            stale = tenant_path / name
+            if stale.exists():
+                stale.unlink()
+                cleaned.append(name)
+        for suffix in (".db-wal", ".db-shm", ".db-journal"):
+            for stale_wal in tenant_path.rglob(f"*{suffix}"):
+                stale_wal.unlink()
+                cleaned.append(stale_wal.name)
+
+        # Corregir permisos de archivos sensibles (chmod 600)
+        for secret_name in _RESTORE_SECRET_FILES:
+            secret_path = tenant_path / secret_name
+            if secret_path.exists():
+                os.chmod(secret_path, 0o600)
+
         _chown(tenant_path)
         return json.dumps({
             "success": True,
             "tenant": tenant_code,
             "restored_from": backup_filename,
-            "message": f"Tenant {tenant_code} restaurado desde {backup_filename}. "
-                       "Puedes reiniciar el container con restart_tenant().",
+            "cleaned_stale": cleaned,
+            "message": (
+                f"Tenant {tenant_code} restaurado desde {backup_filename}. "
+                + (f"Archivos estériles eliminados: {cleaned}. " if cleaned else "")
+                + "Puedes reiniciar el container con restart_tenant()."
+            ),
         })
     except (OSError, tarfile.TarError) as e:
         return json.dumps({"success": False, "error": str(e)})
     finally:
-        # Limpiar archivo temporal de descarga
         if temp_file and temp_file.exists():
             temp_file.unlink(missing_ok=True)
 
-
-# =============================================================================
-# LIVE CONFIG — sin reiniciar el container
-# Hermes recarga config.yaml, .env y SOUL.md en cada turno (gateway/run.py:16119)
-# =============================================================================
 
 @tool
 def update_tenant_model(tenant_code: str, model_id: str) -> str:
