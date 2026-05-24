@@ -323,6 +323,68 @@ async def run_billing_check() -> JSONResponse:
     return JSONResponse(content={"expiring_soon": expiring_soon, "total": len(expiring_soon)})
 
 
+@app.post("/maintenance/expire-platform-keys")
+async def run_expire_platform_keys() -> JSONResponse:
+    """Blanquea platform keys de OpenRouter expiradas en todos los tenants. Sin LLM.
+
+    Para cada tenant activo con marker .platform_key_expires:
+    - Si la key en .env ya es la propia del cliente → limpia el marker, no modifica.
+    - Si la platform key está expirada → blanquea OPENROUTER_API_KEY en .env.
+    - Hermes recarga .env en cada turno → efecto en el próximo mensaje, sin restart.
+
+    Llamado por el scheduler cada 30 minutos.
+    Ref: hermes/gateway/run.py:_reload_runtime_env_preserving_config_authority()
+    """
+    from pathlib import Path as _Path
+
+    from src.tools.write_ops import _PLATFORM_KEY_EXPIRES_FILE, expire_platform_key
+
+    tenants_dir = _Path(settings.tenants_base_path)
+    if not tenants_dir.exists():
+        return JSONResponse(status_code=200, content={"checked": 0})
+
+    results: dict = {"blanked": [], "client_key": [], "not_expired": [], "errors": []}
+
+    for tenant_dir in sorted(tenants_dir.iterdir()):
+        if not tenant_dir.is_dir():
+            continue
+        marker = tenant_dir / _PLATFORM_KEY_EXPIRES_FILE
+        if not marker.exists():
+            continue  # Sin marker → no hay platform key temporal
+
+        code = tenant_dir.name
+        result = json.loads(expire_platform_key(code, dry_run=False))
+        status = result.get("status", "error")
+
+        if status == "expired_and_blanked":
+            results["blanked"].append(code)
+            msg = (
+                f"🔑 martes.app — Platform key expirada\n"
+                f"OPENROUTER_API_KEY blanqueada para {code}.\n"
+                f"El cliente debe configurar su propia key en OpenRouter."
+            )
+            await _send_telegram_alert(msg)
+            logger.info("expire-platform-keys: blanked key for %s", code)
+        elif status == "client_key_active":
+            results["client_key"].append(code)
+            logger.info("expire-platform-keys: %s already has own key", code)
+        elif status == "not_expired":
+            results["not_expired"].append(code)
+        else:
+            results["errors"].append({"tenant": code, "error": result.get("error", status)})
+
+    total = sum(len(v) for v in results.values())
+    logger.info(
+        "expire-platform-keys: %d total — blanked=%d, own_key=%d, not_expired=%d, errors=%d",
+        total,
+        len(results["blanked"]),
+        len(results["client_key"]),
+        len(results["not_expired"]),
+        len(results["errors"]),
+    )
+    return JSONResponse(content=results)
+
+
 @app.on_event("startup")
 async def register_maintenance_schedules() -> None:
     """Registra todos los schedules de mantenimiento al arrancar. Idempotente.
@@ -356,6 +418,14 @@ async def register_maintenance_schedules() -> None:
             "name": "billing-check",
             "cron_expr": "0 9 * * *",  # 9 AM UTC diario
             "endpoint": "/maintenance/billing-check",
+            "method": "POST",
+            "timezone": "UTC",
+            "max_retries": 0,
+        },
+        {
+            "name": "expire-platform-keys",
+            "cron_expr": "*/30 * * * *",  # cada 30 minutos
+            "endpoint": "/maintenance/expire-platform-keys",
             "method": "POST",
             "timezone": "UTC",
             "max_retries": 0,
