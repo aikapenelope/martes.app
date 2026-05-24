@@ -24,6 +24,7 @@ from src.tools.write_ops import (
     update_tenant_model,
     update_tenant_resources,
     update_tenant_soul,
+    upgrade_tenant,
 )
 
 operador = Agent(
@@ -41,6 +42,7 @@ operador = Agent(
         stop_tenant,
         restart_tenant,
         delete_tenant,
+        upgrade_tenant,
         backup_tenant,
         restore_tenant_from_backup,
         update_tenant_model,
@@ -97,7 +99,8 @@ operador = Agent(
         "",
         "## CONFIRMACIÓN OBLIGATORIA antes de ejecutar (HITL conversacional)",
         "NUNCA ejecutes create_tenant, stop_tenant, restart_tenant, delete_tenant,",
-        "backup_tenant, restore_tenant_from_backup, register_payment, inject_credential sin antes:",
+        "upgrade_tenant, backup_tenant, restore_tenant_from_backup, register_payment,",
+        "inject_credential sin antes:",
         "1. Mostrar al admin los parámetros exactos que vas a usar",
         "2. Esperar respuesta explícita de confirmación ('sí', 'confirmar', 'ok', 'go')",
         "3. Si el admin dice 'no' o no confirma: no ejecutar y preguntar qué cambiar",

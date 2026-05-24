@@ -930,6 +930,219 @@ def restore_tenant_from_backup(tenant_code: str, backup_filename: str) -> str:
             temp_file.unlink(missing_ok=True)
 
 
+def upgrade_tenant(tenant_code: str, new_image: str) -> str:
+    """Actualiza la imagen Hermes de un tenant con backup previo y rollback automático.
+
+    Flujo completo:
+    1. Pull de la nueva imagen en Docker (verifica que existe antes de tocar el container)
+    2. backup_tenant() — snapshot obligatorio antes de cualquier cambio
+    3. Detener el container actual
+    4. Eliminar el container (el volumen se preserva)
+    5. Crear container con la misma configuración pero nueva imagen
+    6. Verificar health (6 intentos × 5 s = 30 s máximo)
+    7. Si no arranca: rollback automático a la imagen anterior
+
+    Parámetros:
+    - tenant_code: código del tenant (ej: t001)
+    - new_image: imagen Docker completa con tag.
+      Ej: nousresearch/hermes-agent:v2026.6.1
+      Ref: https://hub.docker.com/r/nousresearch/hermes-agent/tags
+
+    Requiere aprobación. Probar siempre en un tenant de test antes de un upgrade masivo.
+    Ref Docker SDK: https://docker-py.readthedocs.io/en/stable/containers.html
+    """
+    import time
+
+    from src.tools.read_ops import container_health
+
+    steps: list[str] = []
+    old_image: str = ""
+    c_client = _docker()
+
+    try:
+        # Obtener container actual — captura config antes de cualquier cambio
+        try:
+            old_container = c_client.containers.get(f"hermes-{tenant_code}")
+            old_image = old_container.attrs.get("Config", {}).get("Image", settings.hermes_image)
+            host_cfg = old_container.attrs.get("HostConfig", {})
+            old_mem_bytes: int = host_cfg.get("Memory", 768 * (1 << 20))
+            old_nano_cpus: int = host_cfg.get("NanoCpus", int(0.75 * 1e9))
+        except NotFound:
+            return json.dumps({"error": f"Container hermes-{tenant_code} no encontrado."})
+
+        if old_image == new_image:
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": f"El tenant ya usa la imagen '{new_image}'. No hay upgrade.",
+                }
+            )
+
+        # Leer recursos actuales desde DB (fuente de verdad para memoria/CPU)
+        mem_mb = old_mem_bytes // (1 << 20) or 768
+        cpu = round(old_nano_cpus / 1e9, 2) or 0.75
+        try:
+            with psycopg.connect(_pg()) as conn:
+                row = conn.execute(
+                    "SELECT ic.memory_limit_mb, ic.cpu_limit FROM instance_configs ic "
+                    "JOIN tenants t ON t.id = ic.tenant_id WHERE t.tenant_code = %s",
+                    (tenant_code,),
+                ).fetchone()
+                if row:
+                    mem_mb = row[0]
+                    cpu = float(row[1])
+        except psycopg.Error:
+            pass  # fallback a los valores leídos de HostConfig
+
+        # 1. Pull de la nueva imagen — falla rápido si el tag no existe
+        # Ref: https://docker-py.readthedocs.io/en/stable/images.html#docker.models.images.ImageCollection.pull
+        try:
+            c_client.images.pull(new_image)
+            steps.append(f"image_pulled:{new_image}")
+        except Exception as pull_err:
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": f"No se pudo descargar la imagen '{new_image}': {pull_err}",
+                    "hint": "Verifica el tag en https://hub.docker.com/r/nousresearch/hermes-agent/tags",
+                }
+            )
+
+        # 2. Backup obligatorio antes de modificar el container
+        backup_result = json.loads(backup_tenant(tenant_code))
+        if not backup_result.get("success"):
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": (
+                        f"Backup previo falló: {backup_result.get('error')}. Upgrade cancelado."
+                    ),
+                    "note": "Resuelve el error de backup antes de continuar.",
+                }
+            )
+        steps.append(f"backup_ok:{backup_result.get('backup_file')}")
+
+        # 3. Detener y 4. eliminar el container (el volumen se preserva)
+        if old_container.status == "running":
+            old_container.stop(timeout=30)
+            steps.append("container_stopped")
+        old_container.remove(force=True)
+        steps.append("container_removed")
+
+        # Red del tenant — debe existir
+        net = f"tenant-{tenant_code}-net"
+        try:
+            c_client.networks.get(net)
+        except NotFound:
+            c_client.networks.create(net, driver="bridge")
+
+        tenant_path = Path(settings.tenants_base_path) / tenant_code
+
+        def _run_container(image: str) -> None:
+            """Crea un container Hermes con los parámetros estándar del tenant."""
+            with psycopg.connect(_pg()) as conn:
+                row = conn.execute(
+                    "SELECT ic.model FROM instance_configs ic "
+                    "JOIN tenants t ON t.id = ic.tenant_id WHERE t.tenant_code = %s",
+                    (tenant_code,),
+                ).fetchone()
+                model_label = row[0] if row else "openai/gpt-4o-mini"
+
+            c_client.containers.run(
+                image=image,
+                name=f"hermes-{tenant_code}",
+                detach=True,
+                restart_policy={"Name": "unless-stopped"},  # type: ignore[arg-type]
+                network=net,
+                volumes={str(tenant_path): {"bind": "/opt/data", "mode": "rw"}},
+                environment={
+                    "HERMES_UID": "1000",
+                    "HERMES_GID": "1000",
+                    "API_SERVER_ENABLED": "true",
+                },
+                mem_limit=f"{mem_mb}m",
+                memswap_limit=f"{mem_mb * 2}m",
+                nano_cpus=int(cpu * 1e9),
+                command=["gateway", "run"],
+                security_opt=["no-new-privileges"],
+                pids_limit=256,
+                cap_drop=["ALL"],
+                cap_add=["NET_RAW", "CHOWN", "SETUID", "SETGID", "DAC_OVERRIDE", "FOWNER"],
+                dns=["1.1.1.1", "8.8.8.8"],
+                tmpfs={"/tmp": "size=100m"},
+                log_config={  # type: ignore[arg-type]
+                    "Type": "json-file",
+                    "Config": {"max-size": "50m", "max-file": "3"},
+                },
+                labels={
+                    "martes.tenant": tenant_code,
+                    "martes.plan": "basico",
+                    "martes.model": model_label,
+                },
+            )
+
+        # 5. Crear container con nueva imagen
+        _run_container(new_image)
+        steps.append(f"container_created:{new_image}")
+
+        # 6. Verificar health — hasta 30 s (6 intentos × 5 s)
+        for attempt in range(6):
+            time.sleep(5)
+            health = json.loads(container_health(tenant_code))
+            if health.get("status") == "healthy":
+                steps.append(f"health_ok:attempt_{attempt + 1}")
+                # Actualizar HERMES_IMAGE en instance_configs para reflejar la nueva versión
+                with psycopg.connect(_pg()) as conn:
+                    conn.execute(
+                        "UPDATE instance_configs ic SET template = %s "
+                        "FROM tenants t WHERE t.id = ic.tenant_id AND t.tenant_code = %s",
+                        (new_image, tenant_code),
+                    )
+                    conn.commit()
+                return json.dumps(
+                    {
+                        "success": True,
+                        "tenant": tenant_code,
+                        "old_image": old_image,
+                        "new_image": new_image,
+                        "steps": steps,
+                        "message": (
+                            f"Upgrade completado: {old_image} → {new_image}. "
+                            f"Container healthy en {(attempt + 1) * 5}s."
+                        ),
+                    }
+                )
+
+        # 7. Health check falló — rollback automático a imagen anterior
+        steps.append("health_check_failed_rolling_back")
+        try:
+            broken = c_client.containers.get(f"hermes-{tenant_code}")
+            broken.remove(force=True)
+        except NotFound:
+            pass
+        _run_container(old_image)
+        steps.append(f"rolled_back_to:{old_image}")
+
+        return json.dumps(
+            {
+                "success": False,
+                "tenant": tenant_code,
+                "error": (
+                    f"El container con {new_image} no pasó health check en 30s. "
+                    f"Rollback automático a {old_image} ejecutado."
+                ),
+                "steps": steps,
+                "note": (
+                    "Revisa los logs del container fallido antes de reintentar. "
+                    "Puede haber un breaking change en la nueva versión de Hermes."
+                ),
+            }
+        )
+
+    except Exception as e:
+        return json.dumps({"success": False, "error": str(e), "steps_completed": steps})
+
+
 @tool
 def update_tenant_model(tenant_code: str, model_id: str) -> str:
     """Cambia el modelo LLM de un tenant sin reiniciar.

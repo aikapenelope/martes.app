@@ -1,6 +1,7 @@
 """Read-only tools — el Diagnosticador los usa sin restriccion."""
 
 import json
+import shutil
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -28,12 +29,20 @@ def list_containers() -> str:
     """Lista todos los containers de tenants Hermes."""
     try:
         cs = _docker().containers.list(all=True, filters={"label": "martes.tenant"})
-        return json.dumps({
-            "count": len(cs),
-            "tenants": [{"name": c.name, "tenant": c.labels.get("martes.tenant"),
-                         "plan": c.labels.get("martes.plan"), "status": c.status}
-                        for c in cs]
-        })
+        return json.dumps(
+            {
+                "count": len(cs),
+                "tenants": [
+                    {
+                        "name": c.name,
+                        "tenant": c.labels.get("martes.tenant"),
+                        "plan": c.labels.get("martes.plan"),
+                        "status": c.status,
+                    }
+                    for c in cs
+                ],
+            }
+        )
     except APIError as e:
         return json.dumps({"error": str(e)})
 
@@ -54,12 +63,14 @@ def container_health(tenant_code: str) -> str:
         ms = int((time.time() - start) * 1000)
         exit_code: int = result.exit_code or 1
         output: bytes = result.output  # type: ignore[assignment]
-        return json.dumps({
-            "tenant": tenant_code,
-            "status": "healthy" if exit_code == 0 else "unhealthy",
-            "response_ms": ms,
-            "details": output.decode("utf-8", errors="replace")[:200],
-        })
+        return json.dumps(
+            {
+                "tenant": tenant_code,
+                "status": "healthy" if exit_code == 0 else "unhealthy",
+                "response_ms": ms,
+                "details": output.decode("utf-8", errors="replace")[:200],
+            }
+        )
     except NotFound:
         return json.dumps({"tenant": tenant_code, "status": "not_found"})
     except APIError as e:
@@ -90,13 +101,20 @@ def container_stats(tenant_code: str) -> str:
         mem_pct = round(mem.get("usage", 0) / max(mem.get("limit", 1), 1) * 100, 1)
         cpu = stats.get("cpu_stats", {})
         pcpu = stats.get("precpu_stats", {})
-        cd = (cpu.get("cpu_usage", {}).get("total_usage", 0)
-              - pcpu.get("cpu_usage", {}).get("total_usage", 0))
+        cd = cpu.get("cpu_usage", {}).get("total_usage", 0) - pcpu.get("cpu_usage", {}).get(
+            "total_usage", 0
+        )
         sd = cpu.get("system_cpu_usage", 0) - pcpu.get("system_cpu_usage", 0)
         nc: int = cpu.get("online_cpus", 1)
         cpu_pct = round(cd / sd * nc * 100, 2) if sd > 0 else 0.0
-        return json.dumps({"tenant": tenant_code, "memory_mb": mem_mb,
-                           "memory_percent": mem_pct, "cpu_percent": cpu_pct})
+        return json.dumps(
+            {
+                "tenant": tenant_code,
+                "memory_mb": mem_mb,
+                "memory_percent": mem_pct,
+                "cpu_percent": cpu_pct,
+            }
+        )
     except (NotFound, APIError, KeyError) as e:
         return json.dumps({"error": str(e)})
 
@@ -125,8 +143,15 @@ def check_all_health() -> str:
                 except Exception:
                     results.append({"tenant": t, "status": "unhealthy"})
                     unhealthy += 1
-        return json.dumps({"total": len(results), "healthy": healthy,
-                           "unhealthy": unhealthy, "stopped": stopped, "tenants": results})
+        return json.dumps(
+            {
+                "total": len(results),
+                "healthy": healthy,
+                "unhealthy": unhealthy,
+                "stopped": stopped,
+                "tenants": results,
+            }
+        )
     except APIError as e:
         return json.dumps({"error": str(e)})
 
@@ -171,12 +196,16 @@ def list_backups(tenant_code: str = "") -> str:
         backups = []
         for f in files:
             stat = f.stat()
-            backups.append({
-                "filename": f.name,
-                "tenant": f.name.split("_")[0] if "_" in f.name else "?",
-                "size_mb": round(stat.st_size / (1024 * 1024), 2),
-                "created_at": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
-            })
+            backups.append(
+                {
+                    "filename": f.name,
+                    "tenant": f.name.split("_")[0] if "_" in f.name else "?",
+                    "size_mb": round(stat.st_size / (1024 * 1024), 2),
+                    "created_at": datetime.fromtimestamp(
+                        stat.st_mtime, tz=timezone.utc
+                    ).isoformat(),
+                }
+            )
         return json.dumps({"count": len(backups), "source": "local", "backups": backups})
     except Exception as e:
         return json.dumps({"error": str(e)})
@@ -231,24 +260,223 @@ def check_backup_status() -> str:
                         (datetime.now(tz=timezone.utc).timestamp() - mtime) / 3600, 1
                     )
 
-            results.append({
-                "tenant": code,
-                "last_backup": last_backup,
-                "hours_since_backup": hours_since,
-                "backup_count": backup_count,
-                "status": (
-                    "ok" if hours_since is not None and hours_since < 26
-                    else "overdue" if last_backup else "never"
-                ),
-            })
+            results.append(
+                {
+                    "tenant": code,
+                    "last_backup": last_backup,
+                    "hours_since_backup": hours_since,
+                    "backup_count": backup_count,
+                    "status": (
+                        "ok"
+                        if hours_since is not None and hours_since < 26
+                        else "overdue"
+                        if last_backup
+                        else "never"
+                    ),
+                }
+            )
 
         overdue = [r for r in results if r["status"] != "ok"]
-        return json.dumps({
-            "total_tenants": len(results),
-            "overdue": len(overdue),
-            "source": "seaweedfs" if use_seaweedfs else "local",
-            "tenants": results,
-        })
+        return json.dumps(
+            {
+                "total_tenants": len(results),
+                "overdue": len(overdue),
+                "source": "seaweedfs" if use_seaweedfs else "local",
+                "tenants": results,
+            }
+        )
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+def diagnose_container_error(tenant_code: str) -> str:
+    """Diagnóstico automático de un container que no arranca o está unhealthy.
+
+    Combina docker inspect + tail de logs para clasificar la causa del error
+    sin que el admin tenga que pedir cada pieza por separado.
+
+    Devuelve causa probable y solución recomendada en un solo tool call.
+    """
+    try:
+        c = _docker().containers.get(f"hermes-{tenant_code}")
+        attrs = c.attrs
+
+        state = attrs.get("State", {})
+        host_cfg = attrs.get("HostConfig", {})
+        exit_code: int = state.get("ExitCode", 0)
+        oom_killed: bool = state.get("OOMKilled", False)
+        restart_count: int = attrs.get("RestartCount", 0)
+        status: str = state.get("Status", "unknown")
+        error_msg: str = state.get("Error", "")
+        image: str = attrs.get("Config", {}).get("Image", "?")
+        mem_limit_mb = round(host_cfg.get("Memory", 0) / (1 << 20))
+
+        # Últimas 50 líneas de logs para análisis
+        raw: bytes = c.logs(tail=50, timestamps=False)  # type: ignore[assignment]
+        log_tail = raw.decode("utf-8", errors="replace")
+
+        # Clasificación del error — orden: OOM primero (más destructivo)
+        cause = "desconocido"
+        solution = "Revisa los logs completos con container_logs() para más detalle."
+
+        if oom_killed:
+            cause = f"OOM Kill — el container superó el límite de {mem_limit_mb} MB de RAM"
+            solution = (
+                f"Usa update_tenant_resources() para subir la RAM. "
+                f"Perfil recomendado: 1024 MB / 1.0 CPU. "
+                f"Comando: update_tenant_resources('{tenant_code}', memory_mb=1024, cpu_cores=1.0)"
+            )
+        elif exit_code == 1 and (
+            "OPENROUTER_API_KEY" in log_tail or "openrouter" in log_tail.lower()
+        ):
+            cause = "API key de OpenRouter inválida, expirada o sin créditos"
+            solution = (
+                "Verifica que OPENROUTER_API_KEY en el .env del tenant es válida y tiene saldo. "
+                "Usa inject_credential() para actualizarla si cambió."
+            )
+        elif exit_code == 1 and (
+            "TELEGRAM_BOT_TOKEN" in log_tail
+            or "telegram" in log_tail.lower()
+            and "token" in log_tail.lower()
+        ):
+            cause = "Token de Telegram inválido o revocado"
+            solution = (
+                "Verifica el token con @BotFather en Telegram. "
+                "Usa inject_credential() para actualizarlo."
+            )
+        elif "permission denied" in log_tail.lower() or "permissionerror" in log_tail.lower():
+            cause = "Error de permisos en el volumen del tenant"
+            solution = (
+                f"El directorio /var/lib/martes/tenants/{tenant_code} "
+                "necesita chown 1000:1000 recursivo. "
+                "Esto puede indicar que el backup/restore no aplicó los permisos correctamente."
+            )
+        elif error_msg and (
+            "no such image" in error_msg.lower() or "not found" in error_msg.lower()
+        ):
+            cause = f"Imagen Docker no encontrada: {image}"
+            solution = (
+                f"La imagen '{image}' no está disponible en el servidor. "
+                "Verifica que HERMES_IMAGE apunta a un tag existente en Docker Hub. "
+                "Ref: https://hub.docker.com/r/nousresearch/hermes-agent/tags"
+            )
+        elif restart_count > 3:
+            cause = f"Crash loop — el container ha reiniciado {restart_count} veces"
+            solution = (
+                "Revisa los logs completos con container_logs(). "
+                "Causas frecuentes: .env incorrecto, config.yaml inválido, "
+                "o conflicto de gateway.pid stale tras un restore. "
+                "Si hay gateway.pid/gateway.lock en el volumen, elimínalos y reinicia."
+            )
+        elif exit_code == 75:
+            cause = "Exit 75 — restart graceful solicitado por Hermes (normal tras /restart)"
+            solution = (
+                "Esto es normal. El container debería reiniciarse automáticamente "
+                "por restart_policy=unless-stopped. "
+                "Si lleva más de 30s sin arrancar, usa restart_tenant()."
+            )
+        elif status == "created" and exit_code == 0:
+            cause = "Container creado pero nunca arrancó"
+            solution = "Usa restart_tenant() para iniciarlo."
+
+        return json.dumps(
+            {
+                "tenant": tenant_code,
+                "status": status,
+                "image": image,
+                "exit_code": exit_code,
+                "oom_killed": oom_killed,
+                "restart_count": restart_count,
+                "memory_limit_mb": mem_limit_mb,
+                "probable_cause": cause,
+                "suggested_solution": solution,
+                "log_tail": log_tail[-1500:],
+            }
+        )
+    except NotFound:
+        return json.dumps(
+            {
+                "tenant": tenant_code,
+                "error": f"Container hermes-{tenant_code} no encontrado.",
+                "suggestion": (
+                    "El container no existe. Puede que fue eliminado. "
+                    "Comprueba get_all_tenants() para ver el estado en DB."
+                ),
+            }
+        )
+    except APIError as e:
+        return json.dumps({"error": str(e)})
+
+
+def get_server_capacity() -> str:
+    """Capacidad disponible del servidor: RAM, disco y slots de tenants libres.
+
+    Combina /proc/meminfo, shutil.disk_usage y docker stats de los containers
+    de tenants para calcular cuántos tenants adicionales caben.
+
+    Perfiles de referencia:
+    - Estándar: 768 MB / 0.75 CPU (por defecto al crear)
+    - Ligero:   512 MB / 0.5 CPU
+    """
+    try:
+        # RAM del host via /proc/meminfo
+        meminfo = Path("/proc/meminfo").read_text()
+        mem_total_kb = int(
+            next(ln for ln in meminfo.splitlines() if ln.startswith("MemTotal")).split()[1]
+        )
+        mem_avail_kb = int(
+            next(ln for ln in meminfo.splitlines() if ln.startswith("MemAvailable")).split()[1]
+        )
+        mem_total_mb = mem_total_kb // 1024
+        mem_avail_mb = mem_avail_kb // 1024
+
+        # Disco en /var/lib/martes
+        disk = shutil.disk_usage("/var/lib/martes")
+        disk_free_gb = round(disk.free / (1 << 30), 1)
+        disk_total_gb = round(disk.total / (1 << 30), 1)
+        disk_pct = round(disk.used / disk.total * 100, 1)
+
+        # RAM asignada a containers de tenants (límite configurado, no uso real)
+        cs = _docker().containers.list(filters={"label": "martes.tenant"})
+        tenant_alloc_mb = sum(
+            round(c.attrs.get("HostConfig", {}).get("Memory", 0) / (1 << 20))
+            for c in cs
+            if c.attrs.get("HostConfig", {}).get("Memory", 0) > 0
+        )
+        tenants_running = sum(1 for c in cs if c.status == "running")
+        tenants_total = len(cs)
+
+        # Slots disponibles — basado en RAM libre del sistema
+        slots_standard = mem_avail_mb // 768  # perfil estándar 768 MB
+        slots_light = mem_avail_mb // 512  # perfil ligero 512 MB
+
+        return json.dumps(
+            {
+                "server": {
+                    "ram_total_mb": mem_total_mb,
+                    "ram_available_mb": mem_avail_mb,
+                    "ram_allocated_to_tenants_mb": tenant_alloc_mb,
+                },
+                "disk": {
+                    "total_gb": disk_total_gb,
+                    "free_gb": disk_free_gb,
+                    "used_pct": disk_pct,
+                    "warning": disk_pct > 80,
+                },
+                "tenants": {
+                    "running": tenants_running,
+                    "total_containers": tenants_total,
+                },
+                "capacity": {
+                    "additional_slots_768mb": slots_standard,
+                    "additional_slots_512mb": slots_light,
+                    "recommendation": (
+                        f"Caben ~{slots_standard} tenants más al perfil estándar (768 MB). "
+                        "Considera upgrade a CX53 si superas 20 tenants activos."
+                    ),
+                },
+            }
+        )
     except Exception as e:
         return json.dumps({"error": str(e)})
 
@@ -265,16 +493,24 @@ def get_all_tenants() -> str:
                 ORDER BY t.tenant_code
             """).fetchall()
             from datetime import datetime, timezone
+
             now = datetime.now(tz=timezone.utc).date()
             tenants = []
             for r in rows:
                 pu = r[4]
-                tenants.append({
-                    "code": r[0], "name": r[1], "plan": r[2], "status": r[3],
-                    "paid_until": pu.isoformat() if pu else None,
-                    "days_remaining": (pu - now).days if pu else None,
-                    "container": r[5], "platforms": r[6], "model": r[7],
-                })
+                tenants.append(
+                    {
+                        "code": r[0],
+                        "name": r[1],
+                        "plan": r[2],
+                        "status": r[3],
+                        "paid_until": pu.isoformat() if pu else None,
+                        "days_remaining": (pu - now).days if pu else None,
+                        "container": r[5],
+                        "platforms": r[6],
+                        "model": r[7],
+                    }
+                )
             return json.dumps({"count": len(tenants), "tenants": tenants})
     except psycopg.Error as e:
         return json.dumps({"error": str(e)})
