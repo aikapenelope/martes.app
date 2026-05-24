@@ -152,7 +152,10 @@ services:
       - default    # solo red del stack — sin exposición a Traefik ni al host
     # Sin ports: el meta-agente accede por http://seaweedfs:8333 (Docker DNS)
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8888/dir/status || exit 1"]
+      # /cluster/status devuelve {"IsLeader":true,...} con HTTP 200 cuando el
+      # master está listo. Es el endpoint de salud oficial del cluster.
+      # Ref: https://github.com/seaweedfs/seaweedfs/wiki/Master-Server-API
+      test: ["CMD-SHELL", "curl -sf http://localhost:9333/cluster/status || exit 1"]
       interval: 30s
       timeout: 10s
       start_period: 30s
