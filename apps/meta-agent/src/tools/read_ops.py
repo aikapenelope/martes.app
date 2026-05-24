@@ -51,15 +51,21 @@ def container_health(tenant_code: str) -> str:
     """Verifica health de un container via curl al puerto 8642.
 
     Hermes expone GET /health en :8642 cuando API_SERVER_ENABLED=true.
-    Usamos curl (disponible en la imagen Hermes); wget no está disponible.
-    Ref: https://hermes-agent.nousresearch.com/docs/user-guide/docker
+    Retorna {"status": "ok", "platform": "hermes-agent"} si el servidor está up.
+
+    IMPORTANTE: Se usa 127.0.0.1 explícito, no 'localhost'.
+    En containers Docker con IPv6 habilitado, 'localhost' resuelve a ::1
+    pero el API server de Hermes escucha solo en 127.0.0.1 (DEFAULT_HOST).
+    Conectar a ::1:8642 produce "connection refused" aunque el server esté activo.
+    Ref Hermes source: gateway/platforms/api_server.py — DEFAULT_HOST = "127.0.0.1"
+    Ref Hermes Dockerfile: apt-get install curl (disponible en /usr/bin/curl)
     """
     try:
         c = _docker().containers.get(f"hermes-{tenant_code}")
         if c.status != "running":
             return json.dumps({"tenant": tenant_code, "status": "stopped"})
         start = time.time()
-        result = c.exec_run("curl -sf http://localhost:8642/health")
+        result = c.exec_run("curl -sf http://127.0.0.1:8642/health")
         ms = int((time.time() - start) * 1000)
         exit_code: int = result.exit_code or 1
         output: bytes = result.output  # type: ignore[assignment]
@@ -132,7 +138,7 @@ def check_all_health() -> str:
                 stopped += 1
             else:
                 try:
-                    r = c.exec_run("curl -sf http://localhost:8642/health")
+                    r = c.exec_run("curl -sf http://127.0.0.1:8642/health")
                     ec: int = r.exit_code or 1
                     if ec == 0:
                         results.append({"tenant": t, "status": "healthy"})

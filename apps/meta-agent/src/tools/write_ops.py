@@ -837,7 +837,16 @@ _BACKUP_EXCLUDE_SUFFIXES: tuple[str, ...] = (
 )
 
 # Directorios que nunca deben ir en un backup.
-_BACKUP_EXCLUDE_DIRS: frozenset[str] = frozenset({"checkpoints", "__pycache__"})
+#
+# .cache       — caché general del SO y herramientas (pip, uv, apt, etc.)
+# archive-v0   — directorio interno del archive-cache de uv. Contiene symlinks
+#                absolutos no portables que Python 3.12 tarfile.data_filter
+#                rechaza con AbsoluteLinkError al restaurar en otro host.
+#                uv recrea estos archivos automáticamente al primer arranque.
+# Ref: https://github.com/astral-sh/uv (uv archive cache design)
+_BACKUP_EXCLUDE_DIRS: frozenset[str] = frozenset(
+    {"checkpoints", "__pycache__", ".cache", "archive-v0"}
+)
 
 # Archivos estériles a eliminar DESPUÉS de restaurar un backup.
 _RESTORE_STALE_FILES: tuple[str, ...] = ("gateway.pid", "gateway.lock", "cron.pid")
@@ -861,6 +870,28 @@ def _tar_filter(tarinfo: tarfile.TarInfo) -> tarfile.TarInfo | None:
     if any(p in _BACKUP_EXCLUDE_DIRS for p in parts):
         return None
     return tarinfo
+
+
+def _restore_filter(member: tarfile.TarInfo, dest_path: str) -> tarfile.TarInfo | None:
+    """Filter para extractall() que omite entradas no portables en lugar de abortar.
+
+    Python 3.12+ tarfile.data_filter lanza tarfile.FilterError (y sus subclases
+    AbsoluteLinkError, LinkOutsideDestinationError) cuando encuentra symlinks con
+    targets absolutos, como los que genera la caché de uv en el volumen de Hermes.
+
+    Estos symlinks son artefactos de build no esenciales — uv los recrea
+    automáticamente al primer arranque del container tras el restore. Omitirlos
+    es seguro y permite que el resto del backup se restaure correctamente.
+
+    Ref tarfile filters: https://docs.python.org/3/library/tarfile.html#tarfile-extraction-filter
+    Ref uv archive cache: https://github.com/astral-sh/uv
+    """
+    try:
+        return tarfile.data_filter(member, dest_path)
+    except tarfile.FilterError:
+        # Omitir entradas que data_filter rechaza (symlinks absolutos, etc.)
+        # Son cachés de herramientas de build — no son datos del tenant.
+        return None
 
 
 def backup_tenant(tenant_code: str) -> str:
@@ -984,7 +1015,7 @@ def restore_tenant_from_backup(tenant_code: str, backup_filename: str) -> str:
                         f"Contenido: {members[0].name}"
                     }
                 )
-            tar.extractall(path=Path(settings.tenants_base_path), filter="data")
+            tar.extractall(path=Path(settings.tenants_base_path), filter=_restore_filter)
 
         # Limpiar archivos estériles del backup
         cleaned: list[str] = []
@@ -1023,6 +1054,188 @@ def restore_tenant_from_backup(tenant_code: str, backup_filename: str) -> str:
     finally:
         if temp_file and temp_file.exists():
             temp_file.unlink(missing_ok=True)
+
+
+def recreate_tenant_container(tenant_code: str) -> str:
+    """Recrea el container Docker de un tenant cuyo volumen ya fue restaurado.
+
+    Caso de uso: después de restore_tenant_from_backup() cuando el container
+    original fue eliminado (por delete_tenant() u otra causa). El volumen ya
+    existe con el .env y los datos restaurados — solo falta el container.
+
+    Prerrequisitos:
+    1. El volumen debe existir: /var/lib/martes/tenants/{tenant_code}/
+    2. El .env debe estar en el volumen (creado por restore_tenant_from_backup)
+    3. El container NO debe existir (si existe, usa restart_tenant() en su lugar)
+
+    Lee la configuración de recursos desde instance_configs en DB.
+    Usa la imagen configurada en settings.hermes_image (HERMES_IMAGE env var).
+    Actualiza el status del tenant en DB a 'active' tras crear el container.
+
+    Requiere aprobación.
+    """
+    from src.tools.read_ops import container_health
+
+    c_client = _docker()
+    tenant_path = Path(settings.tenants_base_path) / tenant_code
+
+    # Guardia 1: verificar que el container no existe ya
+    try:
+        existing = c_client.containers.get(f"hermes-{tenant_code}")
+        return json.dumps(
+            {
+                "error": (
+                    f"El container hermes-{tenant_code} ya existe (status: {existing.status}). "
+                    "Usa restart_tenant() si está parado, o stop_tenant() + restart_tenant()."
+                )
+            }
+        )
+    except NotFound:
+        pass  # Container no existe — ok para proceder
+
+    # Guardia 2: verificar que el volumen existe (restore previo completado)
+    if not tenant_path.exists():
+        return json.dumps(
+            {
+                "error": (
+                    f"El volumen /var/lib/martes/tenants/{tenant_code}/ no existe. "
+                    "Ejecuta restore_tenant_from_backup() primero."
+                )
+            }
+        )
+
+    # Guardia 3: verificar que .env existe (credenciales del tenant)
+    env_file = tenant_path / ".env"
+    if not env_file.exists():
+        return json.dumps(
+            {
+                "error": (
+                    f"El .env no existe en el volumen de {tenant_code}. "
+                    "El restore puede estar incompleto o el volumen está corrupto."
+                )
+            }
+        )
+
+    # Leer datos del tenant y recursos desde DB
+    try:
+        with psycopg.connect(_pg()) as conn:
+            row = conn.execute(
+                "SELECT t.name, t.status, ic.memory_limit_mb, ic.cpu_limit, ic.model "
+                "FROM tenants t "
+                "LEFT JOIN instance_configs ic ON ic.tenant_id = t.id "
+                "WHERE t.tenant_code = %s",
+                (tenant_code,),
+            ).fetchone()
+    except psycopg.Error as e:
+        return json.dumps({"error": f"Error leyendo DB: {e}"})
+
+    if not row:
+        return json.dumps({"error": f"Tenant {tenant_code} no encontrado en DB."})
+
+    tenant_name, current_status, mem_mb, cpu, model = row
+    # Fallback a valores estándar si instance_configs no existe
+    mem_mb = mem_mb or 768
+    cpu = float(cpu) if cpu else 0.75
+    model = model or "openai/gpt-4o-mini"
+
+    # Crear red Docker del tenant si no existe
+    net = f"tenant-{tenant_code}-net"
+    try:
+        c_client.networks.get(net)
+    except NotFound:
+        c_client.networks.create(net, driver="bridge")
+
+    # Crear container con la imagen actual y la config del tenant
+    try:
+        c_client.containers.run(
+            image=settings.hermes_image,
+            name=f"hermes-{tenant_code}",
+            detach=True,
+            restart_policy={"Name": "unless-stopped"},  # type: ignore[arg-type]
+            network=net,
+            volumes={str(tenant_path): {"bind": "/opt/data", "mode": "rw"}},
+            environment={
+                "HERMES_UID": "1000",
+                "HERMES_GID": "1000",
+                "API_SERVER_ENABLED": "true",
+            },
+            mem_limit=f"{mem_mb}m",
+            memswap_limit=f"{mem_mb * 2}m",
+            nano_cpus=int(cpu * 1e9),
+            command=["gateway", "run"],
+            security_opt=["no-new-privileges"],
+            pids_limit=256,
+            cap_drop=["ALL"],
+            cap_add=["NET_RAW", "CHOWN", "SETUID", "SETGID", "DAC_OVERRIDE", "FOWNER"],
+            dns=["1.1.1.1", "8.8.8.8"],
+            tmpfs={"/tmp": "size=100m"},
+            log_config={  # type: ignore[arg-type]
+                "Type": "json-file",
+                "Config": {"max-size": "50m", "max-file": "3"},
+            },
+            labels={
+                "martes.tenant": tenant_code,
+                "martes.plan": "basico",
+                "martes.model": model,
+            },
+        )
+    except APIError as e:
+        return json.dumps({"success": False, "error": f"Error creando container: {e}"})
+
+    # Actualizar status en DB a 'active'
+    try:
+        with psycopg.connect(_pg()) as conn:
+            conn.execute("UPDATE tenants SET status='active' WHERE tenant_code=%s", (tenant_code,))
+            conn.commit()
+    except psycopg.Error as e:
+        # Container creado pero DB no actualizada — reportar para revisión manual
+        return json.dumps(
+            {
+                "success": True,
+                "warning": (
+                    f"Container creado pero no se pudo actualizar DB: {e}. "
+                    f"Actualiza manualmente: "
+                    f"UPDATE tenants SET status='active' WHERE tenant_code='{tenant_code}'"
+                ),
+                "tenant": tenant_code,
+                "container": f"hermes-{tenant_code}",
+                "image": settings.hermes_image,
+            }
+        )
+
+    # Verificar que el container arrancó correctamente (espera hasta 20s)
+    import time
+
+    health_status = "unknown"
+    for attempt in range(4):
+        time.sleep(5)
+        health = json.loads(container_health(tenant_code))
+        health_status = health.get("status", "unknown")
+        if health_status == "healthy":
+            break
+
+    return json.dumps(
+        {
+            "success": True,
+            "tenant": tenant_code,
+            "name": tenant_name,
+            "container": f"hermes-{tenant_code}",
+            "image": settings.hermes_image,
+            "memory_mb": mem_mb,
+            "cpu_cores": cpu,
+            "health": health_status,
+            "message": (
+                f"Container hermes-{tenant_code} creado y activado. "
+                f"Health: {health_status}. "
+                "El bot de Telegram debería responder en los próximos segundos."
+                if health_status == "healthy"
+                else (
+                    f"Container creado pero health={health_status} tras 20s. "
+                    "Verifica los logs con container_logs() si el bot no responde."
+                )
+            ),
+        }
+    )
 
 
 def upgrade_tenant(tenant_code: str, new_image: str) -> str:
