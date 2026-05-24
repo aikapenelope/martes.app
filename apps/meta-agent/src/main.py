@@ -323,6 +323,74 @@ async def run_billing_check() -> JSONResponse:
     return JSONResponse(content={"expiring_soon": expiring_soon, "total": len(expiring_soon)})
 
 
+@app.post("/maintenance/docker-cleanup")
+async def run_docker_cleanup() -> JSONResponse:
+    """Limpia imágenes Docker de Hermes que ya no están en uso. Sin LLM, 0 tokens.
+
+    Elimina imágenes de nousresearch/hermes-agent que no están siendo usadas
+    por ningún container (running o stopped). Las imágenes en uso se conservan.
+    Seguro: solo toca imágenes del repo de Hermes — no afecta Coolify, PostgreSQL,
+    SeaweedFS ni ninguna otra imagen del host.
+
+    Llamado por el scheduler semanalmente (domingos 4 AM UTC).
+
+    Ref: https://docker-py.readthedocs.io/en/stable/images.html
+    """
+    import docker
+
+    c_client = docker.from_env()
+
+    # Imágenes actualmente usadas por algún container de tenant
+    used_image_ids: set[str] = set()
+    for container in c_client.containers.list(all=True, filters={"label": "martes.tenant"}):
+        used_image_ids.add(container.image.id)
+
+    # También proteger la imagen actual configurada en HERMES_IMAGE
+    try:
+        current = c_client.images.get(settings.hermes_image)
+        used_image_ids.add(current.id)
+    except Exception:
+        pass  # Si no existe localmente, no hay nada que proteger
+
+    # Buscar imágenes de Hermes no usadas
+    hermes_images = c_client.images.list(name="nousresearch/hermes-agent")
+    removed: list[dict] = []
+    errors: list[dict] = []
+    freed_bytes = 0
+
+    for img in hermes_images:
+        if img.id in used_image_ids:
+            continue
+        tags = img.tags or [img.id[:12]]
+        size_mb = round(img.attrs.get("Size", 0) / (1 << 20), 1)
+        try:
+            c_client.images.remove(img.id, force=False)
+            removed.append({"id": img.id[:12], "tags": tags, "size_mb": size_mb})
+            freed_bytes += img.attrs.get("Size", 0)
+            logger.info("Docker cleanup: removed image %s (%s MB)", img.id[:12], size_mb)
+        except Exception as exc:
+            errors.append({"id": img.id[:12], "tags": tags, "error": str(exc)})
+            logger.debug("Docker cleanup: could not remove %s: %s", img.id[:12], exc)
+
+    freed_mb = round(freed_bytes / (1 << 20), 1)
+    logger.info(
+        "Docker cleanup: removed %d image(s), freed %.1f MB, %d errors",
+        len(removed),
+        freed_mb,
+        len(errors),
+    )
+    if removed:
+        await _send_telegram_alert(
+            f"🐳 martes.app — Docker cleanup\n"
+            f"{len(removed)} imagen(es) Hermes huérfana(s) eliminada(s). "
+            f"Liberado: {freed_mb} MB"
+        )
+
+    return JSONResponse(
+        content={"removed": len(removed), "freed_mb": freed_mb, "images": removed, "errors": errors}
+    )
+
+
 @app.on_event("startup")
 async def register_maintenance_schedules() -> None:
     """Registra todos los schedules de mantenimiento al arrancar. Idempotente.
@@ -356,6 +424,14 @@ async def register_maintenance_schedules() -> None:
             "name": "billing-check",
             "cron_expr": "0 9 * * *",  # 9 AM UTC diario
             "endpoint": "/maintenance/billing-check",
+            "method": "POST",
+            "timezone": "UTC",
+            "max_retries": 0,
+        },
+        {
+            "name": "docker-cleanup",
+            "cron_expr": "0 4 * * 0",  # domingos 4 AM UTC
+            "endpoint": "/maintenance/docker-cleanup",
             "method": "POST",
             "timezone": "UTC",
             "max_retries": 0,
