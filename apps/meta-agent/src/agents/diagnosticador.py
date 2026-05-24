@@ -2,10 +2,13 @@
 
 Acceso a: containers, health, logs, stats, base de datos.
 Nunca modifica nada. Reporta y sugiere.
+
+DockerTools de Agno NO se incluyen: listan todos los containers del host
+(Coolify, coolify-db, coolify-redis, etc.) sin filtro. Los tools custom de
+martes están filtrados por label 'martes.tenant' — solo ven tenants Hermes.
 """
 
 from agno.agent import Agent
-from agno.tools.docker import DockerTools
 
 from src.shared import MODEL, compression, db, knowledge_base, learning, skills
 from src.tools.read_ops import (
@@ -17,17 +20,6 @@ from src.tools.read_ops import (
     get_all_tenants,
     list_backups,
     list_containers,
-)
-
-# DockerTools oficial de Agno — subset de solo lectura
-_docker_read = DockerTools(
-    include_tools=[
-        "list_containers",
-        "get_container_logs",
-        "inspect_container",
-        "list_networks",
-        "list_images",
-    ]
 )
 
 diagnosticador = Agent(
@@ -48,7 +40,6 @@ diagnosticador = Agent(
         get_all_tenants,
         list_backups,
         check_backup_status,
-        _docker_read,
     ],
     tool_call_limit=10,
     retries=1,

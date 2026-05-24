@@ -1,10 +1,13 @@
 """Operador — agente de escritura con Human in the Loop (patrón Coda).
 
 TODAS las acciones de escritura requieren aprobacion humana antes de ejecutarse.
+
+DockerTools de Agno NO se incluyen: operan sobre todos los containers del host
+(Coolify, coolify-db, coolify-redis, etc.). Los tools custom de martes ya están
+filtrados por label 'martes.tenant' y cubren todas las operaciones necesarias.
 """
 
 from agno.agent import Agent
-from agno.tools.docker import DockerTools
 
 from src.shared import MODEL, compression, db, knowledge_base, learning, skills
 from src.tools.read_ops import container_health, get_all_tenants
@@ -19,11 +22,6 @@ from src.tools.write_ops import (
     stop_tenant,
     update_tenant_model,
     update_tenant_soul,
-)
-
-_docker_write = DockerTools(
-    include_tools=["list_containers", "start_container", "stop_container",
-                   "run_container", "get_container_logs", "inspect_container"]
 )
 
 operador = Agent(
@@ -49,7 +47,6 @@ operador = Agent(
         register_payment,
         container_health,
         get_all_tenants,
-        _docker_write,   # incluye list_containers, start/stop/run container, logs, inspect
     ],
     # 10 tool calls: suficiente para crear + verificar + manejar errores sin delegar
     tool_call_limit=10,
