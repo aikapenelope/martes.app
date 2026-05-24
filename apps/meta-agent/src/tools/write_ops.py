@@ -242,6 +242,170 @@ def restart_tenant(tenant_code: str) -> str:
         return json.dumps({"error": str(e)})
 
 
+def delete_tenant(tenant_code: str, keep_volume: bool = False) -> str:
+    """Elimina un tenant de forma permanente: backup final → stop → remove container → archivo DB.
+
+    Flujo:
+    1. Backup final a SeaweedFS (siempre, para poder restaurar si el cliente regresa)
+    2. Detener el container si está corriendo
+    3. Eliminar el container Docker (remove)
+    4. Eliminar la red Docker del tenant
+    5. Eliminar el directorio de datos del host (salvo keep_volume=True)
+    6. Marcar como 'archived' en DB
+
+    keep_volume=True: preserva /var/lib/martes/tenants/{code}/ en disco.
+    Útil si hay posibilidad de que el cliente reactive el servicio.
+    Los backups en SeaweedFS siempre se conservan independientemente de keep_volume.
+
+    Requiere aprobacion — operacion destructiva e irreversible.
+    Ref docker remove: https://docker-py.readthedocs.io/en/stable/containers.html#docker.models.containers.Container.remove
+    """
+    from src import storage
+
+    steps: list[str] = []
+    c_client = _docker()
+
+    try:
+        # 1. Backup final a SeaweedFS
+        backup_result = json.loads(backup_tenant(tenant_code))
+        if backup_result.get("success"):
+            steps.append(f"backup_ok:{backup_result.get('backup_file')}")
+        else:
+            # Continuar aun si el backup falla — ya hay backups previos en SeaweedFS
+            steps.append(f"backup_warn:{backup_result.get('error', 'desconocido')}")
+
+        # 2. Detener y eliminar el container
+        try:
+            container = c_client.containers.get(f"hermes-{tenant_code}")
+            if container.status == "running":
+                container.stop(timeout=30)
+                steps.append("container_stopped")
+            container.remove(force=True)
+            steps.append("container_removed")
+        except NotFound:
+            steps.append("container_not_found")  # Ya no existía, ok
+
+        # 3. Eliminar la red Docker del tenant
+        net_name = f"tenant-{tenant_code}-net"
+        try:
+            c_client.networks.get(net_name).remove()
+            steps.append("network_removed")
+        except NotFound:
+            steps.append("network_not_found")
+
+        # 4. Eliminar directorio de datos del host (si no se quiere conservar)
+        tenant_path = Path(settings.tenants_base_path) / tenant_code
+        if not keep_volume and tenant_path.exists():
+            import shutil
+            shutil.rmtree(tenant_path)
+            steps.append("volume_deleted")
+        elif keep_volume:
+            steps.append("volume_preserved")
+
+        # 5. Marcar como archived en DB
+        with psycopg.connect(_pg()) as conn:
+            conn.execute(
+                "UPDATE tenants SET status='archived' WHERE tenant_code=%s", (tenant_code,)
+            )
+            conn.commit()
+        steps.append("db_archived")
+
+        backups_in_seaweedfs = 0
+        if storage.storage_available():
+            backups_in_seaweedfs = len(storage.list_tenant_backups(tenant_code))
+
+        return json.dumps({
+            "success": True,
+            "tenant": tenant_code,
+            "steps": steps,
+            "backups_in_seaweedfs": backups_in_seaweedfs,
+            "volume_preserved": keep_volume,
+            "message": (
+                f"Tenant {tenant_code} eliminado. "
+                f"{backups_in_seaweedfs} backup(s) conservados en SeaweedFS. "
+                + ("Datos del volumen preservados en disco." if keep_volume
+                   else "Datos del volumen eliminados del disco.")
+            ),
+        })
+    except Exception as e:
+        return json.dumps({"success": False, "error": str(e), "steps_completed": steps})
+
+
+def update_tenant_resources(
+    tenant_code: str,
+    memory_mb: int | None = None,
+    cpu_cores: float | None = None,
+) -> str:
+    """Actualiza límites de memoria y CPU de un tenant en caliente, sin reiniciar.
+
+    Usa docker update que modifica cgroups directamente en el container corriendo.
+    El cambio es inmediato y no requiere restart ni recreación del container.
+    Ref: https://docker-py.readthedocs.io/en/stable/containers.html#docker.models.containers.Container.update
+    Ref: https://docs.docker.com/reference/cli/docker/container/update/
+
+    Parámetros:
+    - memory_mb: límite de RAM en MB. Ej: 512, 768, 1024, 2048
+    - cpu_cores: núcleos de CPU. Ej: 0.5, 0.75, 1.0, 2.0
+
+    Valores típicos para Hermes:
+      Mínimo viable:   512 MB, 0.5 CPU  (tareas simples, poco contexto)
+      Estándar:        768 MB, 0.75 CPU (por defecto al crear)
+      Pesado:         1024 MB, 1.0 CPU  (tareas largas, contexto grande)
+      Intensivo:      2048 MB, 2.0 CPU  (subagentes, code execution)
+
+    No requiere aprobación — es un ajuste reversible y no destructivo.
+    """
+    if memory_mb is None and cpu_cores is None:
+        return json.dumps({"error": "Especifica al menos memory_mb o cpu_cores."})
+
+    try:
+        container = _docker().containers.get(f"hermes-{tenant_code}")
+
+        # Construir kwargs para container.update()
+        update_kwargs: dict = {}
+        if memory_mb is not None:
+            if memory_mb < 256:
+                return json.dumps({"error": "Mínimo 256 MB — menos puede causar OOM kills."})
+            update_kwargs["mem_limit"] = f"{memory_mb}m"
+            # memory-swap = 2x memory (permite burst sin swap agresivo)
+            update_kwargs["memswap_limit"] = f"{memory_mb * 2}m"
+        if cpu_cores is not None:
+            if cpu_cores < 0.1:
+                return json.dumps({"error": "Mínimo 0.1 CPU — menos afecta el rendimiento."})
+            update_kwargs["nano_cpus"] = int(cpu_cores * 1e9)
+
+        container.update(**update_kwargs)
+
+        # Actualizar el label del container para reflejar el nuevo límite
+        # (los labels no son actualizables en caliente — solo para referencia futura)
+
+        # Leer los nuevos valores del inspect para confirmar
+        container.reload()
+        host_cfg = container.attrs.get("HostConfig", {})
+        actual_mem_mb = round(host_cfg.get("Memory", 0) / (1024 * 1024))
+        actual_nano = host_cfg.get("NanoCpus", 0)
+        actual_cpu = round(actual_nano / 1e9, 2) if actual_nano else None
+
+        return json.dumps({
+            "success": True,
+            "tenant": tenant_code,
+            "applied": update_kwargs,
+            "actual_memory_mb": actual_mem_mb,
+            "actual_cpu_cores": actual_cpu,
+            "restart_required": False,
+            "message": (
+                f"Recursos actualizados en caliente para hermes-{tenant_code}. "
+                f"RAM: {actual_mem_mb} MB"
+                + (f" | CPU: {actual_cpu} cores" if actual_cpu else "")
+                + ". Sin reinicio."
+            ),
+        })
+    except NotFound:
+        return json.dumps({"error": f"Container hermes-{tenant_code} no encontrado."})
+    except APIError as e:
+        return json.dumps({"error": str(e)})
+
+
 def inject_credential(tenant_code: str, credential_type: str, credential_value: str) -> str:
     """Inyecta una credencial en el volumen del tenant. Requiere aprobacion."""
     tp = Path(settings.tenants_base_path) / tenant_code
