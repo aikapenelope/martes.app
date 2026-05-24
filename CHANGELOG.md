@@ -1,165 +1,191 @@
 # CHANGELOG — martes.app
 
-## [Sprint 1] — May 20-21, 2026
+---
 
-### Infraestructura (Hetzner + Pulumi)
+## [Sprint 3] — 23–24 mayo 2026
 
-- **Servidor**: Hetzner CX43 desplegado con Pulumi (8 vCPU, 16GB RAM, 160GB NVMe, Helsinki)
-  - IP: `204.168.169.254`
-  - Ubuntu 24.04, Docker 29.x, fail2ban, ufw (22/80/443)
-  - Destruido stack anterior `qyne-infra` (Dokploy + Coolify, obsoleto)
-  - Repo clonado en `/opt/martes`, imagen Hermes pre-descargada
+### Infraestructura
 
-- **Volúmenes persistentes** en `/var/lib/martes/`:
-  - `pg-data/` — PostgreSQL (64MB, persiste schemas y datos)
-  - `meta-agent/` — LanceDB vectors + wiki del meta-agente
-  - `tenants/` — Volúmenes de containers Hermes (vacío, sin tenants aún)
-  - `backups/` — Directorio para backups
+- **Migración a build nativo de Coolify** (PR #44, #45)
+  - El meta-agente ya no usa GHCR — Coolify construye la imagen directamente desde el repo
+  - Fix crítico: `context: ..` → `context: .` en docker-compose.yml
+    (Coolify pasa `--project-directory=<repo-root>`, las rutas relativas se resuelven desde la raíz)
+  - Fix `../db/migrations` → `./db/migrations` por la misma causa
 
-- **Tailscale** instalado y conectado a la red `aikapenelope-org`
-  - IP Tailscale del servidor: `100.104.89.128`
-  - AgentOS API accesible en `100.104.89.128:8000`
+- **SeaweedFS 4.28** — Object storage S3-compatible para backups (PR #49)
+  - Corre en el mismo stack de Coolify como servicio `seaweedfs`
+  - Acceso solo por red Docker interna — no expuesto al host ni a internet
+  - Bucket `martes-backups` creado automáticamente
+  - Credenciales gestionadas vía env vars de Coolify (`SEAWEEDFS_ACCESS_KEY`, `SEAWEEDFS_SECRET_KEY`)
 
-### Servicios Docker corriendo
+- **Migración DB 002** — modelo Hermes libre sin tiers (PR #47, aplicada manualmente)
+  - `CHECK (plan IN ('basico'))` — un solo plan, constraint actualizado en producción
+  - Eliminados registros con valores obsoletos (starter, growth, scale, equipo, pro)
 
-| Container | Imagen | Estado | Puerto |
-|-----------|--------|--------|--------|
-| `martes-db` | agnohq/pgvector:18 | healthy | 5432 (interno) |
-| `martes-traefik` | traefik:v2.11 | healthy | 80, 443 |
-| `martes-portainer` | portainer/portainer-ce | running | deploy.martes.app |
-| `martes-meta` | infra-meta-agent (build) | healthy | 7777 (interno) |
-| `martes-deploy-hook` | infra-deploy-hook (build) | running | hook.martes.app |
+- **SeaweedFS healthcheck** corregido: `/dir/status` → `/cluster/status` (PR #49)
 
-**Nota**: Portainer solo sirve como visor. No tiene Stacks configurados.
-Todo el stack se gestiona via `docker compose` directamente.
+### Meta-agente (Agno AgentOS)
 
-### DNS (Cloudflare — DNS Only, sin proxy)
+- **Hermes image tag corregido** (PR #46): `0.14.0` → `v2026.5.16`
+  - El tag `0.14.0` nunca existió en Docker Hub
+  - Hermes usa esquema `vAÑO.MES.DIA` — `v2026.5.16` = Hermes v0.14.0
 
-| Record | Tipo | Destino |
-|--------|------|---------|
-| `@` | A | 204.168.169.254 |
-| `www` | A | 204.168.169.254 |
-| `*` | A | 204.168.169.254 |
-| `deploy` | A | 204.168.169.254 |
-| `hook` | A | 204.168.169.254 |
-| `api` | A | 204.168.169.254 |
+- **Seguridad `API_SERVER_HOST`** (PR #46): eliminado `API_SERVER_HOST=0.0.0.0`
+  - Los health checks usan `docker exec` (localhost) — no necesitan red
+  - Hermes docs: `API_SERVER_HOST=0.0.0.0` requiere `API_SERVER_KEY` obligatoriamente
 
-### SSL (Let's Encrypt via Traefik)
+- **curl reemplaza wget** en health checks (PR #48)
+  - Hermes `v2026.5.16` no tiene `wget` en la imagen, solo `curl`
+  - `container_health()` y `check_all_health()` actualizados
 
-- `deploy.martes.app` → Portainer UI ✓
-- `hook.martes.app` → Deploy webhook ✓
-- Wildcards de tenants (`t001.martes.app`, etc.) — auto-generados cuando se creen
+- **DockerTools de Agno eliminados** de Operador y Diagnosticador (PR #48)
+  - AgnoDockerTools no filtran por label — veían y podían operar todos los containers del host,
+    incluyendo Coolify, coolify-db, coolify-redis, etc.
+  - Reemplazados por los tools custom ya filtrados por `martes.tenant`
 
-### Auto-deploy (GitHub Actions → hook.martes.app)
+- **Modelo Hermes libre** — eliminación completa del sistema de tiers (PR #47)
+  - Removido parámetro `plan` de `create_tenant()` — hardcodeado a `"basico"` internamente
+  - Eliminados templates `basico/`, `equipo/`, `pro/` — código muerto (solo se usa `default/`)
+  - `tool_call_limit`: 5 → 10 en Operador (evita agotar budget en un fallo y delegar)
+  - Knowledge base reescrita: sin referencias a tiers, flujos correctos documentados
 
-**Flujo**:
-```
-Push a main → GitHub Actions → POST https://hook.martes.app/deploy
-    ↓ HMAC-SHA256 verification
-    ↓ git pull origin main (HTTPS, repo público)
-    ↓ docker compose up -d --build db meta-agent traefik portainer
-    ↓ ~2-3 minutos
-```
+- **Storage layer S3** con boto3 (PR #50)
+  - Nuevo módulo `src/storage.py` — cliente boto3 para SeaweedFS
+  - `backup_tenant()` → crea tar.gz + sube a SeaweedFS + borra local + cleanup (keep_last=7)
+  - `restore_tenant_from_backup()` → descarga de SeaweedFS → extrae → limpia stale → permisos
+  - `list_backups()` → lista desde SeaweedFS (fallback a disco local)
+  - Añadido `boto3==1.43.14` + `httpx==0.28.1` a pyproject.toml
 
-- Secret en GitHub: `DEPLOY_SECRET` (en repository secrets)
-- Secret en servidor: `/opt/martes/infra/.env → DEPLOY_SECRET`
-- Deploy-hook NO se reinicia a sí mismo (evita self-kill)
-- Logs en: `/var/log/martes-deploy.log`
+- **Backup automático diario** — scheduler Agno (PR #50, #52)
+  - Endpoint `POST /maintenance/backup-all` — sin LLM, 0 tokens
+  - Schedule `daily-backup-all`: cron `0 3 * * *` (3 AM UTC)
+  - Startup handler registra el schedule en cada deploy (idempotente)
+  - Fix: `agno[telegram,scheduler]` — `agno[telegram]` no incluye `croniter`
+  - Fix: startup handler parseaba `resp.json()` como lista cuando en realidad es `{"data": [...]}`
 
-### Meta-agente Agno (Team + Knowledge)
+- **Prácticas correctas de backup Hermes** (PR #51)
+  - Excluye `gateway.pid`, `cron.pid`, `*.db-wal`, `*.db-shm` del tar.gz
+    (Hermes documenta: WAL sidecars junto al .db producen "torn restore")
+  - Post-restore: elimina automáticamente archivos estériles + chmod 600 a `.env`/`auth.json`/`state.db`
 
-**Arquitectura** (patrones Scout + Coda):
-- `TeamMode.coordinate` — Diagnosticador + Operador + Skill Builder
-- `DatabaseContextProvider` — SQL directo a tenants DB
-- `WikiContextProvider` — Wiki persistente en `/var/lib/martes/meta-agent/wiki/`
-- `LearningMachine` — entity memory, decision log, session context
-- `Knowledge RAG` — LanceDB + OpenAI embeddings (3 docs indexados)
-- `CompressionManager` — comprime outputs largos
-- `@approval` decorator — Human in the Loop en TODA escritura
+- **Telegram guardrail** (PR #54)
+  - `TelegramAllowlistMiddleware` — capa HTTP dura, independiente del LLM
+  - Descarta updates de usuarios no autorizados antes de que Agno los procese
+  - Configuración: `TELEGRAM_ADMIN_IDS=<id>` en Coolify
+  - Si vacío: sin guardrail (modo dev compatible)
 
-**Agentes**:
-- `Diagnosticador` — read-only, 7 tools + DockerTools + ContextProviders
-- `Operador` — write con approval, 6 tools + DockerTools
-- `Skill Builder` — crea/gestiona skills para meta-agente y tenants
+- **delete_tenant() + update_tenant_resources()** (PR #55)
+  - `delete_tenant(tenant_code, keep_volume=False)`:
+    backup final → stop → remove container → remove network → rmtree volumen → DB archived
+  - `update_tenant_resources(tenant_code, memory_mb, cpu_cores)`:
+    usa `docker update` (cgroups en caliente, sin restart, efecto inmediato)
+    Perfiles: 512/0.5 (ligero), 768/0.75 (estándar), 1024/1.0 (pesado), 2048/2.0 (intensivo)
 
-**8 Skills lazy-loaded**:
-- `tenant-management`, `tenant-onboarding`, `hermes-config`
-- `hermes-troubleshooting`, `backup-restore`, `network-security`
-- `monitoring-alerts`, `integrations`
+- **AGENTS.md** actualizado con regla absoluta de no acceso directo al servidor (PR #53)
 
-**Knowledge base** (3 docs en LanceDB):
-- `hermes_reference.md` — imagen Docker, volumen, env vars, health
-- `procedures.md` — flujos operativos paso a paso
-- `config_reference.md` — referencia completa del config.yaml de Hermes
+### Fixes y limpieza de código
 
-### Templates Hermes (3 tiers — producción)
+- Dead code eliminado: segunda implementación de `create_tenant()` (117 líneas inalcanzables)
+- Imports limpiados: `Any`, `approval`, `list_containers` sin usar
+- Reorganización de imports en `write_ops.py` (isort)
+- `readers=[MarkdownReader()]` → `readers={".md": MarkdownReader()}` (tipo correcto para Agno API)
+- CI/CD: `cd.yml` convertido de "Build and Push" a "CI — Build check" (sin push a GHCR)
 
-| Setting | Básico ($30) | Equipo ($100) | Pro ($200) |
-|---------|-------------|---------------|------------|
-| Modelo | deepseek-chat | deepseek-chat | claude-3.5-haiku |
-| Toolsets | 6 (sin terminal) | 8 (+vision) | completo sin terminal |
-| restart_drain_timeout | 30s | 60s | 120s |
-| busy_input_mode | queue | queue | steer |
-| compression threshold | 0.30 | 0.40 | 0.50 |
-| hard_stop | SI (3) | SI (4) | SI (5) |
-| lazy_installs | false | false | true |
+### Operaciones en producción
 
-### Docker hardening (containers de tenants)
-
-- `cap_drop: ALL` + `cap_add: CHOWN, SETUID, SETGID, DAC_OVERRIDE, FOWNER, NET_RAW`
-- `security_opt: no-new-privileges`
-- `pids_limit: 256`
-- `tmpfs /tmp: 100MB`
-- `log_config: max-size 50MB, 3 files`
-- `dns: 1.1.1.1, 8.8.8.8`
-- Permisos volumen: `chown 1000:1000` (UID de Hermes)
-
-### Documentación creada (16 docs)
-
-| Doc | Contenido |
-|-----|-----------|
-| 00-08 | Arquitectura, decisiones, investigación (pre-existentes) |
-| 09 | Plan Sprint 2+ |
-| 10 | Guía Knowledge y Skills |
-| 11 | Deployment Guide Hermes v0.14.0 |
-| 12 | Auditoría infra + spec Dashboard |
-| 13 | Guía optimización Hermes (toolsets, costs) |
-| 14 | Restart/Update guide (exit 75, drain) |
-| 15 | Por qué los tenants no se auto-actualizan |
-| 16 | Plan deploy via dominio |
+- **Primer tenant creado**: `t001` — Acme, Hermes conectado a Telegram, respondió en 11.8s
+- **Segundo tenant creado y eliminado**: `t002` — prueba2, ciclo de vida completo verificado
+- **Primer backup ejecutado**: `t001_20260524_041520.tar.gz` (10.87 MB) en SeaweedFS
+- **Schedule registrado**: `daily-backup-all` en Agno scheduler — próxima ejecución 03:00 UTC
+- **Migración SQL aplicada**: `002_single_plan.sql` en DB de producción
 
 ---
 
-## Estado actual — Grado de producción
+## [Sprint 2] — May 21–22, 2026
 
-### ✅ Listo para producción
-- Servidor corriendo y estable (24h+)
-- SSL automático en todos los subdominios
-- Auto-deploy funcionando (push to main)
-- Meta-agente corriendo y healthy
-- PostgreSQL con datos persistentes
-- Hardening de seguridad aplicado
-- Documentación completa
+### Meta-agente v1 — Refactoring completo
 
-### ⏳ Falta para primer cliente
-1. **Token de Telegram** del meta-agente (`PENDIENTE` en .env)
-2. **Primer tenant de prueba** — validar flujo end-to-end
-3. **Scheduler jobs** — health check periódico (scheduler activo, sin jobs)
+- **Token-budget model** (PR #38): eliminados tiers basico/equipo/pro
+  - Todos los tenants tienen Hermes completo — el límite es el presupuesto de tokens
+  - `plan` en DB: solo metadata de billing, no determina capacidades técnicas
 
-### 🔜 Sprint 2 (siguiente)
-- `upgrade_tenant()` tool — cambiar imagen Hermes sin recrear datos
-- Restart graceful via SIGUSR1 (en vez de SIGTERM)
-- Backup automático a R2
-- Health monitoring con alertas a Telegram
-- Wiki templates por industria (SOUL.md personalizado)
+- **Patrones Agno correctos**:
+  - Telegram Interface nativa de Agno en vez de bot custom
+  - `@approval` reemplazado por HITL conversacional (el patrón API no funciona en Telegram)
+  - `db=db` pasado al AgentOS para persistencia de sesiones
+
+- **Knowledge base** (PR #40): `upsert=True` para que cambios en .md se reflejen al restart
+
+- **Observability** (PR #41): OpenTelemetry tracing (`opentelemetry-api/sdk`, `openinference-instrumentation-agno`)
+
+- **Routing Traefik** (PR #36): labels en compose para `api.martes.app` + red `coolify`
+
+- **CI/CD** (PR #39): eliminado registry cache que causaba capas stale en GHCR
 
 ---
 
-## Pendientes técnicos conocidos
+## [Sprint 1] — May 20–21, 2026
 
-| Issue | Impacto | Fix |
-|-------|---------|-----|
-| Portainer sin Stacks configurados | Bajo — solo visor | Crear Stack cuando sea necesario |
-| 2 volúmenes duplicados de Traefik/Portainer | Bajo — espacio | `docker volume prune` cuando conveniente |
-| deploy-hook no se auto-actualiza | Bajo — manual | Cron o script separado para actualizarlo |
-| Telegram token = PENDIENTE | **Blocker para usar** | Configurar con token real |
+### Infraestructura inicial
+
+- Hetzner CX43 desplegado con Pulumi (8 vCPU, 16GB RAM, 160GB NVMe, hel1)
+- Coolify instalado via cloud-init
+- SSH key ED25519 generada por Pulumi (secret en stack)
+- Tailscale instalado — IP: `100.104.89.128`
+- Firewall Hetzner: 22, 80, 443, 41641/udp, 6001, 6002
+- Delete/rebuild protection activados en el servidor
+
+### Meta-agente v0
+
+- Stack inicial: PostgreSQL + meta-agent + Traefik
+- Arquitectura: Diagnosticador + Operador + Team (coordinate mode)
+- Telegram interface conectada al Team
+- Knowledge base: hermes_reference.md + procedures.md
+- Templates Hermes: default/ con config.yaml optimizado
+- Schema DB: tenants, instance_configs, payments, health_checks, error_logs
+
+---
+
+## Notas técnicas para futuras implementaciones
+
+### Coolify
+
+- Siempre usa `--project-directory=<repo-root>` cuando el compose está en `infra/`
+- Las variables en `${VAR:?}` deben estar marcadas como **buildtime AND runtime** en Coolify UI
+- El GitHub App auto-deploy funciona para builds desde Dockerfile (no para imágenes externas)
+- Exit code 255 en builds = container de build matado (disk/memory, no error de código)
+- El `--no-cache` consume mucho más disco y puede matar el build container — preferir con caché
+
+### Agno
+
+- `agno[telegram,scheduler]` siempre — `agno[telegram]` no incluye `croniter`
+- `GET /schedules` devuelve `{"data": [...], "meta": {...}}` — parsear `.get("data", [])`
+- `EntityMemoryConfig(mode=LearningMode.AGENTIC, namespace="martes")` ya está configurado
+  pero NO se popula automáticamente — requiere llamada explícita en create_tenant()
+- El Team coordinator en modo HITL: el "sí" del admin puede no llegar al Operador
+  si el Team lo redirige al Diagnosticador — ser explícito: "sí, confirmo la creación"
+
+### Hermes Docker
+
+- Tag Docker Hub: `nousresearch/hermes-agent:vAÑO.MES.DIA` (no semver)
+- `v2026.5.16` = Hermes v0.14.0 (último estable mayo 2026)
+- No incluye `wget` — usar `curl -sf` en health checks
+- `API_SERVER_ENABLED=true` sin `API_SERVER_HOST=0.0.0.0` → API en localhost (correcto)
+- `restart: unless-stopped` + exit 75 = restart graceful del cliente vía `/restart`
+- Nunca dos gateways sobre el mismo `/opt/data` simultáneamente
+
+### SeaweedFS
+
+- Image: `chrislusf/seaweedfs:4.28` (Apache 2.0, activo)
+- MinIO community edition archivado en febrero 2026 — no usar
+- `weed mini` = single-node todo-en-uno (master + volume + filer + S3)
+- Puerto S3: 8333 | Master UI: 9333 | Filer: 8888
+- `boto3` con `signature_version="s3v4"` + `region_name="us-east-1"` (ignorado por SeaweedFS)
+- Backup NUNCA debe incluir `*.db-wal`, `*.db-shm` — torn restore con SQLite
+
+### Docker SDK Python
+
+- `container.update(mem_limit="1g", nano_cpus=int(1.0*1e9))` — cgroups en caliente, sin restart
+- `container.remove(force=True)` — elimina aunque esté corriendo (equivalent a `docker rm -f`)
+- `restart_policy={"Name": "unless-stopped"}` → `# type: ignore[arg-type]` (docker SDK typing bug)
+- `log_config={"Type": "json-file", ...}` → `# type: ignore[arg-type]` (mismo)
