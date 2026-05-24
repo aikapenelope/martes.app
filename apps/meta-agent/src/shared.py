@@ -42,7 +42,7 @@ db = PostgresDb(
 # Ref: https://openrouter.ai/deepseek/deepseek-v4-flash
 # ---------------------------------------------------------------------------
 MODEL = OpenAIChat(
-    id=settings.default_model,   # deepseek/deepseek-v4-flash desde config
+    id=settings.default_model,  # deepseek/deepseek-v4-flash desde config
     api_key=settings.openrouter_api_key,
     base_url="https://openrouter.ai/api/v1",
 )
@@ -56,8 +56,15 @@ FAST_MODEL = OpenAIChat(
 # ---------------------------------------------------------------------------
 # Learning Machine — self-improving (patrón Coda)
 # Recuerda: tenants, incidentes, preferencias del admin, patrones operativos
+#
+# db=db es necesario para que entity_memory_store.create_entity() funcione
+# cuando se llama directamente desde tools (fuera del contexto de un agente).
+# Sin db, LearningMachine._create_entity_memory_store() recibe config.db=None
+# y el store no puede conectar a Postgres.
+# Ref: agno==2.6.8 learn/machine.py:_create_entity_memory_store()
 # ---------------------------------------------------------------------------
 learning = LearningMachine(
+    db=db,
     model=FAST_MODEL,
     user_memory=UserMemoryConfig(mode=LearningMode.AGENTIC),
     entity_memory=EntityMemoryConfig(mode=LearningMode.AGENTIC, namespace="martes"),

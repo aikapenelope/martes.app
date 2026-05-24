@@ -44,7 +44,7 @@ diagnosticador = Agent(
     tool_call_limit=10,
     retries=1,
     knowledge=knowledge_base,
-    search_knowledge=True,   # Agentic RAG: el agente decide cuándo buscar
+    search_knowledge=True,  # Agentic RAG: el agente decide cuándo buscar
     learning=learning,
     add_learnings_to_context=True,
     skills=skills,
@@ -66,6 +66,14 @@ diagnosticador = Agent(
         "Cada tenant tiene Hermes COMPLETO. No existen tiers ni planes.",
         "El campo 'plan' en DB siempre es 'basico' — etiqueta interna de billing.",
         "Lo que monitorizas: salud del container, backups, estado de pagos.",
+        "",
+        "## Resolución nombre → código de tenant",
+        "Cuando el admin mencione un tenant por nombre (ej: 'logs de Acme', 'estado de XYZ'):",
+        "1. Llama get_all_tenants() para obtener la lista con códigos",
+        "2. Identifica el tenant_code (tXXX) que corresponde al nombre mencionado",
+        "3. Usa SIEMPRE el tenant_code en los tools — NUNCA el nombre del cliente",
+        "4. Menciona ambos en tu respuesta: 'Acme (t001)' para que el admin valide",
+        "Si el nombre no coincide: muestra la lista de tenants y pide aclaración.",
         "",
         "## Workflow",
         "1. Busca en learnings si ya viste este patrón",

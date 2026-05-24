@@ -11,10 +11,12 @@ Las instrucciones del Operador ya garantizan ese flujo conversacional.
 
 import json
 import os
+import re
 import shutil
 import tarfile
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from typing import Literal
 
 import docker
 import psycopg
@@ -26,7 +28,7 @@ from src.config import settings
 
 _BACKUPS_DIR = Path("/var/lib/martes/backups")
 _DEFAULT_TEMPLATE = "default"
-_DEFAULT_MODEL = "openai/gpt-4o-mini"   # modelo inicial — cliente puede cambiar con /model
+_DEFAULT_MODEL = "openai/gpt-4o-mini"  # modelo inicial — cliente puede cambiar con /model
 
 
 def _docker() -> docker.DockerClient:
@@ -50,6 +52,9 @@ def _chown(path: Path, uid: int = 1000, gid: int = 1000) -> None:
         pass
 
 
+_BOT_TOKEN_RE = re.compile(r"^\d{8,12}:[A-Za-z0-9_-]{35}$")
+
+
 def create_tenant(
     name: str,
     bot_token: str,
@@ -65,14 +70,44 @@ def create_tenant(
     El cliente puede cambiar cualquier configuración desde Telegram (/model, /skills, etc.).
 
     Parámetros:
-    - name: nombre del cliente o empresa
-    - bot_token: token del bot de Telegram (de @BotFather, formato 123456:ABC...)
-    - telegram_user_id: ID de Telegram del cliente (para TELEGRAM_ALLOWED_USERS)
-    - model: modelo LLM inicial (default: openai/gpt-4o-mini — cliente puede cambiarlo)
+    - name: nombre del cliente o empresa (ej: "Acme Corp")
+    - bot_token: token del bot Telegram de @BotFather. Formato exacto: 123456789:ABCDefgh...
+      (número de 8-12 dígitos, dos puntos, 35 caracteres alfanuméricos/guión/guión bajo)
+    - telegram_user_id: ID numérico de Telegram del cliente (lo obtiene con @userinfobot)
+    - model: modelo LLM inicial. Opciones válidas en OpenRouter:
+      openai/gpt-4o-mini (default), openai/gpt-4o, deepseek/deepseek-v4-flash,
+      anthropic/claude-3.5-haiku, anthropic/claude-opus-4-6
     - email: email de contacto (opcional)
 
     Requiere aprobacion humana.
     """
+    # Validar formato de bot_token antes de hacer cualquier operación.
+    # Formato oficial de Telegram: https://core.telegram.org/bots/api#authorizing-your-bot
+    if not _BOT_TOKEN_RE.match(bot_token):
+        return json.dumps(
+            {
+                "success": False,
+                "error": (
+                    f"bot_token inválido: '{bot_token}'. "
+                    "El formato correcto es '123456789:ABCDefgh...' — "
+                    "número de 8-12 dígitos, dos puntos, 35 caracteres alfanuméricos. "
+                    "Obtén el token con @BotFather en Telegram."
+                ),
+            }
+        )
+
+    # Validar que telegram_user_id es numérico.
+    if not telegram_user_id.strip().lstrip("-").isdigit():
+        return json.dumps(
+            {
+                "success": False,
+                "error": (
+                    f"telegram_user_id inválido: '{telegram_user_id}'. "
+                    "Debe ser un número entero. El cliente lo obtiene con @userinfobot."
+                ),
+            }
+        )
+
     # "basico" es la etiqueta de billing interna. Siempre la misma —
     # no existe diferenciación técnica entre tenants.
     _billing_plan = "basico"
@@ -90,15 +125,21 @@ def create_tenant(
                 "INSERT INTO tenants "
                 "(tenant_code,name,email,plan,status,container_name,network_name) "
                 "VALUES (%s,%s,%s,%s,'creating',%s,%s)",
-                (tenant_code, name, email or None, _billing_plan,
-                 f"hermes-{tenant_code}", f"tenant-{tenant_code}-net")
+                (
+                    tenant_code,
+                    name,
+                    email or None,
+                    _billing_plan,
+                    f"hermes-{tenant_code}",
+                    f"tenant-{tenant_code}-net",
+                ),
             )
             # Recursos uniformes — mismo hardware para todos los tenants
             conn.execute(
                 "INSERT INTO instance_configs "
                 "(tenant_id,template,platforms,skills,model,memory_limit_mb,cpu_limit) "
                 "SELECT id,%s,'{telegram}','{}', %s,768,0.75 FROM tenants WHERE tenant_code=%s",
-                (_DEFAULT_TEMPLATE, model, tenant_code)
+                (_DEFAULT_TEMPLATE, model, tenant_code),
             )
             conn.commit()
         steps.append("db_record")
@@ -188,31 +229,62 @@ def create_tenant(
 
         # 4. Activar en DB
         with psycopg.connect(_pg()) as conn:
-            conn.execute(
-                "UPDATE tenants SET status='active' WHERE tenant_code=%s", (tenant_code,)
-            )
+            conn.execute("UPDATE tenants SET status='active' WHERE tenant_code=%s", (tenant_code,))
             conn.commit()
         steps.append("activated")
 
-        return json.dumps({
-            "success": True,
-            "tenant_code": tenant_code,
-            "name": name,
-            "model": model,
-            "steps": steps,
-            "message": (
-                f"Tenant {tenant_code} ({name}) activo. "
-                f"Bot listo en Telegram. Modelo: {model}. "
-                f"El cliente puede cambiar el modelo con /model."
-            ),
-        })
+        # 5. Registrar perfil en EntityMemory para que el agente recuerde este tenant
+        # entre sesiones sin consultar la DB. Fallo silencioso — no bloquea el onboarding.
+        # API: agno==2.6.8 learn/stores/entity_memory.py:create_entity()
+        # Ref: https://docs.agno.com/learn/stores/entity-memory
+        try:
+            from agno.learn.stores.entity_memory import EntityMemoryStore
+
+            from src.shared import learning
+
+            store = learning.entity_memory_store
+            if isinstance(store, EntityMemoryStore):
+                store.create_entity(
+                    entity_id=tenant_code,
+                    entity_type="company",
+                    name=name,
+                    description=f"Tenant {tenant_code} en martes.app — agente Hermes personal",
+                    properties={
+                        "tenant_code": tenant_code,
+                        "model": model,
+                        "email": email or "no registrado",
+                        "hermes_version": settings.hermes_image.split(":")[-1],
+                    },
+                    namespace="martes",
+                )
+                steps.append("entity_memory_created")
+        except Exception:
+            steps.append("entity_memory_skipped")
+
+        return json.dumps(
+            {
+                "success": True,
+                "tenant_code": tenant_code,
+                "name": name,
+                "model": model,
+                "steps": steps,
+                "message": (
+                    f"Tenant {tenant_code} ({name}) activo. "
+                    f"Bot listo en Telegram. Modelo: {model}. "
+                    f"El cliente puede cambiar el modelo con /model."
+                ),
+            }
+        )
     except Exception as e:
-        return json.dumps({
-            "success": False,
-            "error": str(e),
-            "tenant_code": tenant_code,
-            "steps_completed": steps,
-        })
+        return json.dumps(
+            {
+                "success": False,
+                "error": str(e),
+                "tenant_code": tenant_code,
+                "steps_completed": steps,
+            }
+        )
+
 
 def stop_tenant(tenant_code: str) -> str:
     """Detiene el container de un tenant. Preserva datos. Requiere aprobacion."""
@@ -297,6 +369,7 @@ def delete_tenant(tenant_code: str, keep_volume: bool = False) -> str:
         tenant_path = Path(settings.tenants_base_path) / tenant_code
         if not keep_volume and tenant_path.exists():
             import shutil
+
             shutil.rmtree(tenant_path)
             steps.append("volume_deleted")
         elif keep_volume:
@@ -314,19 +387,24 @@ def delete_tenant(tenant_code: str, keep_volume: bool = False) -> str:
         if storage.storage_available():
             backups_in_seaweedfs = len(storage.list_tenant_backups(tenant_code))
 
-        return json.dumps({
-            "success": True,
-            "tenant": tenant_code,
-            "steps": steps,
-            "backups_in_seaweedfs": backups_in_seaweedfs,
-            "volume_preserved": keep_volume,
-            "message": (
-                f"Tenant {tenant_code} eliminado. "
-                f"{backups_in_seaweedfs} backup(s) conservados en SeaweedFS. "
-                + ("Datos del volumen preservados en disco." if keep_volume
-                   else "Datos del volumen eliminados del disco.")
-            ),
-        })
+        return json.dumps(
+            {
+                "success": True,
+                "tenant": tenant_code,
+                "steps": steps,
+                "backups_in_seaweedfs": backups_in_seaweedfs,
+                "volume_preserved": keep_volume,
+                "message": (
+                    f"Tenant {tenant_code} eliminado. "
+                    f"{backups_in_seaweedfs} backup(s) conservados en SeaweedFS. "
+                    + (
+                        "Datos del volumen preservados en disco."
+                        if keep_volume
+                        else "Datos del volumen eliminados del disco."
+                    )
+                ),
+            }
+        )
     except Exception as e:
         return json.dumps({"success": False, "error": str(e), "steps_completed": steps})
 
@@ -386,34 +464,64 @@ def update_tenant_resources(
         actual_nano = host_cfg.get("NanoCpus", 0)
         actual_cpu = round(actual_nano / 1e9, 2) if actual_nano else None
 
-        return json.dumps({
-            "success": True,
-            "tenant": tenant_code,
-            "applied": update_kwargs,
-            "actual_memory_mb": actual_mem_mb,
-            "actual_cpu_cores": actual_cpu,
-            "restart_required": False,
-            "message": (
-                f"Recursos actualizados en caliente para hermes-{tenant_code}. "
-                f"RAM: {actual_mem_mb} MB"
-                + (f" | CPU: {actual_cpu} cores" if actual_cpu else "")
-                + ". Sin reinicio."
-            ),
-        })
+        return json.dumps(
+            {
+                "success": True,
+                "tenant": tenant_code,
+                "applied": update_kwargs,
+                "actual_memory_mb": actual_mem_mb,
+                "actual_cpu_cores": actual_cpu,
+                "restart_required": False,
+                "message": (
+                    f"Recursos actualizados en caliente para hermes-{tenant_code}. "
+                    f"RAM: {actual_mem_mb} MB"
+                    + (f" | CPU: {actual_cpu} cores" if actual_cpu else "")
+                    + ". Sin reinicio."
+                ),
+            }
+        )
     except NotFound:
         return json.dumps({"error": f"Container hermes-{tenant_code} no encontrado."})
     except APIError as e:
         return json.dumps({"error": str(e)})
 
 
-def inject_credential(tenant_code: str, credential_type: str, credential_value: str) -> str:
-    """Inyecta una credencial en el volumen del tenant. Requiere aprobacion."""
+_CREDENTIAL_FILE_MAP: dict[str, str] = {
+    "google_token": "google_token.json",
+    "notion_key": ".env",
+    "airtable_key": ".env",
+    "github_token": ".env",
+    "linear_key": ".env",
+}
+
+# Tipo literal para credenciales soportadas.
+# Agno convierte Literal a enum en el JSON schema del tool — el LLM
+# solo puede pasar uno de estos valores exactos.
+# Ref: https://docs.agno.com/tools/introduction
+CredentialType = Literal["google_token", "notion_key", "airtable_key", "github_token", "linear_key"]
+
+
+def inject_credential(
+    tenant_code: str,
+    credential_type: CredentialType,
+    credential_value: str,
+) -> str:
+    """Inyecta una credencial en el volumen del tenant. Requiere aprobacion.
+
+    Parámetros:
+    - tenant_code: código del tenant (ej: t001)
+    - credential_type: tipo de credencial. Valores válidos:
+        google_token — archivo google_token.json para integración Google
+        notion_key   — NOTION_KEY en .env
+        airtable_key — AIRTABLE_KEY en .env
+        github_token — GITHUB_TOKEN en .env
+        linear_key   — LINEAR_KEY en .env
+    - credential_value: valor de la credencial (string, puede ser JSON)
+    """
     tp = Path(settings.tenants_base_path) / tenant_code
     if not tp.exists():
         return json.dumps({"error": f"Tenant {tenant_code} no existe en disco."})
-    file_map = {"google_token": "google_token.json", "notion_key": ".env",
-                "airtable_key": ".env", "github_token": ".env", "linear_key": ".env"}
-    target = file_map.get(credential_type)
+    target = _CREDENTIAL_FILE_MAP.get(credential_type)
     if not target:
         return json.dumps({"error": f"Tipo desconocido: {credential_type}"})
     try:
@@ -436,15 +544,40 @@ def inject_credential(tenant_code: str, credential_type: str, credential_value: 
             cred.write_text(credential_value)
             os.chmod(cred, 0o600)
         _chown(tp)
-        return json.dumps({"success": True, "tenant": tenant_code,
-                           "credential": credential_type, "file": target})
+        return json.dumps(
+            {"success": True, "tenant": tenant_code, "credential": credential_type, "file": target}
+        )
     except OSError as e:
         return json.dumps({"error": str(e)})
 
 
-def register_payment(tenant_code: str, amount: float, method: str,
-                     months: int = 1, reference: str = "") -> str:
-    """Registra un pago manual. Requiere aprobacion con audit trail."""
+# Tipo literal para métodos de pago soportados.
+# Agno convierte Literal a enum en el JSON schema — el LLM no puede
+# inventarse métodos de pago fuera de este conjunto.
+PaymentMethod = Literal["transferencia", "stripe", "crypto", "efectivo", "otro"]
+
+
+def register_payment(
+    tenant_code: str,
+    amount: float,
+    method: PaymentMethod,
+    months: int = 1,
+    reference: str = "",
+) -> str:
+    """Registra un pago manual. Requiere aprobacion con audit trail.
+
+    Parámetros:
+    - tenant_code: código del tenant (ej: t001)
+    - amount: monto en USD. Debe ser mayor a 0 (ej: 30.0)
+    - method: método de pago. Valores válidos:
+        transferencia, stripe, crypto, efectivo, otro
+    - months: meses de servicio que cubre el pago (default: 1, máximo: 12)
+    - reference: número de transacción o referencia (opcional)
+    """
+    if amount <= 0:
+        return json.dumps({"error": f"amount debe ser mayor a 0. Recibido: {amount}"})
+    if months < 1 or months > 12:
+        return json.dumps({"error": f"months debe ser entre 1 y 12. Recibido: {months}"})
     try:
         with psycopg.connect(_pg()) as conn:
             row = conn.execute(
@@ -459,31 +592,53 @@ def register_payment(tenant_code: str, amount: float, method: str,
             conn.execute(
                 "INSERT INTO payments (tenant_id,amount,method,reference,period_start,period_end) "
                 "VALUES (%s,%s,%s,%s,%s,%s)",
-                (row[0], amount, method, reference or None, start, end)
+                (row[0], amount, method, reference or None, start, end),
             )
             conn.execute(
                 "UPDATE tenants SET paid_until=%s, status='active' WHERE id=%s", (end, row[0])
             )
             conn.commit()
-        return json.dumps({"success": True, "tenant": tenant_code, "amount": amount,
-                           "method": method, "paid_until": end.isoformat()})
+        return json.dumps(
+            {
+                "success": True,
+                "tenant": tenant_code,
+                "amount": amount,
+                "method": method,
+                "paid_until": end.isoformat(),
+            }
+        )
     except psycopg.Error as e:
         return json.dumps({"error": str(e)})
 
 
-def inject_wiki_content(tenant_code: str, company_name: str, company_description: str,
-                        team_members: str = "", tools_used: str = "",
-                        active_projects: str = "", custom_pages: str = "") -> str:
+def inject_wiki_content(
+    tenant_code: str,
+    company_name: str,
+    company_description: str,
+    team_members: str = "",
+    tools_used: str = "",
+    active_projects: str = "",
+    custom_pages: str = "",
+) -> str:
     """Pre-carga la LLM Wiki del tenant con informacion de la empresa."""
     from datetime import date as _date
+
     wiki = Path(settings.tenants_base_path) / tenant_code / "wiki"
     if not (Path(settings.tenants_base_path) / tenant_code).exists():
         return json.dumps({"error": f"Tenant {tenant_code} no existe."})
     today = _date.today().isoformat()
     slug = company_name.lower().replace(" ", "-")
     try:
-        for d in ["raw/articles", "raw/papers", "raw/transcripts", "raw/assets",
-                  "entities", "concepts", "comparisons", "queries"]:
+        for d in [
+            "raw/articles",
+            "raw/papers",
+            "raw/transcripts",
+            "raw/assets",
+            "entities",
+            "concepts",
+            "comparisons",
+            "queries",
+        ]:
             (wiki / d).mkdir(parents=True, exist_ok=True)
         (wiki / "SCHEMA.md").write_text(
             f"# Wiki Schema — {company_name}\n\n## Domain\n{company_description}\n\n"
@@ -510,6 +665,7 @@ def inject_wiki_content(tenant_code: str, company_name: str, company_description
         created = [f"entities/{slug}.md"]
         if custom_pages:
             import json as _json
+
             try:
                 for p in _json.loads(custom_pages):
                     pn, pc = p.get("name", ""), p.get("content", "")
@@ -528,9 +684,14 @@ def inject_wiki_content(tenant_code: str, company_name: str, company_description
                 env.write_text(text + "\nWIKI_PATH=/opt/data/wiki\n")
                 os.chmod(env, 0o600)
         _chown(wiki)
-        return json.dumps({"success": True, "tenant": tenant_code,
-                           "files_created": created,
-                           "message": f"Wiki de {company_name} inicializada."})
+        return json.dumps(
+            {
+                "success": True,
+                "tenant": tenant_code,
+                "files_created": created,
+                "message": f"Wiki de {company_name} inicializada.",
+            }
+        )
     except OSError as e:
         return json.dumps({"error": str(e)})
 
@@ -573,8 +734,11 @@ _BACKUP_EXCLUDE_NAMES: frozenset[str] = frozenset({"gateway.pid", "cron.pid"})
 # Sufijos de archivo que nunca deben ir en un backup.
 # Ref: hermes_cli/backup.py:_EXCLUDED_SUFFIXES
 _BACKUP_EXCLUDE_SUFFIXES: tuple[str, ...] = (
-    ".db-wal", ".db-shm", ".db-journal",
-    ".pyc", ".pyo",
+    ".db-wal",
+    ".db-shm",
+    ".db-journal",
+    ".pyc",
+    ".pyo",
 )
 
 # Directorios que nunca deben ir en un backup.
@@ -640,22 +804,28 @@ def backup_tenant(tenant_code: str) -> str:
         else:
             remote_key = None
 
-        return json.dumps({
-            "success": True,
-            "tenant": tenant_code,
-            "backup_file": filename,
-            "size_mb": size_mb,
-            "storage": "seaweedfs" if remote_key else "local",
-            "remote_key": remote_key,
-            "deleted_old": deleted_old,
-            "message": (
-                f"Backup {filename} ({size_mb} MB) "
-                + (f"subido a SeaweedFS. {len(deleted_old)} backups antiguos eliminados."
-                   if remote_key else "guardado en disco local (SeaweedFS no disponible).")
-            ),
-        })
+        return json.dumps(
+            {
+                "success": True,
+                "tenant": tenant_code,
+                "backup_file": filename,
+                "size_mb": size_mb,
+                "storage": "seaweedfs" if remote_key else "local",
+                "remote_key": remote_key,
+                "deleted_old": deleted_old,
+                "message": (
+                    f"Backup {filename} ({size_mb} MB) "
+                    + (
+                        f"subido a SeaweedFS. {len(deleted_old)} backups antiguos eliminados."
+                        if remote_key
+                        else "guardado en disco local (SeaweedFS no disponible)."
+                    )
+                ),
+            }
+        )
     except (OSError, tarfile.TarError) as e:
         return json.dumps({"success": False, "error": str(e)})
+
 
 def restore_tenant_from_backup(tenant_code: str, backup_filename: str) -> str:
     """Restaura un tenant desde un backup en SeaweedFS o disco local.
@@ -682,10 +852,12 @@ def restore_tenant_from_backup(tenant_code: str, backup_filename: str) -> str:
         try:
             c = docker.from_env().containers.get(f"hermes-{tenant_code}")
             if c.status == "running":
-                return json.dumps({
-                    "error": f"Container hermes-{tenant_code} está corriendo. "
-                             "Usa stop_tenant() primero para evitar corrupción de datos."
-                })
+                return json.dumps(
+                    {
+                        "error": f"Container hermes-{tenant_code} está corriendo. "
+                        "Usa stop_tenant() primero para evitar corrupción de datos."
+                    }
+                )
         except NotFound:
             pass  # Container no existe, ok para restaurar
 
@@ -698,19 +870,25 @@ def restore_tenant_from_backup(tenant_code: str, backup_filename: str) -> str:
         elif local_path.exists():
             backup_file = local_path
         else:
-            return json.dumps({
-                "error": f"Backup '{backup_filename}' no encontrado en SeaweedFS ni en disco local."
-            })
+            return json.dumps(
+                {
+                    "error": (
+                        f"Backup '{backup_filename}' no encontrado en SeaweedFS ni en disco local."
+                    )
+                }
+            )
 
         # Extraer backup
         tenant_path.mkdir(parents=True, exist_ok=True)
         with tarfile.open(backup_file, "r:gz") as tar:
             members = tar.getmembers()
             if members and not members[0].name.startswith(tenant_code):
-                return json.dumps({
-                    "error": f"El backup no corresponde al tenant {tenant_code}. "
-                             f"Contenido: {members[0].name}"
-                })
+                return json.dumps(
+                    {
+                        "error": f"El backup no corresponde al tenant {tenant_code}. "
+                        f"Contenido: {members[0].name}"
+                    }
+                )
             tar.extractall(path=Path(settings.tenants_base_path), filter="data")
 
         # Limpiar archivos estériles del backup
@@ -732,17 +910,19 @@ def restore_tenant_from_backup(tenant_code: str, backup_filename: str) -> str:
                 os.chmod(secret_path, 0o600)
 
         _chown(tenant_path)
-        return json.dumps({
-            "success": True,
-            "tenant": tenant_code,
-            "restored_from": backup_filename,
-            "cleaned_stale": cleaned,
-            "message": (
-                f"Tenant {tenant_code} restaurado desde {backup_filename}. "
-                + (f"Archivos estériles eliminados: {cleaned}. " if cleaned else "")
-                + "Puedes reiniciar el container con restart_tenant()."
-            ),
-        })
+        return json.dumps(
+            {
+                "success": True,
+                "tenant": tenant_code,
+                "restored_from": backup_filename,
+                "cleaned_stale": cleaned,
+                "message": (
+                    f"Tenant {tenant_code} restaurado desde {backup_filename}. "
+                    + (f"Archivos estériles eliminados: {cleaned}. " if cleaned else "")
+                    + "Puedes reiniciar el container con restart_tenant()."
+                ),
+            }
+        )
     except (OSError, tarfile.TarError) as e:
         return json.dumps({"success": False, "error": str(e)})
     finally:
@@ -776,11 +956,15 @@ def update_tenant_model(tenant_code: str, model_id: str) -> str:
         config["model"]["default"] = model_id
         with open(config_path, "w", encoding="utf-8") as f:
             yaml.dump(config, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
-        return json.dumps({
-            "success": True, "tenant": tenant_code,
-            "previous_model": previous, "new_model": model_id,
-            "message": f"{previous} → {model_id}. Efecto en el próximo mensaje.",
-        })
+        return json.dumps(
+            {
+                "success": True,
+                "tenant": tenant_code,
+                "previous_model": previous,
+                "new_model": model_id,
+                "message": f"{previous} → {model_id}. Efecto en el próximo mensaje.",
+            }
+        )
     except (OSError, yaml.YAMLError) as e:
         return json.dumps({"success": False, "error": str(e)})
 
@@ -798,9 +982,13 @@ def update_tenant_soul(tenant_code: str, soul_content: str) -> str:
         soul_path.write_text(soul_content, encoding="utf-8")
         os.chmod(soul_path, 0o644)
         _chown(soul_path)
-        return json.dumps({
-            "success": True, "tenant": tenant_code, "chars": len(soul_content),
-            "message": "SOUL.md actualizado. Efecto en el próximo mensaje.",
-        })
+        return json.dumps(
+            {
+                "success": True,
+                "tenant": tenant_code,
+                "chars": len(soul_content),
+                "message": "SOUL.md actualizado. Efecto en el próximo mensaje.",
+            }
+        )
     except OSError as e:
         return json.dumps({"success": False, "error": str(e)})
