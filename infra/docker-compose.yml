@@ -102,6 +102,13 @@ services:
       TENANTS_BASE_PATH: /var/lib/martes/tenants
       HERMES_IMAGE: nousresearch/hermes-agent:v2026.5.16
       TEMPLATES_PATH: /app/infra/templates
+      # Storage SeaweedFS — mapeamos las mismas credenciales Coolify al nombre
+      # que lee config.py (storage_access_key → STORAGE_ACCESS_KEY).
+      # SeaweedFS ya las recibe como AWS_ACCESS_KEY_ID en su propio servicio.
+      STORAGE_ENDPOINT: http://seaweedfs:8333
+      STORAGE_ACCESS_KEY: ${SEAWEEDFS_ACCESS_KEY:?}
+      STORAGE_SECRET_KEY: ${SEAWEEDFS_SECRET_KEY:?}
+      STORAGE_BUCKET: martes-backups
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock   # Docker SDK para gestionar containers de tenants
       - /var/lib/martes/tenants:/var/lib/martes/tenants

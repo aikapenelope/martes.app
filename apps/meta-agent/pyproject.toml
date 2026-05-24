@@ -17,6 +17,14 @@ dependencies = [
     "pydantic-settings==2.14.1",
     "pyyaml==6.0.3",
     "sqlalchemy==2.0.49",
+    # boto3 — SDK oficial de AWS, compatible con SeaweedFS S3 y cualquier
+    # servicio S3-compatible. Usado para backups de tenants.
+    # Ref: https://boto3.amazonaws.com/v1/documentation/api/latest/index.html
+    "boto3==1.43.14",
+    # httpx — cliente HTTP async para el startup handler del Agno scheduler.
+    # Registra el schedule de backup diario al arrancar el meta-agente.
+    # Ref: https://www.python-httpx.org/
+    "httpx==0.28.1",
     # OpenTelemetry — requerido para tracing en AgentOS
     # Sin estos paquetes tracing=True en AgentOS no registra trazas.
     # Las trazas se guardan en ai.martes_traces y se ven en os.agno.com.
