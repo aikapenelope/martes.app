@@ -51,15 +51,21 @@ def container_health(tenant_code: str) -> str:
     """Verifica health de un container via curl al puerto 8642.
 
     Hermes expone GET /health en :8642 cuando API_SERVER_ENABLED=true.
-    Usamos curl (disponible en la imagen Hermes); wget no está disponible.
-    Ref: https://hermes-agent.nousresearch.com/docs/user-guide/docker
+    Retorna {"status": "ok", "platform": "hermes-agent"} si el servidor está up.
+
+    IMPORTANTE: Se usa 127.0.0.1 explícito, no 'localhost'.
+    En containers Docker con IPv6 habilitado, 'localhost' resuelve a ::1
+    pero el API server de Hermes escucha solo en 127.0.0.1 (DEFAULT_HOST).
+    Conectar a ::1:8642 produce "connection refused" aunque el server esté activo.
+    Ref Hermes source: gateway/platforms/api_server.py — DEFAULT_HOST = "127.0.0.1"
+    Ref Hermes Dockerfile: apt-get install curl (disponible en /usr/bin/curl)
     """
     try:
         c = _docker().containers.get(f"hermes-{tenant_code}")
         if c.status != "running":
             return json.dumps({"tenant": tenant_code, "status": "stopped"})
         start = time.time()
-        result = c.exec_run("curl -sf http://localhost:8642/health")
+        result = c.exec_run("curl -sf http://127.0.0.1:8642/health")
         ms = int((time.time() - start) * 1000)
         exit_code: int = result.exit_code or 1
         output: bytes = result.output  # type: ignore[assignment]
@@ -132,7 +138,7 @@ def check_all_health() -> str:
                 stopped += 1
             else:
                 try:
-                    r = c.exec_run("curl -sf http://localhost:8642/health")
+                    r = c.exec_run("curl -sf http://127.0.0.1:8642/health")
                     ec: int = r.exit_code or 1
                     if ec == 0:
                         results.append({"tenant": t, "status": "healthy"})
@@ -405,6 +411,95 @@ def diagnose_container_error(tenant_code: str) -> str:
             }
         )
     except APIError as e:
+        return json.dumps({"error": str(e)})
+
+
+def find_stale_resources() -> str:
+    """Detecta recursos huérfanos en el sistema. Solo lectura — no borra nada.
+
+    Busca tres tipos de inconsistencias:
+    1. Tenants en DB con status='creating' sin container Docker
+       (create_tenant() falló a mitad — el código queda bloqueado)
+    2. Redes Docker 'tenant-tXXX-net' sin container asociado
+       (crea_tenant parcial o delete_tenant incompleto)
+    3. Directorios en /var/lib/martes/tenants/ sin registro en DB
+       (datos huérfanos en disco)
+
+    Devuelve el inventario de recursos huérfanos con sus detalles.
+    Para limpiarlos: usa el Operador con los tools correspondientes.
+    """
+    stale: dict = {
+        "db_creating": [],
+        "orphan_networks": [],
+        "orphan_dirs": [],
+        "total": 0,
+    }
+
+    try:
+        # 1. Tenants con status='creating' (create_tenant falló a mitad)
+        with psycopg.connect(_pg()) as conn:
+            rows = conn.execute(
+                "SELECT tenant_code, name, created_at FROM tenants WHERE status = 'creating'"
+            ).fetchall()
+        stale["db_creating"] = [{"code": r[0], "name": r[1], "created_at": str(r[2])} for r in rows]
+
+        # 2. Redes Docker tenant-tXXX-net sin container asociado
+        c_client = _docker()
+        tenant_container_names = {
+            c.name for c in c_client.containers.list(all=True, filters={"label": "martes.tenant"})
+        }
+        tenant_nets = c_client.networks.list(filters={"name": "tenant-"})
+        for net in tenant_nets:
+            net_name: str = net.name or ""
+            net_id: str = net.id or ""
+            if not net_name.startswith("tenant-") or not net_name.endswith("-net"):
+                continue
+            # Derivar el tenant_code esperado: tenant-t001-net → t001
+            parts = net_name.split("-")
+            if len(parts) < 3:
+                continue
+            tenant_code = parts[1]
+            expected_container = f"hermes-{tenant_code}"
+            if expected_container not in tenant_container_names:
+                stale["orphan_networks"].append(
+                    {"network": net_name, "tenant_code": tenant_code, "id": net_id[:12]}
+                )
+
+        # 3. Directorios en tenants/ sin registro en DB
+        tenants_dir = Path(settings.tenants_base_path)
+        if tenants_dir.exists():
+            with psycopg.connect(_pg()) as conn:
+                known_codes = {
+                    r[0] for r in conn.execute("SELECT tenant_code FROM tenants").fetchall()
+                }
+            for tenant_dir in sorted(tenants_dir.iterdir()):
+                if not tenant_dir.is_dir():
+                    continue
+                if tenant_dir.name not in known_codes:
+                    size_mb = round(
+                        sum(f.stat().st_size for f in tenant_dir.rglob("*") if f.is_file())
+                        / (1 << 20),
+                        1,
+                    )
+                    stale["orphan_dirs"].append(
+                        {"dir": tenant_dir.name, "path": str(tenant_dir), "size_mb": size_mb}
+                    )
+
+        stale["total"] = (
+            len(stale["db_creating"]) + len(stale["orphan_networks"]) + len(stale["orphan_dirs"])
+        )
+
+        if stale["total"] == 0:
+            stale["message"] = "Sin recursos huérfanos detectados."
+        else:
+            stale["message"] = (
+                f"{stale['total']} recurso(s) huérfano(s) detectado(s). "
+                "Solo lectura — usa el Operador para limpiarlos manualmente."
+            )
+
+        return json.dumps(stale)
+
+    except Exception as e:
         return json.dumps({"error": str(e)})
 
 

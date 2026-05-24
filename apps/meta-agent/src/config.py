@@ -50,6 +50,29 @@ class Settings(BaseSettings):
     storage_keep_last: int = 7
 
     # ---------------------------------------------------------------------------
+    # Billing — ciclo de vida de pagos (SaaS)
+    #
+    # billing_trial_days: días de trial gratis desde la creación del tenant.
+    #   Al crear un tenant, paid_until = hoy + billing_trial_days.
+    #   Esto inicia el reloj de billing desde el primer día.
+    #
+    # billing_grace_days: días de gracia DESPUÉS de que vence paid_until antes
+    #   de suspender automáticamente. El tenant sigue activo durante la gracia.
+    #   Si billing_auto_suspend=False, nunca se suspende automáticamente.
+    #
+    # billing_alert_days: días ANTES de vencimiento en que se envían alertas.
+    #   Ej: [7, 3] → alerta a 7 días y a 3 días del vencimiento.
+    #
+    # billing_auto_suspend: si True, stop_tenant() automático cuando
+    #   paid_until + grace_days < hoy. El admin reactiva con restart_tenant()
+    #   después de register_payment().
+    # ---------------------------------------------------------------------------
+    billing_trial_days: int = 30
+    billing_grace_days: int = 3
+    billing_auto_suspend: bool = True
+    billing_alert_days: str = "7,3"  # Lista separada por comas
+
+    # ---------------------------------------------------------------------------
     # Platform key TTL — expiración automática de la key de plataforma en tenants
     #
     # Al crear un tenant, el meta-agente escribe OPENROUTER_API_KEY (la key de la
