@@ -287,40 +287,153 @@ async def run_health_check() -> JSONResponse:
 
 @app.post("/maintenance/billing-check")
 async def run_billing_check() -> JSONResponse:
-    """Verifica paid_until de todos los tenants activos. Sin LLM, 0 tokens.
+    """Ciclo de billing SaaS para todos los tenants activos. Sin LLM, 0 tokens.
 
-    Envía alerta Telegram si algún tenant vence en los próximos 5 días.
-    Llamado por el scheduler diariamente a las 9 AM UTC.
+    Flujo de alertas diario (9 AM UTC):
+    - N días antes de paid_until (configurable: BILLING_ALERT_DAYS, default 7 y 3):
+        → Recordatorio: "Acme vence en N días"
+    - Día 0 (paid_until = hoy):
+        → "Acme vence HOY — gracia de X días antes de suspensión"
+    - Pasado BILLING_GRACE_DAYS días sin pago:
+        → stop_tenant() automático si BILLING_AUTO_SUSPEND=True
+        → "Acme SUSPENDIDO — pago vencido hace X días"
+
+    El admin reactiva con: restart_tenant() después de register_payment().
+    Ref: ciclo inspirado en SaaS billing estándar (Stripe, Recurly, etc.)
     """
+
     from src.tools.read_ops import get_all_tenants
+    from src.tools.write_ops import stop_tenant
 
     tenants_data = json.loads(get_all_tenants())
     if "error" in tenants_data:
         return JSONResponse(status_code=500, content=tenants_data)
 
-    expiring_soon: list[dict] = []
+    # Parsear configuración de billing
+    alert_days: list[int] = []
+    for d in settings.billing_alert_days.split(","):
+        d = d.strip()
+        if d.isdigit():
+            alert_days.append(int(d))
+    grace_days = settings.billing_grace_days
+    auto_suspend = settings.billing_auto_suspend
+
+    result: dict = {
+        "alerted": [],
+        "suspended": [],
+        "skipped_no_paid_until": [],
+        "ok": [],
+    }
+
     for t in tenants_data.get("tenants", []):
-        if t.get("status") != "active":
+        code = t["code"]
+        name = t["name"]
+        status = t.get("status", "")
+        days_remaining = t.get("days_remaining")  # None si paid_until es NULL
+        paid_until_str = t.get("paid_until")
+
+        # Solo procesamos tenants activos
+        if status != "active":
             continue
-        days_remaining = t.get("days_remaining")
-        if days_remaining is not None and days_remaining <= 5:
-            expiring_soon.append(
-                {
-                    "tenant": t["code"],
-                    "name": t["name"],
-                    "days_remaining": days_remaining,
-                }
+
+        # Tenant sin paid_until — no tiene ciclo de billing aún
+        if days_remaining is None or paid_until_str is None:
+            result["skipped_no_paid_until"].append(code)
+            continue
+
+        # === SUSPENSIÓN AUTOMÁTICA ===
+        # days_remaining < 0 significa que paid_until ya pasó.
+        # Si lleva más de grace_days vencido → suspender.
+        if days_remaining < -grace_days:
+            days_overdue = abs(days_remaining)
+            if auto_suspend:
+                suspend_result = json.loads(stop_tenant(code))
+                if suspend_result.get("success"):
+                    msg = (
+                        f"🚫 martes.app — SUSPENSIÓN AUTOMÁTICA\n"
+                        f"{name} ({code}) suspendido.\n"
+                        f"Pago vencido hace {days_overdue} días "
+                        f"(gracia: {grace_days} días).\n"
+                        f"Para reactivar: register_payment + restart_tenant"
+                    )
+                    await _send_telegram_alert(msg)
+                    result["suspended"].append(
+                        {"tenant": code, "name": name, "days_overdue": days_overdue}
+                    )
+                    logger.warning(
+                        "Billing: auto-suspended %s (%s) — overdue %d days",
+                        code,
+                        name,
+                        days_overdue,
+                    )
+                else:
+                    logger.error("Billing: failed to suspend %s: %s", code, suspend_result)
+            else:
+                # Auto-suspend desactivado — solo alertar
+                msg = (
+                    f"🔴 martes.app — PAGO VENCIDO (sin suspensión automática)\n"
+                    f"{name} ({code}) lleva {days_overdue} días sin pago.\n"
+                    f"paid_until fue: {paid_until_str}"
+                )
+                await _send_telegram_alert(msg)
+                result["alerted"].append(
+                    {
+                        "tenant": code,
+                        "name": name,
+                        "days_remaining": days_remaining,
+                        "alert_type": "overdue_no_suspend",
+                    }
+                )
+            continue
+
+        # === ALERTA DÍA 0 — vence hoy, empieza la gracia ===
+        if days_remaining == 0:
+            msg = (
+                f"🔴 martes.app — Vence HOY\n"
+                f"{name} ({code}) — paid_until: {paid_until_str}\n"
+                f"Gracia: {grace_days} días. "
+                f"Se suspenderá el {paid_until_str} + {grace_days} días "
+                f"si no hay pago."
             )
+            await _send_telegram_alert(msg)
+            result["alerted"].append(
+                {"tenant": code, "name": name, "days_remaining": 0, "alert_type": "expires_today"}
+            )
+            continue
 
-    if expiring_soon:
-        lines = [
-            f"- {t['name']} ({t['tenant']}): {t['days_remaining']} días" for t in expiring_soon
-        ]
-        msg = "💳 martes.app — Pagos próximos a vencer:\n" + "\n".join(lines)
-        await _send_telegram_alert(msg)
-        logger.info("Billing check: %d tenant(s) vencen pronto", len(expiring_soon))
+        # === ALERTAS PREVENTIVAS (7, 3 días antes) ===
+        for threshold in sorted(alert_days, reverse=True):
+            if days_remaining == threshold:
+                msg = (
+                    f"⏰ martes.app — Recordatorio de pago\n"
+                    f"{name} ({code}) vence en {threshold} días "
+                    f"({paid_until_str}).\n"
+                    f"Registra el pago con: register_payment {code}"
+                )
+                await _send_telegram_alert(msg)
+                result["alerted"].append(
+                    {
+                        "tenant": code,
+                        "name": name,
+                        "days_remaining": threshold,
+                        "alert_type": f"reminder_{threshold}d",
+                    }
+                )
+                break
+        else:
+            result["ok"].append({"tenant": code, "days_remaining": days_remaining})
 
-    return JSONResponse(content={"expiring_soon": expiring_soon, "total": len(expiring_soon)})
+    suspended_count = len(result["suspended"])
+    alerted_count = len(result["alerted"])
+    logger.info(
+        "Billing check: %d alerted, %d suspended, %d ok, %d no_paid_until",
+        alerted_count,
+        suspended_count,
+        len(result["ok"]),
+        len(result["skipped_no_paid_until"]),
+    )
+    status_code = 200 if not suspended_count else 207
+    return JSONResponse(status_code=status_code, content=result)
 
 
 @app.on_event("startup")
