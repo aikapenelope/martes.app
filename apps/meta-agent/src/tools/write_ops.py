@@ -169,12 +169,20 @@ def create_tenant(
         # .env: credenciales del tenant
         # TELEGRAM_ALLOWED_USERS es crítico: sin esto el bot no responde a nadie
         # Ref: https://hermes-agent.nousresearch.com/docs/user-guide/security
+        #
+        # TELEGRAM_HOME_CHANNEL: canal predeterminado para entrega de resultados
+        # de cron jobs y mensajes cross-platform. Sin esto Hermes envía el aviso
+        # "📬 No home channel is set" en cada primera conversación.
+        # El chat_id de un DM en Telegram == el user_id del destinatario.
+        # Ref Hermes source: gateway/config.py — TELEGRAM_HOME_CHANNEL env var
         env_file = tp / ".env"
         env_file.write_text(
             f"OPENROUTER_API_KEY={settings.openrouter_api_key}\n"
             f"OPENROUTER_BASE_URL=https://openrouter.ai/api/v1\n"
             f"TELEGRAM_BOT_TOKEN={bot_token}\n"
             f"TELEGRAM_ALLOWED_USERS={telegram_user_id}\n"
+            f"TELEGRAM_HOME_CHANNEL={telegram_user_id}\n"
+            f"TELEGRAM_HOME_CHANNEL_NAME={name}\n"
         )
         os.chmod(env_file, 0o600)
 
@@ -1618,6 +1626,167 @@ def expire_platform_key(tenant_code: str, dry_run: bool = True) -> str:
                 "Hermes cargará el valor vacío en el próximo mensaje del cliente. "
                 "Si el cliente tiene su propia auth configurada (auth.json), "
                 "el bot sigue funcionando normalmente."
+            ),
+        }
+    )
+
+
+def set_tenant_home_channel(tenant_code: str, chat_id: str, display_name: str = "") -> str:
+    """Fija el canal predeterminado para entrega de mensajes del agente Hermes del tenant.
+
+    TELEGRAM_HOME_CHANNEL en el .env dice a Hermes dónde entregar:
+    - Resultados de cron jobs
+    - Mensajes cross-platform
+    - Notificaciones del sistema
+
+    Sin esto, Hermes envía el aviso "📬 No home channel is set" en cada primera
+    conversación de una sesión nueva.
+
+    En Telegram DMs el chat_id == el user_id del destinatario.
+    El cliente obtiene su ID hablándole a @userinfobot en Telegram.
+
+    Hermes recarga .env en cada turno → efecto inmediato sin restart.
+    Ref: Hermes source gateway/config.py — TELEGRAM_HOME_CHANNEL env var
+    """
+    tenant_path = Path(settings.tenants_base_path) / tenant_code
+    env_file = tenant_path / ".env"
+
+    if not env_file.exists():
+        return json.dumps({"error": f"Tenant {tenant_code}: .env no encontrado."})
+    if not chat_id.strip().lstrip("-").isdigit():
+        return json.dumps({"error": f"chat_id inválido: '{chat_id}'. Debe ser numérico."})
+
+    content = env_file.read_text()
+    lines = content.splitlines()
+    has_home = any(ln.startswith("TELEGRAM_HOME_CHANNEL=") for ln in lines)
+    has_name = any(ln.startswith("TELEGRAM_HOME_CHANNEL_NAME=") for ln in lines)
+    name_val = display_name or chat_id
+
+    new_lines = []
+    for ln in lines:
+        is_home = ln.startswith("TELEGRAM_HOME_CHANNEL=")
+        is_name = ln.startswith("TELEGRAM_HOME_CHANNEL_NAME=")
+        if is_home and not is_name:
+            new_lines.append(f"TELEGRAM_HOME_CHANNEL={chat_id}")
+        elif is_name:
+            new_lines.append(f"TELEGRAM_HOME_CHANNEL_NAME={name_val}")
+        else:
+            new_lines.append(ln)
+
+    if not has_home:
+        new_lines.append(f"TELEGRAM_HOME_CHANNEL={chat_id}")
+    if not has_name:
+        new_lines.append(f"TELEGRAM_HOME_CHANNEL_NAME={name_val}")
+
+    env_file.write_text("\n".join(new_lines) + "\n")
+    os.chmod(env_file, 0o600)
+
+    return json.dumps(
+        {
+            "success": True,
+            "tenant": tenant_code,
+            "home_channel": chat_id,
+            "display_name": name_val,
+            "message": (
+                f"Home channel configurado para {tenant_code}: chat_id={chat_id}. "
+                "El aviso '📬 No home channel is set' no volverá a aparecer. "
+                "Hermes aplica el cambio en el próximo mensaje."
+            ),
+        }
+    )
+
+
+def update_tenant_allowed_users(
+    tenant_code: str,
+    user_ids: list[str],
+    mode: Literal["replace", "add", "remove"] = "replace",
+) -> str:
+    """Gestiona la lista de usuarios autorizados para hablar con el agente Hermes del tenant.
+
+    TELEGRAM_ALLOWED_USERS en el .env controla quién puede interactuar con el bot.
+    Hermes recarga .env en cada turno de conversación → efecto inmediato sin restart.
+    Ref: hermes source gateway/run.py — _reload_runtime_env_preserving_config_authority()
+
+    Parámetros:
+    - user_ids: lista de IDs de Telegram (solo números). El cliente los obtiene
+      hablándole a @userinfobot en Telegram.
+    - mode:
+        replace — reemplaza la lista completa con los IDs dados
+        add     — añade los IDs dados a los ya existentes (no duplica)
+        remove  — elimina los IDs dados de la lista existente
+
+    Nota: el telegram_user_id original del cliente siempre se mantiene;
+    este tool no puede dejarlo sin acceso a su propio bot.
+
+    Requiere aprobación — es una operación de seguridad.
+    """
+    tenant_path = Path(settings.tenants_base_path) / tenant_code
+    env_file = tenant_path / ".env"
+
+    if not env_file.exists():
+        return json.dumps({"error": f"Tenant {tenant_code}: .env no encontrado."})
+
+    # Leer lista actual desde .env
+    content = env_file.read_text()
+    current_ids: list[str] = []
+    for line in content.splitlines():
+        if line.startswith("TELEGRAM_ALLOWED_USERS="):
+            val = line.split("=", 1)[1].strip()
+            current_ids = [uid.strip() for uid in val.split(",") if uid.strip()]
+            break
+
+    # Validar que los IDs son numéricos
+    invalid = [uid for uid in user_ids if not uid.strip().lstrip("-").isdigit()]
+    if invalid:
+        return json.dumps(
+            {
+                "error": (
+                    f"IDs inválidos (deben ser numéricos): {invalid}. "
+                    "El cliente los obtiene hablándole a @userinfobot en Telegram."
+                )
+            }
+        )
+
+    # Calcular nueva lista según el mode
+    clean_ids = [uid.strip() for uid in user_ids]
+    if mode == "replace":
+        new_ids = clean_ids
+    elif mode == "add":
+        new_ids = list(dict.fromkeys(current_ids + clean_ids))  # preserva orden, sin duplicados
+    elif mode == "remove":
+        new_ids = [uid for uid in current_ids if uid not in clean_ids]
+
+    if not new_ids:
+        return json.dumps(
+            {
+                "error": (
+                    "La lista resultante quedaría vacía. "
+                    "El bot no respondería a nadie. Mantén al menos el ID del cliente."
+                )
+            }
+        )
+
+    # Actualizar la línea TELEGRAM_ALLOWED_USERS en .env
+    new_lines = [
+        f"TELEGRAM_ALLOWED_USERS={','.join(new_ids)}"
+        if ln.startswith("TELEGRAM_ALLOWED_USERS=")
+        else ln
+        for ln in content.splitlines()
+    ]
+    env_file.write_text("\n".join(new_lines) + "\n")
+    os.chmod(env_file, 0o600)
+
+    return json.dumps(
+        {
+            "success": True,
+            "tenant": tenant_code,
+            "mode": mode,
+            "previous_ids": current_ids,
+            "new_ids": new_ids,
+            "message": (
+                f"Lista de usuarios autorizados actualizada para {tenant_code}. "
+                f"Hermes aplicará el cambio en el próximo mensaje (recarga .env por turno). "
+                f"IDs autorizados ahora: {', '.join(new_ids)}"
             ),
         }
     )
