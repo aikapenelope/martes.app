@@ -615,13 +615,23 @@ _CREDENTIAL_FILE_MAP: dict[str, str] = {
     "airtable_key": ".env",
     "github_token": ".env",
     "linear_key": ".env",
+    # openrouter_api_key va en .env y además limpia el marker de expiración BYOK
+    # inmediatamente (en lugar de esperar el ciclo de 30 min del scheduler).
+    "openrouter_api_key": ".env",
 }
 
 # Tipo literal para credenciales soportadas.
 # Agno convierte Literal a enum en el JSON schema del tool — el LLM
 # solo puede pasar uno de estos valores exactos.
 # Ref: https://docs.agno.com/tools/introduction
-CredentialType = Literal["google_token", "notion_key", "airtable_key", "github_token", "linear_key"]
+CredentialType = Literal[
+    "google_token",
+    "notion_key",
+    "airtable_key",
+    "github_token",
+    "linear_key",
+    "openrouter_api_key",  # clave propia del cliente para OpenRouter
+]
 
 
 def inject_credential(
@@ -662,6 +672,13 @@ def inject_credential(
                 lines.append(f"{key}={credential_value}")
             env_file.write_text("\n".join(lines) + "\n")
             os.chmod(env_file, 0o600)
+            # Si es la key propia del cliente para OpenRouter: limpiar el marker
+            # de expiración BYOK inmediatamente. Sin esto, el scheduler de 30 min
+            # tardaría hasta 30 minutos en detectar que el cliente ya tiene su key.
+            # Ref: expire_platform_key() — Nivel 1 de detección BYOK
+            if credential_type == "openrouter_api_key":
+                marker = tp / _PLATFORM_KEY_EXPIRES_FILE
+                marker.unlink(missing_ok=True)
         else:
             cred = tp / target
             cred.write_text(credential_value)
