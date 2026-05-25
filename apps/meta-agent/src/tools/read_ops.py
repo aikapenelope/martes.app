@@ -123,18 +123,58 @@ def container_health(tenant_code: str) -> str:
     Conectar a ::1:8642 produce "connection refused" aunque el server esté activo.
     Ref Hermes source: gateway/platforms/api_server.py — DEFAULT_HOST = "127.0.0.1"
     Ref Hermes Dockerfile: apt-get install curl (disponible en /usr/bin/curl)
+
+    Estado "starting": containers con < 60s de vida y restart_count == 0 que aún
+    no responden en /health se clasifican como "starting" en lugar de "unhealthy".
+    Esto evita falsos positivos inmediatamente después de create_tenant() o restart.
     """
     try:
         c = _docker().containers.get(f"hermes-{tenant_code}")
         if c.status != "running":
             return json.dumps({"tenant": tenant_code, "status": "stopped"})
+
+        # Detectar containers recién arrancados: restart_count == 0 y edad < 60s.
+        # Hermes puede tardar hasta 30s en inicializar el API server en primer boot.
+        # Un curl fallido en ese estado no indica un problema real.
+        attrs = c.attrs or {}
+        started_at_str: str = attrs.get("State", {}).get("StartedAt", "")
+        restart_count: int = attrs.get("RestartCount", 0)
+        container_age_s = 999  # default: asumir viejo si no podemos calcular
+        if started_at_str:
+            try:
+                from datetime import datetime, timezone
+
+                # Docker usa RFC3339 con zona horaria — parsear con fromisoformat (Python 3.11+)
+                # Fallback: strptime para versiones anteriores
+                started_at_str_clean = started_at_str[:26] + "Z"  # normalizar ns → μs
+                started_dt = datetime.fromisoformat(started_at_str_clean.replace("Z", "+00:00"))
+                container_age_s = (datetime.now(tz=timezone.utc) - started_dt).total_seconds()
+            except Exception:
+                pass
+
         start = time.time()
         result = c.exec_run("curl -sf http://127.0.0.1:8642/health")
         ms = int((time.time() - start) * 1000)
         exit_code: int = result.exit_code or 1
         output: bytes = result.output  # type: ignore[assignment]
         output_str = output.decode("utf-8", errors="replace")[:200]
-        status = "healthy" if exit_code == 0 else "unhealthy"
+
+        if exit_code == 0:
+            status = "healthy"
+        elif restart_count == 0 and container_age_s < 60:
+            # Falso positivo: container recién creado, Hermes aún está iniciando.
+            # No registrar en health_checks para no contaminar el historial de SLA.
+            return json.dumps(
+                {
+                    "tenant": tenant_code,
+                    "status": "starting",
+                    "age_seconds": round(container_age_s),
+                    "details": "Container recién iniciado — esperar hasta 60s para health check.",
+                }
+            )
+        else:
+            status = "unhealthy"
+
         # Persistir resultado en health_checks para Metabase (SLA histórico)
         _record_health_check(tenant_code, status, ms, output_str)
         return json.dumps(
