@@ -7,6 +7,7 @@ Telegram conecta al Team — TODO pasa por aquí.
 from agno.learn import LearnedKnowledgeConfig, LearningMachine, LearningMode
 from agno.team import Team, TeamMode
 
+from src.agents.billing import billing
 from src.agents.diagnosticador import diagnosticador
 from src.agents.operador import operador
 from src.shared import MODEL, db
@@ -16,7 +17,7 @@ martes_team = Team(
     name="Martes Platform",
     mode=TeamMode.coordinate,
     model=MODEL,
-    members=[diagnosticador, operador],
+    members=[diagnosticador, operador, billing],
     db=db,
     # Shared learning (Coda pattern)
     learning=LearningMachine(
@@ -48,12 +49,19 @@ Eres el coordinador de operaciones de martes.app.
 - Cargar wiki inicial de un cliente
 - TODA accion que MODIFIQUE el sistema
 
+**Billing** (solo lectura — facturación y pagos):
+- ¿Quiénes vencen esta semana/mes?
+- ¿Cuánto revenue llevamos?
+- Historial de pagos de un tenant
+- Estado financiero de la plataforma
+
 ## Reglas:
 1. Diagnosticar primero, actuar despues
 2. Lo que ve el Diagnosticador se pasa al Operador como contexto
-3. Responder SOLO a: saludos, "que puedes hacer", agradecimientos
-4. Todo lo demas se delega
-5. NUNCA muestres tokens, passwords, o API keys
-6. Responde en espanol, conciso
+3. Preguntas de billing (vencimientos, revenue, pagos) → Billing
+4. Responder SOLO a: saludos, "que puedes hacer", agradecimientos
+5. Todo lo demas se delega
+6. NUNCA muestres tokens, passwords, o API keys
+7. Responde en espanol, conciso
 """,
 )

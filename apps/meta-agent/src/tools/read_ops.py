@@ -3,7 +3,7 @@
 import json
 import shutil
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -732,7 +732,6 @@ def get_all_tenants() -> str:
                 LEFT JOIN instance_configs ic ON ic.tenant_id = t.id
                 ORDER BY t.tenant_code
             """).fetchall()
-            from datetime import datetime, timezone
 
             now = datetime.now(tz=timezone.utc).date()
             tenants = []
@@ -752,5 +751,248 @@ def get_all_tenants() -> str:
                     }
                 )
             return json.dumps({"count": len(tenants), "tenants": tenants})
+    except psycopg.Error as e:
+        return json.dumps({"error": str(e)})
+
+
+# =============================================================================
+# Billing tools — solo lectura, consultas a tenants + payments
+# =============================================================================
+
+
+def get_billing_summary() -> str:
+    """Resumen ejecutivo del estado de billing de todos los tenants.
+
+    Devuelve:
+    - Conteo por status (active, paused, archived)
+    - Tenants que vencen en los próximos 7 días
+    - Revenue total del mes actual
+    - Cuántos están en trial vs pagando
+    """
+    try:
+        with psycopg.connect(_pg()) as conn:
+            today = datetime.now(tz=timezone.utc).date()
+            in_7_days = today + timedelta(days=7)
+
+            # Conteo por status
+            status_rows = conn.execute(
+                "SELECT status, COUNT(*) FROM tenants GROUP BY status ORDER BY status"
+            ).fetchall()
+            status_counts = {r[0]: r[1] for r in status_rows}
+
+            # Tenants que vencen en 7 días (activos con paid_until próximo)
+            expiring = conn.execute(
+                "SELECT tenant_code, name, paid_until "
+                "FROM tenants "
+                "WHERE status = 'active' AND paid_until <= %s "
+                "ORDER BY paid_until ASC",
+                (in_7_days,),
+            ).fetchall()
+
+            # Revenue del mes actual (sum de payments)
+            year_month = today.strftime("%Y-%m")
+            revenue_row = conn.execute(
+                "SELECT COALESCE(SUM(amount), 0), COUNT(*) "
+                "FROM payments "
+                "WHERE TO_CHAR(registered_at, 'YYYY-MM') = %s",
+                (year_month,),
+            ).fetchone()
+            revenue_month = float(revenue_row[0]) if revenue_row else 0.0
+            payments_month = int(revenue_row[1]) if revenue_row else 0
+
+            # Cuántos en trial (paid_until > today y sin ningún pago registrado)
+            trial_count = conn.execute(
+                "SELECT COUNT(*) FROM tenants t "
+                "WHERE t.status = 'active' "
+                "AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.tenant_id = t.id)"
+            ).fetchone()
+            trial_count = int(trial_count[0]) if trial_count else 0
+
+            expiring_list = [
+                {
+                    "code": r[0],
+                    "name": r[1],
+                    "paid_until": r[2].isoformat() if r[2] else None,
+                    "days_remaining": (r[2] - today).days if r[2] else None,
+                }
+                for r in expiring
+            ]
+
+            return json.dumps(
+                {
+                    "status_counts": status_counts,
+                    "expiring_next_7_days": expiring_list,
+                    "revenue_this_month": {
+                        "period": year_month,
+                        "total_usd": revenue_month,
+                        "payments_count": payments_month,
+                    },
+                    "tenants_in_trial": trial_count,
+                }
+            )
+    except psycopg.Error as e:
+        return json.dumps({"error": str(e)})
+
+
+def get_expiring_tenants(days: int = 7) -> str:
+    """Lista de tenants activos cuyo paid_until vence en los próximos N días.
+
+    Parámetros:
+    - days: ventana de búsqueda en días (default: 7). Usar 30 para vista mensual.
+
+    Incluye tenants ya vencidos (days_remaining < 0) si están activos.
+    """
+    try:
+        with psycopg.connect(_pg()) as conn:
+            today = datetime.now(tz=timezone.utc).date()
+            cutoff = today + timedelta(days=days)
+
+            rows = conn.execute(
+                "SELECT tenant_code, name, paid_until, status "
+                "FROM tenants "
+                "WHERE status IN ('active', 'paused') AND paid_until <= %s "
+                "ORDER BY paid_until ASC",
+                (cutoff,),
+            ).fetchall()
+
+            result = []
+            for r in rows:
+                pu = r[2]
+                result.append(
+                    {
+                        "code": r[0],
+                        "name": r[1],
+                        "status": r[3],
+                        "paid_until": pu.isoformat() if pu else None,
+                        "days_remaining": (pu - today).days if pu else None,
+                        "overdue": (pu < today) if pu else False,
+                    }
+                )
+
+            return json.dumps(
+                {
+                    "window_days": days,
+                    "count": len(result),
+                    "tenants": result,
+                }
+            )
+    except psycopg.Error as e:
+        return json.dumps({"error": str(e)})
+
+
+def get_revenue_by_period(year: int, month: int | None = None) -> str:
+    """Revenue registrado en un año o mes específico.
+
+    Parámetros:
+    - year: año (ej: 2026)
+    - month: mes 1-12 (opcional — si no se pasa devuelve el año completo)
+
+    Devuelve total, número de pagos, y desglose por tenant.
+    """
+    try:
+        with psycopg.connect(_pg()) as conn:
+            if month:
+                period_filter = (
+                    "EXTRACT(YEAR FROM registered_at) = %s"
+                    " AND EXTRACT(MONTH FROM registered_at) = %s"
+                )
+                params: tuple = (year, month)
+                period_label = f"{year}-{month:02d}"
+            else:
+                period_filter = "EXTRACT(YEAR FROM registered_at) = %s"
+                params = (year,)
+                period_label = str(year)
+
+            # Total y conteo
+            total_row = conn.execute(
+                f"SELECT COALESCE(SUM(amount), 0), COUNT(*) FROM payments WHERE {period_filter}",
+                params,
+            ).fetchone()
+            total_usd = float(total_row[0]) if total_row else 0.0
+            payments_count = int(total_row[1]) if total_row else 0
+
+            # Desglose por tenant
+            breakdown = conn.execute(
+                "SELECT t.tenant_code, t.name, SUM(p.amount) as total, COUNT(p.id) as count "
+                f"FROM payments p JOIN tenants t ON p.tenant_id = t.id "
+                f"WHERE {period_filter} "
+                "GROUP BY t.tenant_code, t.name ORDER BY total DESC",
+                params,
+            ).fetchall()
+
+            return json.dumps(
+                {
+                    "period": period_label,
+                    "total_usd": total_usd,
+                    "payments_count": payments_count,
+                    "by_tenant": [
+                        {
+                            "code": r[0],
+                            "name": r[1],
+                            "total_usd": float(r[2]),
+                            "payments": int(r[3]),
+                        }
+                        for r in breakdown
+                    ],
+                }
+            )
+    except psycopg.Error as e:
+        return json.dumps({"error": str(e)})
+
+
+def get_tenant_payment_history(tenant_code: str) -> str:
+    """Historial completo de pagos de un tenant específico.
+
+    Incluye: monto, método, referencia, período cubierto, fecha de registro.
+    """
+    try:
+        with psycopg.connect(_pg()) as conn:
+            # Verificar que el tenant existe
+            tenant_row = conn.execute(
+                "SELECT name, status, paid_until FROM tenants WHERE tenant_code = %s",
+                (tenant_code,),
+            ).fetchone()
+            if not tenant_row:
+                return json.dumps({"error": f"Tenant {tenant_code} no encontrado."})
+
+            payments = conn.execute(
+                "SELECT amount, currency, method, reference, "
+                "period_start, period_end, registered_at, notes "
+                "FROM payments p "
+                "JOIN tenants t ON p.tenant_id = t.id "
+                "WHERE t.tenant_code = %s "
+                "ORDER BY registered_at DESC",
+                (tenant_code,),
+            ).fetchall()
+
+            today = datetime.now(tz=timezone.utc).date()
+            paid_until = tenant_row[2]
+
+            return json.dumps(
+                {
+                    "tenant": {
+                        "code": tenant_code,
+                        "name": tenant_row[0],
+                        "status": tenant_row[1],
+                        "paid_until": paid_until.isoformat() if paid_until else None,
+                        "days_remaining": (paid_until - today).days if paid_until else None,
+                    },
+                    "payments_count": len(payments),
+                    "total_paid_usd": sum(float(r[0]) for r in payments),
+                    "payments": [
+                        {
+                            "amount_usd": float(r[0]),
+                            "currency": r[1],
+                            "method": r[2],
+                            "reference": r[3],
+                            "period_start": r[4].isoformat() if r[4] else None,
+                            "period_end": r[5].isoformat() if r[5] else None,
+                            "registered_at": r[6].isoformat() if r[6] else None,
+                            "notes": r[7],
+                        }
+                        for r in payments
+                    ],
+                }
+            )
     except psycopg.Error as e:
         return json.dumps({"error": str(e)})
