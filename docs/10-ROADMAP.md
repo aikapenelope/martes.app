@@ -117,23 +117,14 @@ Cuando NousResearch publique la siguiente versión estable de Hermes.
 
 ## Descartado
 
-**Hermes dashboard** — expone API keys, demasiado complejo.
+**Hermes dashboard** — expone API keys. Los clientes configuran desde Telegram.
 
-**CRM SQLite en volumen de Hermes** — la base de datos de Hermes es suya. No la tocamos.
+**CRM** — ninguna solución ligera tipo "Memos para CRM" existe en el ecosistema 2026.
+Investigación completa en `docs/hermes-guia/07` y `08` (referencia para Sprint I).
+Se retoma como **Sprint I** cuando PocketBase alcance v1.0.0 (estimado Q4 2026–Q1 2027).
 
-**Sprint G original completo (PocketBase + install_skill_in_tenant)**:
-
-- `install_skill_in_tenant()` en el meta-agente → **obsoleto**. Con PR #76 (factory defaults),  
-  Hermes puede instalar skills solo desde la conversación del cliente:  
-  `hermes skills install airtable` via terminal tool + `/restart`. Zero intervención del admin.
-
-- PocketBase CRM → **descartado hasta Sprint I**.  
-  PocketBase dice: "NOT recommended for production critical applications yet."  
-  No existe alternativa ligera equivalente ("Memos para CRM") en el ecosistema en 2026.  
-  La investigación completa está en `docs/hermes-guia/07` y `08`.  
-  Se retoma como **Sprint I** cuando PocketBase alcance v1.0.0 (estimado Q4 2026–Q1 2027).
-
----
+**`install_skill_in_tenant()`** — obsoleto. Con factory defaults (PR #76), el cliente
+instala skills directamente desde Telegram: `hermes skills install X` + `/restart`.
 
 ## Capacidad del servidor
 
