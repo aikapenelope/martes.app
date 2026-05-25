@@ -2,7 +2,71 @@
 
 ---
 
-## [Sprints 4–7] — 24 mayo – 2 junio 2026
+## [Sprint 8] — 4 junio 2026
+
+### Paradigma plataforma vs agente (PR #74)
+
+- **Nuevo paradigma documentado**: martes.app gestiona la plataforma. Hermes gestiona su funcionamiento interno. Regla absoluta: si Hermes tiene un comando nativo para algo, el cliente lo hace desde Telegram — nosotros no lo reimplementamos desde el backend. Ver `docs/hermes-guia/00-PARADIGMA-PLATAFORMA.md`
+- **Fix home channel** — `TELEGRAM_HOME_CHANNEL={telegram_user_id}` y `TELEGRAM_HOME_CHANNEL_NAME={name}` escritos en `.env` al crear el tenant. Elimina el mensaje "📬 No home channel is set" que aparecía en cada primera conversación de sesión nueva. Fuente: `hermes/gateway/run.py:8530` — condición que dispara el aviso cuando `TELEGRAM_HOME_CHANNEL` no está en el entorno. En Telegram DMs, `chat_id == user_id` del destinatario.
+- **AGENTS.md** actualizado con regla "Paradigma plataforma vs agente" — la prueba de fuego para toda decisión de implementación
+
+### Hermes factory defaults — sin restricciones de container (PR #76)
+
+Eliminadas todas las restricciones que impedían a Hermes operar con total libertad:
+- `cap_drop=["ALL"]` → eliminado
+- `cap_add=[NET_RAW, CHOWN, ...]` → eliminado (innecesario sin cap_drop)
+- `pids_limit=256` → eliminado (bloqueaba npm, subagentes, skills con subprocess)
+- `tmpfs={"/tmp": "size=100m"}` → eliminado (bloqueaba `agent-browser install`, pip installs)
+- `security_opt=["no-new-privileges"]` → eliminado
+
+**Único límite intencional que permanece**: `mem_limit=768m` (límite de la plataforma SaaS).
+
+El cliente puede ahora desde Telegram: `hermes skills install X`, `agent-browser install`, `hermes update`, spawnar subagentes paralelos — exactamente como viene de fábrica en NousResearch.
+
+Aplica también a `recreate_tenant_container()` para consistencia en rebuild y restore.
+
+Ref: docker-compose.yml oficial de NousResearch — sin ninguna de estas restricciones.
+
+### Investigación y decisiones arquitecturales (PRs #71–73, #75, #77–79)
+
+**Investigación PocketBase** (documentada en `docs/hermes-guia/07` y `08`):
+- Una instancia por tenant = recomendación oficial del maintainer ganigeorgiev (GitHub #738)
+- MCP server `@mabeldata/pocketbase-mcp` identificado como opción correcta para comunicación Hermes↔PocketBase
+- La posición oficial de PocketBase: "NOT recommended for production critical applications yet" (pre-v1.0.0)
+
+**Investigación InsForge** (YC Spring 2026, OSS Apache-2.0):
+- Plataforma backend diseñada específicamente para agentes de IA
+- Multi-tenancy: NO nativa — "Running Multiple Projects" = múltiples Docker Compose stacks separados (~450-600MB por stack)
+- MCP server built-in — el más maduro del ecosistema
+- Descartado para martes.app: misma limitación que PocketBase pero 15-20x más RAM por instancia
+
+**Investigación CRM ligero ("Memos para CRM")**:
+- No existe en el ecosistema 2026
+- CRMs existentes (EspoCRM, Twenty, Frappe, Monica) todos requieren stack completo (~400MB+)
+- El único que cumple "como Memos" era PocketBase (pre-v1.0.0)
+
+**Decisiones finales**:
+- Sprint G completo (PocketBase + install_skill_in_tenant) → descartado
+- `install_skill_in_tenant()` → obsoleto: con factory defaults, el cliente instala skills desde Telegram directamente (`hermes skills install X` + `/restart`)
+- CRM → Sprint I cuando PocketBase alcance v1.0.0 (estimado Q4 2026–Q1 2027)
+- Hermes factory defaults es la liberación completa del agente — la plataforma solo gestiona el arranque
+
+### Documentación fundacional
+
+Creados 8 documentos en `docs/hermes-guia/`:
+- `00-PARADIGMA-PLATAFORMA.md` — la separación definitiva plataforma vs agente
+- `01-CAPACIDADES-COMPLETAS.md` — Hermes v0.14.0: 22 plataformas, 200+ modelos, tools, skills
+- `02-CONTEXTO-VENEZOLANO.md` — mercado digital venezolano 2026, WhatsApp 92%, pagos
+- `03-MEJORES-PRACTICAS.md` — SOUL.md, modelos, skills, cron, seguridad
+- `04-INTEGRACIONES-TOOLS.md` — Airtable, Google Workspace, stocks, Shopify, blockchain
+- `05-PITCH-PYME.md` — propuesta de valor para PyMEs venezolanas
+- `06-AGENTES-DERIVADOS-MULTIAGENTE.md` — arquitecturas multi-agente, Higgsfield AI
+- `07-POCKETBASE-CRM-INVESTIGACION.md` — investigación completa PocketBase (referencia futura Sprint I)
+- `08-ARQUITECTURA-POCKETBASE-COMPLETA.md` — diagrama Mermaid, análisis RAM, browser vs HTTP
+
+---
+
+
 
 ### Infraestructura
 
