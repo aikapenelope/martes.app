@@ -10,8 +10,11 @@ AgentOS con:
 - Guardrail de Telegram: solo responde a IDs autorizados
 """
 
+import asyncio
 import json
 import logging
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator
 
 from agno.os.app import AgentOS
 from agno.os.interfaces.telegram import Telegram
@@ -137,6 +140,148 @@ for _doc in ["hermes_reference.md", "procedures.md"]:
         upsert=True,
     )
 
+
+# =============================================================================
+# Lifespan — registro de schedules de mantenimiento
+#
+# Bug que esto resuelve: @app.on_event("startup") ejecuta las llamadas HTTP
+# antes de que el servidor esté aceptando conexiones → ConnectionRefused →
+# el except trag el error → los schedules nunca se crean.
+#
+# Solución documentada por Agno: pasar lifespan= al constructor de AgentOS.
+# asyncio.create_task() agenda la función para después del primer event loop
+# tick, cuando el servidor ya está aceptando conexiones.
+#
+# Ref: https://docs.agno.com/agent-os/lifespan
+# =============================================================================
+
+_SCHEDULES_TO_CREATE = [
+    {
+        "name": "daily-backup-all",
+        "cron_expr": "0 3 * * *",  # 3 AM UTC
+        "endpoint": "/maintenance/backup-all",
+        "method": "POST",
+        "timezone": "UTC",
+        "max_retries": 2,
+        "retry_delay_seconds": 300,
+    },
+    {
+        "name": "health-check-all",
+        "cron_expr": "*/5 * * * *",  # cada 5 minutos
+        "endpoint": "/maintenance/health-check-all",
+        "method": "POST",
+        "timezone": "UTC",
+        "max_retries": 0,
+    },
+    {
+        "name": "billing-check",
+        "cron_expr": "0 9 * * *",  # 9 AM UTC diario
+        "endpoint": "/maintenance/billing-check",
+        "method": "POST",
+        "timezone": "UTC",
+        "max_retries": 0,
+    },
+    {
+        "name": "expire-platform-keys",
+        "cron_expr": "*/30 * * * *",  # cada 30 minutos
+        "endpoint": "/maintenance/expire-platform-keys",
+        "method": "POST",
+        "timezone": "UTC",
+        "max_retries": 0,
+    },
+    {
+        "name": "docker-cleanup",
+        "cron_expr": "0 4 * * 0",  # domingos 4 AM UTC
+        "endpoint": "/maintenance/docker-cleanup",
+        "method": "POST",
+        "timezone": "UTC",
+        "max_retries": 0,
+    },
+    {
+        "name": "prune-old-data",
+        "cron_expr": "0 2 * * 0",  # domingos 2 AM UTC — antes del backup
+        "endpoint": "/maintenance/prune-old-data",
+        "method": "POST",
+        "timezone": "UTC",
+        "max_retries": 0,
+    },
+]
+
+
+async def _register_schedules_when_ready() -> None:
+    """Espera a que /health responda antes de registrar schedules.
+
+    Reintenta cada 5s hasta 60s. Si el servidor no responde en ese tiempo,
+    loguea error y retorna — los schedules se registrarán en el siguiente deploy.
+    """
+    import httpx
+
+    base = "http://localhost:7777"
+
+    # Esperar hasta 60s (12 reintentos × 5s) a que el servidor esté listo
+    for attempt in range(12):
+        await asyncio.sleep(5)
+        try:
+            async with httpx.AsyncClient(base_url=base, timeout=5) as c:
+                resp = await c.get("/health")
+                if resp.status_code == 200:
+                    logger.info("Servidor listo (intento %d) — registrando schedules.", attempt + 1)
+                    break
+        except Exception:
+            continue
+    else:
+        logger.error(
+            "register-schedules: servidor no respondió en 60s — schedules no registrados. "
+            "Se registrarán en el siguiente deploy."
+        )
+        return
+
+    try:
+        async with httpx.AsyncClient(base_url=base, timeout=10) as client:
+            resp = await client.get("/schedules")
+            existing: set[str] = set()
+            if resp.status_code == 200:
+                payload = resp.json()
+                raw = payload.get("data", []) if isinstance(payload, dict) else payload
+                existing = {s["name"] for s in raw if isinstance(s, dict)}
+
+            for sched in _SCHEDULES_TO_CREATE:
+                name = sched["name"]
+                if name in existing:
+                    logger.info("Schedule '%s' ya existe — sin cambios.", name)
+                    continue
+                create_resp = await client.post("/schedules", json=sched)
+                if create_resp.status_code in (200, 201):
+                    logger.info(
+                        "Schedule '%s' creado. Próxima ejecución: %s",
+                        name,
+                        create_resp.json().get("next_run_at"),
+                    )
+                else:
+                    logger.warning(
+                        "No se pudo crear schedule '%s': %s %s",
+                        name,
+                        create_resp.status_code,
+                        create_resp.text[:200],
+                    )
+    except Exception as e:
+        logger.warning("Error registrando schedules de mantenimiento: %s", e)
+
+
+@asynccontextmanager
+async def _maintenance_lifespan(app: object) -> AsyncGenerator[None, None]:
+    """Registra schedules de mantenimiento después de que el servidor esté listo.
+
+    asyncio.create_task() schedula la tarea para ejecutar en el event loop
+    existente. El servidor arranca, empieza a aceptar conexiones, y entonces
+    el task corre — evitando el ConnectionRefused del patrón @on_event("startup").
+
+    Ref: https://docs.agno.com/agent-os/lifespan
+    """
+    asyncio.create_task(_register_schedules_when_ready())
+    yield
+
+
 # AgentOS
 # Ref: https://docs.agno.com/agent-os/overview
 agent_os = AgentOS(
@@ -147,6 +292,7 @@ agent_os = AgentOS(
     scheduler=True,
     scheduler_poll_interval=60,
     tracing=True,
+    lifespan=_maintenance_lifespan,  # registra schedules cuando el servidor esté listo
 )
 
 app = agent_os.get_app()
@@ -580,94 +726,72 @@ async def run_expire_platform_keys() -> JSONResponse:
     return JSONResponse(content=results)
 
 
-@app.on_event("startup")
-async def register_maintenance_schedules() -> None:
-    """Registra todos los schedules de mantenimiento al arrancar. Idempotente.
+@app.post("/maintenance/prune-old-data")
+async def run_prune_old_data() -> JSONResponse:
+    """Limpieza semanal de tablas que crecen indefinidamente. Sin LLM, 0 tokens.
 
-    Solo crea los schedules que no existan todavía — seguro en redeploys.
-    Ref: https://docs.agno.com/examples/agent-os/scheduler/schedule-management
+    Elimina registros antiguos de tres tablas:
+    - ai.martes_traces   → cada llamada LLM genera una traza. Retención: 30 días.
+    - ai.martes_sessions → sesiones inactivas más de 90 días.
+    - public.health_checks → 5 min × N tenants = cientos de filas/día. Retención: 90 días.
+
+    Llamado por el scheduler los domingos a las 2 AM UTC (antes del backup de las 3 AM).
     """
-    import httpx
+    import psycopg
 
-    # Definición de todos los schedules de mantenimiento.
-    # Orden: backup primero (existente), luego los nuevos de Sprint B.
-    schedules_to_create = [
-        {
-            "name": "daily-backup-all",
-            "cron_expr": "0 3 * * *",  # 3 AM UTC
-            "endpoint": "/maintenance/backup-all",
-            "method": "POST",
-            "timezone": "UTC",
-            "max_retries": 2,
-            "retry_delay_seconds": 300,
-        },
-        {
-            "name": "health-check-all",
-            "cron_expr": "*/5 * * * *",  # cada 5 minutos
-            "endpoint": "/maintenance/health-check-all",
-            "method": "POST",
-            "timezone": "UTC",
-            "max_retries": 0,  # sin reintento — próximo ciclo cubre
-        },
-        {
-            "name": "billing-check",
-            "cron_expr": "0 9 * * *",  # 9 AM UTC diario
-            "endpoint": "/maintenance/billing-check",
-            "method": "POST",
-            "timezone": "UTC",
-            "max_retries": 0,
-        },
-        {
-            "name": "expire-platform-keys",
-            "cron_expr": "*/30 * * * *",  # cada 30 minutos
-            "endpoint": "/maintenance/expire-platform-keys",
-            "method": "POST",
-            "timezone": "UTC",
-            "max_retries": 0,
-        },
-        {
-            "name": "docker-cleanup",
-            "cron_expr": "0 4 * * 0",  # domingos 4 AM UTC
-            "endpoint": "/maintenance/docker-cleanup",
-            "method": "POST",
-            "timezone": "UTC",
-            "max_retries": 0,
-        },
+    from src.config import settings as _s
+
+    def _pg_url() -> str:
+        url = _s.database_url
+        return url.replace("+psycopg", "") if "+psycopg" in url else url
+
+    deleted: dict[str, int] = {}
+    errors: list[str] = []
+
+    queries = [
+        (
+            "martes_traces",
+            "DELETE FROM ai.martes_traces WHERE created_at < NOW() - INTERVAL '30 days'",
+        ),
+        (
+            "martes_sessions",
+            "DELETE FROM ai.martes_sessions WHERE updated_at < NOW() - INTERVAL '90 days'",
+        ),
+        (
+            "health_checks",
+            "DELETE FROM public.health_checks WHERE checked_at < NOW() - INTERVAL '90 days'",
+        ),
     ]
-    base = "http://localhost:7777"
 
     try:
-        async with httpx.AsyncClient(base_url=base, timeout=10) as client:
-            # Obtener schedules existentes
-            resp = await client.get("/schedules")
-            existing: set[str] = set()
-            if resp.status_code == 200:
-                payload = resp.json()
-                raw = payload.get("data", []) if isinstance(payload, dict) else payload
-                existing = {s["name"] for s in raw if isinstance(s, dict)}
-
-            # Crear solo los que no existen
-            for sched in schedules_to_create:
-                name = sched["name"]
-                if name in existing:
-                    logger.info("Schedule '%s' ya existe — sin cambios.", name)
-                    continue
-                create_resp = await client.post("/schedules", json=sched)
-                if create_resp.status_code in (200, 201):
-                    logger.info(
-                        "Schedule '%s' creado. Próxima ejecución: %s",
-                        name,
-                        create_resp.json().get("next_run_at"),
-                    )
-                else:
-                    logger.warning(
-                        "No se pudo crear schedule '%s': %s %s",
-                        name,
-                        create_resp.status_code,
-                        create_resp.text[:200],
-                    )
+        with psycopg.connect(_pg_url()) as conn:
+            for table, query in queries:
+                try:
+                    cur = conn.execute(query)
+                    deleted[table] = cur.rowcount
+                    conn.commit()
+                except Exception as e:
+                    errors.append(f"{table}: {e}")
+                    conn.rollback()
     except Exception as e:
-        logger.warning("Error registrando schedules de mantenimiento: %s", e)
+        errors.append(f"connection: {e}")
+
+    total_deleted = sum(deleted.values())
+    logger.info(
+        "prune-old-data: eliminados %d registros — traces=%d sessions=%d health_checks=%d",
+        total_deleted,
+        deleted.get("martes_traces", 0),
+        deleted.get("martes_sessions", 0),
+        deleted.get("health_checks", 0),
+    )
+    if total_deleted > 0:
+        await _send_telegram_alert(
+            f"🧹 Pruning semanal completado:\n"
+            f"  traces: {deleted.get('martes_traces', 0)} registros\n"
+            f"  sessions: {deleted.get('martes_sessions', 0)} registros\n"
+            f"  health_checks: {deleted.get('health_checks', 0)} registros"
+        )
+    return JSONResponse(content={"deleted": deleted, "errors": errors})
 
 
 if __name__ == "__main__":
