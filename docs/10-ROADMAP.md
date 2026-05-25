@@ -40,7 +40,134 @@ Ver `CHANGELOG.md` para el detalle completo.
 
 ---
 
-## Sprint G — PocketBase CRM (próximo sprint mayor)
+## Sprint G — PocketBase CRM (implementación)
+
+> **Plan completo**: `docs/SPRINT-G-PLAN.md`  
+> **Prerequisito**: PR #74 mergeado  
+> **Principio**: martes.app hace el deploy. Hermes hace el resto.
+
+### Operacional pre-sprint (tú en el registrador de dominio)
+
+```
+DNS wildcard: *.martes.app → 204.168.169.254
+```
+
+Una sola vez. Cubre todos los slugs de tenants automáticamente.
+
+---
+
+### G1 · DB migration: campo `slug`
+
+**Archivo**: `db/migrations/003_pocketbase_slug.sql`
+
+```sql
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS slug VARCHAR(63) UNIQUE;
+CREATE INDEX IF NOT EXISTS idx_tenants_slug ON tenants(slug) WHERE slug IS NOT NULL;
+```
+
+El slug determina el subdominio del cliente: `acme.martes.app`.
+Se aplica automáticamente en el próximo redeploy del compose.
+
+---
+
+### G2 · `create_tenant()`: slug + fixes de container
+
+**Archivo**: `apps/meta-agent/src/tools/write_ops.py`
+
+**2a — Pydantic**: añadir campo `slug` a `TenantCreateInput` con validación (lowercase, alfanumérico+guiones, 3-63 chars, no reservados: api/www/app/admin/metabase).
+
+**2b — Container fixes**:
+```python
+pids_limit=256  →  pids_limit=512
+tmpfs="/tmp": "size=100m"  →  "size=500m"
+# mem_limit="768m" sin cambio
+```
+
+**2c — DB**: guardar slug en `tenants.slug` al crear.
+
+---
+
+### G3 · Templates PocketBase
+
+**Archivos nuevos**:
+```
+infra/templates/pocketbase/migrations/1_crm_schema.js    ← 6 colecciones
+infra/templates/pocketbase/migrations/2_hermes_token.js  ← API token
+infra/templates/skills/crm-pocketbase/SKILL.md           ← enseña a Hermes a usar el CRM
+```
+
+El schema completo de las colecciones está en `docs/hermes-guia/07-POCKETBASE-CRM-INVESTIGACION.md`.
+
+---
+
+### G4 · PocketBase sidecar en `create_tenant()`
+
+**Archivo**: `apps/meta-agent/src/tools/write_ops.py`
+
+Después de crear `hermes-{code}`:
+1. Crear `pb_data/` y `pb_migrations/` en el volumen del tenant
+2. Copiar migration templates al volumen
+3. Copiar skill `crm-pocketbase` al volumen
+4. Arrancar container `pb-{code}`:
+   - image: `ghcr.io/pocketbase/pocketbase:0.23.6`
+   - redes: `tenant-{code}-net` + `coolify` (doble red para Traefik)
+   - mem: 128MB / 0.25 CPU
+   - Traefik labels: `Host({slug}.martes.app) → :8090`
+5. Esperar health OK (30s)
+6. Crear superadmin via `docker exec`
+7. Generar API token → escribir `POCKETBASE_URL` y `POCKETBASE_TOKEN` en `.env`
+8. Guardar slug en `instance_configs.extra_config`
+
+---
+
+### G5 · Lifecycle tools actualizados
+
+**Archivo**: `apps/meta-agent/src/tools/write_ops.py`
+
+Cada función añade un bloque `try/except NotFound: pass` para `pb-{code}`:
+- `stop_tenant()`: también para `pb-{code}`
+- `restart_tenant()`: también reinicia `pb-{code}`
+- `delete_tenant()`: también para + remove `pb-{code}`
+
+Compatibilidad hacia atrás: tenants sin PocketBase siguen funcionando igual.
+
+---
+
+### G6 · `deploy_pocketbase_tenant()` — para tenants existentes
+
+**Archivo**: `apps/meta-agent/src/tools/write_ops.py` + `agents/operador.py`
+
+Tool que el Operador puede ejecutar para t001 y futuros tenants creados antes del Sprint G:
+
+```
+Admin → meta-agente: "despliega pocketbase para t001 con slug acme"
+Operador ejecuta: deploy_pocketbase_tenant("t001", "acme")
+→ mismos pasos que G4 pero sin crear el container Hermes
+→ reinicia hermes-t001 para cargar las nuevas vars del .env
+```
+
+---
+
+### G7 · Test en VPS con tenant de prueba
+
+No tocar t001. Crear un tenant de prueba (ej: `t_test`) para validar:
+1. `create_tenant()` crea ambos containers
+2. `{slug}.martes.app` responde con la admin UI de PocketBase
+3. Las colecciones del CRM están creadas
+4. Hermes puede hacer `curl` al PocketBase desde su terminal
+5. `delete_tenant("t_test")` elimina ambos containers limpiamente
+
+---
+
+### G8 · PWA (trabajo externo, no en este repo)
+
+Next.js + PocketBase JS SDK en Vercel. Cubre:
+- Login via PocketBase auth (email/OTP)
+- Dashboard: inventario, pedidos, conversaciones
+- Realtime via SSE subscriptions de PocketBase
+- Mobile PWA installable
+
+---
 
 > **Investigación completada**: ver `docs/hermes-guia/07` y `08`.  
 > **Decisión arquitectural**: una instancia PocketBase por tenant (recomendación oficial del maintainer ganigeorgiev). No se usa instancia compartida.
