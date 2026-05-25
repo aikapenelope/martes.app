@@ -231,16 +231,15 @@ def create_tenant(
                 # Ref: https://hermes-agent.nousresearch.com/docs/user-guide/docker
                 "API_SERVER_ENABLED": "true",
             },
-            # Recursos uniformes — el límite real es el token budget de OpenRouter
+            # Límite de RAM — único límite intencional.
+            # El resto de las restricciones (caps, pids, tmpfs) se eliminaron para
+            # que Hermes tenga total libertad: instalar browser, skills pesadas,
+            # hermes update, dependencias npm/pip — exactamente como viene de fábrica.
+            # Ref: docker-compose.yml oficial de NousResearch — sin restricciones extra.
             mem_limit="768m",
             nano_cpus=int(0.75 * 1e9),
             command=["gateway", "run"],
-            security_opt=["no-new-privileges"],
-            pids_limit=256,
-            cap_drop=["ALL"],
-            cap_add=["NET_RAW", "CHOWN", "SETUID", "SETGID", "DAC_OVERRIDE", "FOWNER"],
             dns=["1.1.1.1", "8.8.8.8"],
-            tmpfs={"/tmp": "size=100m"},
             log_config={"Type": "json-file", "Config": {"max-size": "50m", "max-file": "3"}},  # type: ignore[arg-type]
             labels={
                 "martes.tenant": tenant_code,
@@ -1192,12 +1191,7 @@ def recreate_tenant_container(tenant_code: str) -> str:
             memswap_limit=f"{mem_mb * 2}m",
             nano_cpus=int(cpu * 1e9),
             command=["gateway", "run"],
-            security_opt=["no-new-privileges"],
-            pids_limit=256,
-            cap_drop=["ALL"],
-            cap_add=["NET_RAW", "CHOWN", "SETUID", "SETGID", "DAC_OVERRIDE", "FOWNER"],
             dns=["1.1.1.1", "8.8.8.8"],
-            tmpfs={"/tmp": "size=100m"},
             log_config={  # type: ignore[arg-type]
                 "Type": "json-file",
                 "Config": {"max-size": "50m", "max-file": "3"},
