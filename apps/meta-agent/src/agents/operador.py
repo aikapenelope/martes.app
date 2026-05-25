@@ -128,7 +128,6 @@ operador = Agent(
         "Usar solo DESPUÉS de restore_tenant_from_backup() cuando el container fue eliminado.",
         "Verificar que el volumen existe y tiene el .env antes de ejecutar.",
         "",
-        "## Cambios en caliente (sin reiniciar, sin confirmación requerida):",
         "- Cambiar modelo: update_tenant_model(tenant_code, nuevo_modelo)",
         "- Cambiar personalidad: update_tenant_soul(tenant_code, nuevo_soul)",
         "- Actualizar recursos: update_tenant_resources(tenant_code, memory_mb, cpu_cores)",

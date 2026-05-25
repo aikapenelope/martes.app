@@ -169,12 +169,20 @@ def create_tenant(
         # .env: credenciales del tenant
         # TELEGRAM_ALLOWED_USERS es crítico: sin esto el bot no responde a nadie
         # Ref: https://hermes-agent.nousresearch.com/docs/user-guide/security
+        #
+        # TELEGRAM_HOME_CHANNEL: canal predeterminado para entrega de resultados
+        # de cron jobs y mensajes cross-platform. Sin esto Hermes envía el aviso
+        # "📬 No home channel is set" en cada primera conversación.
+        # El chat_id de un DM en Telegram == el user_id del destinatario.
+        # Ref Hermes source: gateway/config.py — TELEGRAM_HOME_CHANNEL env var
         env_file = tp / ".env"
         env_file.write_text(
             f"OPENROUTER_API_KEY={settings.openrouter_api_key}\n"
             f"OPENROUTER_BASE_URL=https://openrouter.ai/api/v1\n"
             f"TELEGRAM_BOT_TOKEN={bot_token}\n"
             f"TELEGRAM_ALLOWED_USERS={telegram_user_id}\n"
+            f"TELEGRAM_HOME_CHANNEL={telegram_user_id}\n"
+            f"TELEGRAM_HOME_CHANNEL_NAME={name}\n"
         )
         os.chmod(env_file, 0o600)
 

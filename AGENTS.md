@@ -21,6 +21,42 @@ No se inventa nada. No se itera con parches hasta que "algo funcione".
 
 ---
 
+## REGLA ABSOLUTA — Paradigma plataforma vs agente
+
+> **martes.app gestiona la PLATAFORMA. Hermes gestiona su propio funcionamiento.**
+> Ver: `docs/hermes-guia/00-PARADIGMA-PLATAFORMA.md`
+
+### La prueba de fuego para toda decisión de implementación:
+
+> "¿Hermes tiene un comando nativo para esto?"
+> Si **sí** → el cliente lo hace desde Telegram. Nosotros no lo implementamos.
+> Si **no** → podría ser responsabilidad de la plataforma.
+
+### Qué gestionamos nosotros:
+- Crear/destruir containers de tenant
+- Billing, trial, ciclo de vida del tenant
+- Backups automáticos del volumen
+- Monitoreo de salud (health checks)
+- Actualizar la imagen Docker (upgrade de versión)
+- Escalar recursos (RAM, CPU)
+- **El `.env` de arranque** — las 6 vars iniciales que Hermes necesita para funcionar
+
+### Qué gestiona Hermes (y el cliente desde Telegram):
+- `/model` → cambiar modelo LLM y API key
+- `/sethome` → configurar el canal de entrega de notificaciones
+- `/auth` → configurar credenciales OAuth de cualquier proveedor
+- `/config set` → ajustar cualquier config.yaml desde el chat
+- `/skills install` → instalar skills adicionales
+- Memoria, sesiones, historial de conversaciones
+- Cron jobs del negocio del cliente
+
+### Archivos que NUNCA tocamos post-onboarding:
+```
+state.db     sessions/     memories/     auth.json     *.pid     *.lock     cron/
+```
+
+---
+
 ## REGLA ABSOLUTA — Acceso al servidor de producción
 
 > **Neo NUNCA accede directamente al servidor de producción (204.168.169.254)
