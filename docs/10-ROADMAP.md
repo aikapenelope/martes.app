@@ -3,28 +3,29 @@
 > **Estado a**: 4 junio 2026  
 > **Sistema**: Producción — 1 tenant activo (t001), t002 archivado/pendiente purge  
 > **Stack**: Hetzner CX43 · Coolify · Agno AgentOS 2.6.8 · SeaweedFS 4.28 · Hermes v2026.5.16 · Metabase v0.61.2.6  
-> **PRs abiertos**: #71 (investigación PocketBase), #72 (arquitectura PocketBase)  
-> **Documentación PocketBase**: `docs/hermes-guia/07-POCKETBASE-CRM-INVESTIGACION.md` · `08-ARQUITECTURA-POCKETBASE-COMPLETA.md`
+> **PRs abiertos**: #76 (Hermes factory defaults)
 
 ---
 
 ## ✅ Completado
 
-### Sprints A, B, C, D, F (PRs #57–72)
+### Sprints A–F + Paradigma (PRs #57–76)
 
 Ver `CHANGELOG.md` para el detalle completo.
 
-**Resumen de lo implementado:**
-- Robustez del agente: Pydantic, name→code, EntityMemory
-- Monitoreo automático: health-check, billing-check, alertas Telegram
-- Herramientas de producción: get_server_capacity, diagnose_container_error, upgrade_tenant
-- Backups y hardening: lifecycle SeaweedFS, healthcheck fix, restore fix
+**Resumen:**
+- Robustez: Pydantic, name→code, EntityMemory
+- Monitoreo: health-check, billing-check, alertas Telegram
+- Producción: get_server_capacity, diagnose_container_error, upgrade_tenant
+- Backups: lifecycle SeaweedFS, healthcheck fix, restore fix
 - Observabilidad: health_checks y error_logs se pueblan desde el código
 - Billing SaaS: trial 30d, alertas escalonadas, auto-suspend
 - Gaps operativos: gitleaks CI, docker-cleanup, stale resources
 - Metabase v0.61.2.6 en compose (solo Tailscale)
 - Platform key BYOK (TTL 2h, auth.json detection multi-proveedor)
-- Documentación fundacional: 8 documentos en `docs/hermes-guia/`
+- **Paradigma plataforma vs agente** — documentado en `docs/hermes-guia/00-PARADIGMA-PLATAFORMA.md`
+- **Home channel** — `TELEGRAM_HOME_CHANNEL` en `.env` desde create_tenant()
+- **Hermes factory defaults** — eliminadas todas las restricciones de container (cap_drop, pids_limit, tmpfs, security_opt). Solo queda `mem_limit=768m`
 
 ---
 
@@ -40,277 +41,26 @@ Ver `CHANGELOG.md` para el detalle completo.
 
 ---
 
-## Sprint G — PocketBase CRM (implementación)
+## Sprint G — `install_skill_in_tenant()`
 
-> **Plan completo**: `docs/SPRINT-G-PLAN.md` (v2 — diseño definitivo)  
-> **Prerequisito**: PR #74 + PR #76 mergeados  
-> **Principio**: martes.app hace el deploy. Hermes hace el resto.
+> **Plan**: `docs/SPRINT-G-PLAN.md`
 
-### Decisiones definitivas
+**Un solo item**: el meta-agente puede instalar skills en los tenants de Hermes.
 
-| Aspecto | Decisión |
-|---|---|
-| Imagen PocketBase | `ghcr.io/muchobien/pocketbase:latest` (oficial, sin modificar) |
-| Schema CRM | JS migrations montadas desde host — pocketbase.io/docs/js-migrations |
-| Superadmin | Env vars `PB_ADMIN_EMAIL/PASSWORD` — imagen lo crea sola |
-| React SPA | Montada desde `/var/lib/martes/pb_public/` (host) → todos los tenants comparten el mismo build |
-| Comunicación Hermes↔PB | MCP server `pocketbase-mcp-server` en `config.yaml` del tenant |
-| Backup | `backup_pocketbase_tenant()` via `POST /api/backups` → SeaweedFS separado |
-| Skill CRM | Contexto de negocio (cuándo usar qué colección) — NO infraestructura |
-| Repo separado | No necesario |
-| Imagen custom | Descartada — frágil, acopla React+PocketBase+Hermes lifecycle |
-
-### Operacional pre-sprint
+El cliente no puede instalar skills directamente — `hermes skills install X` requiere
+detener y reiniciar el gateway. El meta-agente sí puede: copia los archivos al volumen
+y hace el restart.
 
 ```
-1. DNS: *.martes.app → 204.168.169.254
-2. En el VPS: mkdir -p /var/lib/martes/pb_public  (vacío al principio)
+Admin → meta-agente: "instala la skill de airtable en t001"
+Operador ejecuta: install_skill_in_tenant("t001", "airtable")
+→ descarga SKILL.md desde repo oficial de Hermes (GitHub)
+→ copia a /var/lib/martes/tenants/t001/skills/airtable/
+→ reinicia hermes-t001 (exit 75 → Docker lo levanta en segundos)
+→ verifica health OK
 ```
 
----
-
-### G1 · DB migration: campo `slug`
-
-`db/migrations/003_pocketbase_slug.sql`: `ALTER TABLE tenants ADD COLUMN IF NOT EXISTS slug VARCHAR(63) UNIQUE`
-
----
-
-### G2 · `TenantCreateInput`: campo `slug` + validación
-
-Pydantic: slug lowercase, 3-63 chars, alfanumérico+guiones, no reservados (api/www/app/admin/metabase).  
-Guardar en `tenants.slug` al crear.
-
----
-
-### G3 · Templates JS de migrations + config.yaml con MCP
-
-```
-infra/templates/pocketbase/migrations/
-  1_crm_schema.js     ← 6 colecciones (contactos, conversaciones, productos, pedidos, pagos, calendario)
-  2_api_rules.js      ← reglas de acceso
-  3_settings.js       ← app name + URL (placeholders {{TENANT_NAME}}, {{TENANT_SLUG}})
-
-infra/templates/default/config.yaml  ← añadir bloque mcp_servers.crm con placeholder {{POCKETBASE_URL}}
-infra/templates/skills/crm-pocketbase/SKILL.md  ← contexto de negocio para Hermes
-```
-
----
-
-### G4 · PocketBase sidecar en `create_tenant()`
-
-Container `pb-{code}`:
-- imagen: `ghcr.io/muchobien/pocketbase:latest`
-- env: `PB_ADMIN_EMAIL` + `PB_ADMIN_PASSWORD` (crea superadmin automáticamente)
-- volúmenes: `pb_data/` (rw) + `pb_migrations/` (ro) + `/var/lib/martes/pb_public` (ro compartido)
-- redes: `tenant-{code}-net` + `coolify` (doble red para Traefik)
-- Traefik labels: `{slug}.martes.app → :8090`
-- Esperar health → obtener token via `docker exec wget` → escribir `POCKETBASE_URL` y `POCKETBASE_TOKEN` en `.env`
-- Reemplazar placeholders en `config.yaml` y migrations antes de copiar
-
----
-
-### G5 · Lifecycle tools: stop / restart / delete
-
-Cada uno añade bloque `try/except NotFound: pass` para `pb-{code}`. Compatibilidad hacia atrás garantizada.
-
----
-
-### G6 · `backup_pocketbase_tenant()` + schedule 3:30 AM
-
-API nativa PocketBase → `.zip` → SeaweedFS `pb-backups/{tenant_code}/` → últimos 7.  
-Independiente del backup de Hermes (3:00 AM).
-
----
-
-### G7 · `deploy_pocketbase_tenant()` para tenants existentes
-
-Tool del Operador para t001 y tenants creados antes del Sprint G.
-
----
-
-### G8 · Test en VPS con tenant de prueba
-
-No tocar t001. Tenant `t_test` → validar ambos containers → colecciones → MCP → backup → delete limpio.
-
----
-
-### G9 · React SPA (trabajo externo, no en este repo)
-
-React + Vite + TypeScript + PocketBase JS SDK.  
-`new PocketBase(window.location.origin)` — same-origin, sin CORS.  
-Build output → `/var/lib/martes/pb_public/` en el VPS.  
-Actualizar la UI = `rsync dist/ root@vps:/var/lib/martes/pb_public/` — todos los tenants actualizados sin reiniciar containers.
-
----
-
-> **Investigación completada**: ver `docs/hermes-guia/07` y `08`.  
-> **Decisión arquitectural**: una instancia PocketBase por tenant (recomendación oficial del maintainer ganigeorgiev). No se usa instancia compartida.
-
-### Decisiones tomadas
-
-**Subdominio**: `{slug}.martes.app` (ej: `acme.martes.app`)
-- Mejor UX que `t001.app.martes.app` — memorable y representa la marca del cliente
-- El slug se deriva del nombre del negocio (lowercase, guiones)
-- Slugs reservados: `api`, `www`, `app`, `admin`, `metabase`
-- Requiere wildcard cert `*.martes.app` en Traefik (una configuración, cubre todos)
-- El slug se guarda en `instance_configs.extra_config: {"pb_slug": "acme"}`
-
-**Traefik**: sin conflictos. Cada PocketBase usa `Host({slug}.martes.app)`. El meta-agente usa `Host(api.martes.app)`. Traefik descubre containers con `traefik.enable=true` automáticamente.
-
-**Browser**: los clientes de martes.app NO necesitan browser local. Hermes usa `ddgs` (DuckDuckGo, sin API key, sin Chromium, +0MB RAM) para búsquedas. Para automatización web si alguien la pide: Browserbase o Browser Use cloud API (+0MB en container, pago por uso).
-
-**Kanban/workers**: descartado para el perfil de PyME venezolana. No es necesario.
-
-**Container restrictions**: los cambios mínimos necesarios son:
-- `pids_limit`: 256 → **512** (Hermes spawna más procesos de lo esperado con skills activas)
-- `tmpfs /tmp`: 100MB → **500MB** (pip installs de skills, archivos temporales)
-- `mem_limit`: mantener **768MB** — con ddgs y sin browser es suficiente
-- `cap_drop/cap_add`: mantener igual — no se necesita SYS_PTRACE para uso normal
-
-**Web search sin browser** (confirmado del source code de Hermes):
-```
-web_search = ddgs (DuckDuckGo)  →  HTTP puro, sin Chromium, +0MB RAM, sin API key
-web_extract = Firecrawl API     →  HTTP puro, +0MB RAM, necesita API key ($20/mes)
-browser_tool                    →  solo si el cliente necesita formularios/SPAs
-```
-
----
-
-### G1 · Ajustes del container (rápido)
-
-Cambiar en `create_tenant()` en `write_ops.py`:
-```python
-pids_limit=256       →  pids_limit=512
-tmpfs={"/tmp": "size=100m"}  →  tmpfs={"/tmp": "size=500m"}
-```
-
-Tenants existentes: `update_tenant_resources()` no cubre pids/tmpfs. Se aplica en el próximo recreate o upgrade del container.
-
-**Archivos**: `apps/meta-agent/src/tools/write_ops.py`
-
----
-
-### G2 · PocketBase sidecar en `create_tenant()`
-
-Cuando se crea un tenant, además del container `hermes-{code}`, se crea `pb-{code}`:
-
-```python
-# Después de crear hermes-{code}:
-1. Crear /var/lib/martes/tenants/{code}/pb_data/      # vacío, PocketBase lo inicializa
-2. Crear /var/lib/martes/tenants/{code}/pb_migrations/ # con schema CRM pre-definido
-   └── 1_crm_schema.js     # 6 colecciones: contactos, conversaciones, productos, pedidos, pagos, calendario
-   └── 2_hermes_token.js   # API token para Hermes
-3. Lanzar container pb-{code}:
-   - image: ghcr.io/pocketbase/pocketbase:latest
-   - redes: tenant-{code}-net (para Hermes) + coolify (para Traefik)
-   - volumen: pb_data/ → /pb_data
-   - labels Traefik: Host({slug}.martes.app) → :8090
-   - mem_limit: 128MB
-4. Esperar health OK (curl /_/api/health)
-5. Crear superadmin via CLI
-6. Generar API token para Hermes → escribir POCKETBASE_TOKEN en .env del tenant
-7. Reiniciar hermes-{code} para cargar la nueva var
-```
-
-**Archivos**: `apps/meta-agent/src/tools/write_ops.py` (create_tenant + nuevo deploy_pocketbase)
-
----
-
-### G3 · `deploy_pocketbase_tenant()` — tool del meta-agente
-
-Para tenants **existentes** (t001, etc.) que no tienen PocketBase todavía:
-
-```python
-def deploy_pocketbase_tenant(tenant_code: str, slug: str) -> str:
-    """Despliega PocketBase para un tenant existente.
-    Crea el container, copia migrations, configura Traefik, escribe token en .env.
-    Requiere aprobación.
-    """
-```
-
-**Archivos**: `write_ops.py`, `agents/operador.py`
-
----
-
-### G4 · `install_skill_in_tenant()` — tool del meta-agente
-
-El cliente Hermes no puede instalar skills (requiere reiniciar el gateway). El meta-agente sí puede:
-
-```python
-def install_skill_in_tenant(tenant_code: str, skill_name: str) -> str:
-    """Instala una skill en el tenant sin que el cliente la instale directo.
-    
-    1. Descarga SKILL.md desde el hub oficial de Hermes (agentskills.io o GitHub)
-    2. Copia a /var/lib/martes/tenants/{code}/skills/{skill}/SKILL.md
-    3. Reinicia hermes-{code} para que cargue la skill
-    4. Verifica que el bot responde normalmente
-    
-    Skills disponibles: airtable, notion, google-workspace, stocks, shopify,
-                        solana, evm, crm-pocketbase (ver G5)
-    Requiere aprobación.
-    """
-```
-
-**Archivos**: `write_ops.py`, `agents/operador.py`
-
----
-
-### G5 · Skill `crm-pocketbase` para Hermes
-
-La skill que enseña a Hermes cómo usar su PocketBase como CRM:
-
-```
-/var/lib/martes/tenants/{code}/skills/crm-pocketbase/SKILL.md
-
-Contenido:
-- Cómo guardar cada conversación de WhatsApp/Telegram en la colección `conversaciones`
-- Cómo crear un contacto nuevo cuando el cliente no existe
-- Cómo registrar un pedido cuando el cliente confirma una compra
-- Cómo actualizar el stock cuando se confirma entrega
-- Cómo crear un evento en `calendario` cuando agenda una cita
-- URL y token de PocketBase: http://pb-{code}:8090 + token del .env
-```
-
-Esta skill se instala automáticamente en G2 al crear el tenant. Para tenants existentes: `install_skill_in_tenant("t001", "crm-pocketbase")`.
-
-**Archivos**: `infra/templates/skills/crm-pocketbase/SKILL.md` (nuevo template)
-
----
-
-### G6 · `delete_tenant()` actualizado para PocketBase
-
-Cuando se da de baja un tenant, también se elimina su PocketBase:
-
-```python
-# En delete_tenant(), después de eliminar hermes-{code}:
-1. Parar y eliminar container pb-{code}
-2. El volumen pb_data/ se elimina con el resto del volumen del tenant
-   (o se conserva si keep_volume=True)
-```
-
-**Archivos**: `write_ops.py` (delete_tenant + stop_tenant)
-
----
-
-### G7 · PWA mínima viable
-
-> **Trabajo externo a este repo.** Tecnología: Next.js + PocketBase JS SDK.
-
-```
-Una única app Next.js en Vercel que sirve a todos los tenants.
-Ruta de login: app.martes.app → detecta slug → conecta a {slug}.martes.app API
-
-Vistas:
-  / — Dashboard (inventario crítico, pedidos del día, conversaciones sin leer)
-  /inventario — Tabla de productos con stock, búsqueda, edición inline
-  /pedidos — Lista de pedidos con filtros por estado
-  /contactos — CRM básico: lista de clientes, historial de conversaciones
-  /calendario — Citas y entregas de la semana
-  /config — Datos del negocio, métodos de pago, SOUL del agente
-
-Auth: PocketBase built-in (email/OTP — sin Clerk)
-Realtime: SSE subscriptions para pedidos e inventario en tiempo real
-```
+**Archivos**: `apps/meta-agent/src/tools/write_ops.py` + `agents/operador.py`
 
 ---
 
@@ -318,15 +68,13 @@ Realtime: SSE subscriptions para pedidos e inventario en tiempo real
 
 ### Alta prioridad
 
-**`inject_credential` con `openrouter_api_key`** — Cuando el admin inyecta la key propia del cliente, borrar inmediatamente el marker `.platform_key_expires`:
-
+**`inject_credential` con `openrouter_api_key`** — borrar `.platform_key_expires` inmediatamente al inyectar la key propia del cliente:
 ```python
-# En inject_credential(), si credential_type == "openrouter_api_key":
 marker_file = tenant_path / _PLATFORM_KEY_EXPIRES_FILE
-marker_file.unlink(missing_ok=True)  # cleanup inmediato, no esperar 30min
+marker_file.unlink(missing_ok=True)
 ```
 
-**`martes_traces` y `martes_sessions` pruning** — Schedule semanal:
+**`martes_traces` y `martes_sessions` pruning** — schedule semanal:
 ```sql
 DELETE FROM martes_traces WHERE created_at < NOW() - INTERVAL '30 days';
 DELETE FROM martes_sessions WHERE updated_at < NOW() - INTERVAL '90 days';
@@ -334,9 +82,9 @@ DELETE FROM martes_sessions WHERE updated_at < NOW() - INTERVAL '90 days';
 
 ### Media prioridad
 
-**`health_checks` pruning** — Schedule semanal para datos > 90 días.
+**`health_checks` pruning** — schedule semanal, datos > 90 días.
 
-**Billing agent conversacional** — Tercer agente del Team especializado en billing. Responde: *"¿quiénes vencen esta semana?"*, *"¿cuánto revenue este mes?"*. Solo lectura. ~50 líneas.
+**Billing agent conversacional** — tercer agente del Team para consultas de billing desde Telegram. Solo lectura. ~50 líneas.
 
 ---
 
@@ -344,20 +92,19 @@ DELETE FROM martes_sessions WHERE updated_at < NOW() - INTERVAL '90 days';
 
 ### E1 · Primer cliente real (beta)
 
-**Bloqueante**: C1 (backup→restore), G1 (container fixes), G2 (PocketBase deploy).
+**Bloqueante**: C1 (backup→restore) y Sprint G (`install_skill_in_tenant`).
 
-Flujo de onboarding con PocketBase incluido:
+Flujo de onboarding:
 ```
-1. "crea tenant [nombre] [slug] token [bot_token] telegram_id [id]"
-   → hermes-{code} + pb-{code} arrancados
+1. "crea tenant [nombre] token [bot_token] telegram_id [id]"
+   → hermes-{code} arrancado con todas las capacidades de fábrica
    → paid_until = hoy + 30 días (trial)
-   → {slug}.martes.app accesible
 
-2. Cliente instala la PWA en su móvil (app.martes.app)
-   → ve su inventario vacío, sus pedidos, su configuración
+2. Cliente abre Telegram, habla con su bot
+   → Hermes se presenta, explica /help
 
-3. Admin configura el catálogo inicial vía Telegram o PocketBase admin UI:
-   "agrega estos productos al catálogo de t001: [lista]"
+3. Admin puede instalar skills si el cliente las necesita:
+   "instala la skill de airtable en t001"
 
 4. Cliente configura su propia OpenRouter key
    → platform key expira automáticamente en 2h
@@ -373,32 +120,35 @@ Cuando NousResearch publique la siguiente versión estable de Hermes.
 
 ## Descartado
 
-**Hermes dashboard por tenant** — Demasiado complejo, expone API keys. Los clientes gestionan desde Telegram.
+**Hermes dashboard por tenant** — expone API keys. Los clientes gestionan desde Telegram.
 
-**Kanban/workers para PyMEs** — El perfil de uso no lo requiere. Browser local tampoco. ddgs cubre búsquedas sin overhead.
+**Kanban/workers para PyMEs** — no necesario para el perfil de cliente actual.
+
+**Sprint G original (PocketBase CRM)** — descartado hasta que PocketBase alcance v1.0.0.
+PocketBase dice explícitamente en su documentación: "NOT recommended for production critical
+applications yet". Los MCP servers disponibles son alpha/v1.0.0. Se retoma como **Sprint I**
+cuando el ecosistema madure (estimado Q4 2026).
+La investigación completa está en `docs/hermes-guia/07` y `08` como referencia futura.
+El CRM en la fase actual se implementa via SQLite directamente en el volumen de Hermes.
 
 ---
 
 ## Capacidad del servidor
 
-| Tier | RAM/tenant | Tenants en CX43 | Precio |
-|---|---|---|---|
-| **Básico** (ddgs, sin browser) | 768MB Hermes + 128MB PocketBase | ~18 | $30/mes |
-| **Pro** (browser cloud API) | 768MB Hermes + 128MB PocketBase | ~18 | $50/mes |
-| **Heavy** (browser local) | 1.5GB Hermes + 128MB PocketBase | ~9 | $80/mes |
+| Configuración | Tenants seguros |
+|---|---|
+| 768MB / 0.75 CPU sin restricciones extra | ~20 tenants en CX43 |
+| Uso idle real (~200MB) | ~60 caben teóricamente |
+| **Límite práctico** | **20–25 tenants** |
 
-El browser local (Chromium headless) no se desplegará en los primeros clientes — ddgs cubre búsquedas, browser cloud (Browserbase API) cubre automatización si alguien lo necesita, sin cambiar el límite de RAM del container.
+Para escalar: upgrade a CX53 (32GB, €45/mes).
 
 ---
 
-## Lecciones aprendidas
+## Lecciones aprendidas recientes
 
-Ver `CHANGELOG.md` → Notas técnicas.
-
-**Adiciones recientes (PocketBase sprint):**
-1. PocketBase: una instancia por tenant es la arquitectura correcta (recomendación oficial del maintainer)
-2. ddgs (DuckDuckGo) = búsqueda web gratuita sin browser, sin API key, +0MB RAM — suficiente para 80%+ de casos PyME
-3. Browser local (Chromium) = +350-500MB RAM cuando activo — no necesario para el perfil de cliente actual
-4. `{slug}.martes.app` mejor que `{code}.app.martes.app` — memorable, representa la marca del cliente
-5. El meta-agente SÍ puede instalar skills/configurar tenants que el bot del cliente no puede — la infraestructura existe, faltan las tools Python
-6. Agno schema `"ai"` aísla sus tablas de las tablas de negocio en `"public"` — Metabase solo debe ver `"public"`
+1. **Paradigma plataforma vs agente**: martes.app gestiona solo la plataforma. Hermes gestiona su funcionamiento. `docs/hermes-guia/00-PARADIGMA-PLATAFORMA.md`
+2. **Hermes factory defaults**: sin cap_drop, sin pids_limit, sin tmpfs — Docker defaults son correctos. El único límite intencional es `mem_limit=768m`
+3. **ddgs**: búsqueda web gratuita, sin browser, sin API key, +0MB RAM — cubre 80%+ de casos
+4. **PocketBase pre-v1.0.0**: no recomendado para producción según su propia documentación. Retomar en Sprint I
+5. **MCP servers**: ecosystem madurando, no usar paquetes alpha en producción SaaS
