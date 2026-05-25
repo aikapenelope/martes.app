@@ -59,3 +59,28 @@ jobs:
           # cache-from/to: reutiliza capas entre builds de CI para acelerar
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  unit-tests:
+    name: Unit tests (meta-agent)
+    runs-on: ubuntu-latest
+    needs: secret-scan
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          cd apps/meta-agent
+          pip install --quiet -e ".[dev]"
+
+      - name: Run unit tests
+        run: |
+          cd apps/meta-agent
+          python -m pytest tests/ -v --tb=short
