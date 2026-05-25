@@ -42,130 +42,104 @@ Ver `CHANGELOG.md` para el detalle completo.
 
 ## Sprint G — PocketBase CRM (implementación)
 
-> **Plan completo**: `docs/SPRINT-G-PLAN.md`  
-> **Prerequisito**: PR #74 mergeado  
+> **Plan completo**: `docs/SPRINT-G-PLAN.md` (v2 — diseño definitivo)  
+> **Prerequisito**: PR #74 + PR #76 mergeados  
 > **Principio**: martes.app hace el deploy. Hermes hace el resto.
 
-### Operacional pre-sprint (tú en el registrador de dominio)
+### Decisiones definitivas
+
+| Aspecto | Decisión |
+|---|---|
+| Imagen PocketBase | `ghcr.io/muchobien/pocketbase:latest` (oficial, sin modificar) |
+| Schema CRM | JS migrations montadas desde host — pocketbase.io/docs/js-migrations |
+| Superadmin | Env vars `PB_ADMIN_EMAIL/PASSWORD` — imagen lo crea sola |
+| React SPA | Montada desde `/var/lib/martes/pb_public/` (host) → todos los tenants comparten el mismo build |
+| Comunicación Hermes↔PB | MCP server `pocketbase-mcp-server` en `config.yaml` del tenant |
+| Backup | `backup_pocketbase_tenant()` via `POST /api/backups` → SeaweedFS separado |
+| Skill CRM | Contexto de negocio (cuándo usar qué colección) — NO infraestructura |
+| Repo separado | No necesario |
+| Imagen custom | Descartada — frágil, acopla React+PocketBase+Hermes lifecycle |
+
+### Operacional pre-sprint
 
 ```
-DNS wildcard: *.martes.app → 204.168.169.254
+1. DNS: *.martes.app → 204.168.169.254
+2. En el VPS: mkdir -p /var/lib/martes/pb_public  (vacío al principio)
 ```
-
-Una sola vez. Cubre todos los slugs de tenants automáticamente.
 
 ---
 
 ### G1 · DB migration: campo `slug`
 
-**Archivo**: `db/migrations/003_pocketbase_slug.sql`
-
-```sql
-ALTER TABLE tenants ADD COLUMN IF NOT EXISTS slug VARCHAR(63) UNIQUE;
-CREATE INDEX IF NOT EXISTS idx_tenants_slug ON tenants(slug) WHERE slug IS NOT NULL;
-```
-
-El slug determina el subdominio del cliente: `acme.martes.app`.
-Se aplica automáticamente en el próximo redeploy del compose.
+`db/migrations/003_pocketbase_slug.sql`: `ALTER TABLE tenants ADD COLUMN IF NOT EXISTS slug VARCHAR(63) UNIQUE`
 
 ---
 
-### G2 · `create_tenant()`: slug + fixes de container
+### G2 · `TenantCreateInput`: campo `slug` + validación
 
-**Archivo**: `apps/meta-agent/src/tools/write_ops.py`
-
-**2a — Pydantic**: añadir campo `slug` a `TenantCreateInput` con validación (lowercase, alfanumérico+guiones, 3-63 chars, no reservados: api/www/app/admin/metabase).
-
-**2b — Container fixes**:
-```python
-pids_limit=256  →  pids_limit=512
-tmpfs="/tmp": "size=100m"  →  "size=500m"
-# mem_limit="768m" sin cambio
-```
-
-**2c — DB**: guardar slug en `tenants.slug` al crear.
+Pydantic: slug lowercase, 3-63 chars, alfanumérico+guiones, no reservados (api/www/app/admin/metabase).  
+Guardar en `tenants.slug` al crear.
 
 ---
 
-### G3 · Templates PocketBase
+### G3 · Templates JS de migrations + config.yaml con MCP
 
-**Archivos nuevos**:
 ```
-infra/templates/pocketbase/migrations/1_crm_schema.js    ← 6 colecciones
-infra/templates/pocketbase/migrations/2_hermes_token.js  ← API token
-infra/templates/skills/crm-pocketbase/SKILL.md           ← enseña a Hermes a usar el CRM
-```
+infra/templates/pocketbase/migrations/
+  1_crm_schema.js     ← 6 colecciones (contactos, conversaciones, productos, pedidos, pagos, calendario)
+  2_api_rules.js      ← reglas de acceso
+  3_settings.js       ← app name + URL (placeholders {{TENANT_NAME}}, {{TENANT_SLUG}})
 
-El schema completo de las colecciones está en `docs/hermes-guia/07-POCKETBASE-CRM-INVESTIGACION.md`.
+infra/templates/default/config.yaml  ← añadir bloque mcp_servers.crm con placeholder {{POCKETBASE_URL}}
+infra/templates/skills/crm-pocketbase/SKILL.md  ← contexto de negocio para Hermes
+```
 
 ---
 
 ### G4 · PocketBase sidecar en `create_tenant()`
 
-**Archivo**: `apps/meta-agent/src/tools/write_ops.py`
-
-Después de crear `hermes-{code}`:
-1. Crear `pb_data/` y `pb_migrations/` en el volumen del tenant
-2. Copiar migration templates al volumen
-3. Copiar skill `crm-pocketbase` al volumen
-4. Arrancar container `pb-{code}`:
-   - image: `ghcr.io/pocketbase/pocketbase:0.23.6`
-   - redes: `tenant-{code}-net` + `coolify` (doble red para Traefik)
-   - mem: 128MB / 0.25 CPU
-   - Traefik labels: `Host({slug}.martes.app) → :8090`
-5. Esperar health OK (30s)
-6. Crear superadmin via `docker exec`
-7. Generar API token → escribir `POCKETBASE_URL` y `POCKETBASE_TOKEN` en `.env`
-8. Guardar slug en `instance_configs.extra_config`
+Container `pb-{code}`:
+- imagen: `ghcr.io/muchobien/pocketbase:latest`
+- env: `PB_ADMIN_EMAIL` + `PB_ADMIN_PASSWORD` (crea superadmin automáticamente)
+- volúmenes: `pb_data/` (rw) + `pb_migrations/` (ro) + `/var/lib/martes/pb_public` (ro compartido)
+- redes: `tenant-{code}-net` + `coolify` (doble red para Traefik)
+- Traefik labels: `{slug}.martes.app → :8090`
+- Esperar health → obtener token via `docker exec wget` → escribir `POCKETBASE_URL` y `POCKETBASE_TOKEN` en `.env`
+- Reemplazar placeholders en `config.yaml` y migrations antes de copiar
 
 ---
 
-### G5 · Lifecycle tools actualizados
+### G5 · Lifecycle tools: stop / restart / delete
 
-**Archivo**: `apps/meta-agent/src/tools/write_ops.py`
-
-Cada función añade un bloque `try/except NotFound: pass` para `pb-{code}`:
-- `stop_tenant()`: también para `pb-{code}`
-- `restart_tenant()`: también reinicia `pb-{code}`
-- `delete_tenant()`: también para + remove `pb-{code}`
-
-Compatibilidad hacia atrás: tenants sin PocketBase siguen funcionando igual.
+Cada uno añade bloque `try/except NotFound: pass` para `pb-{code}`. Compatibilidad hacia atrás garantizada.
 
 ---
 
-### G6 · `deploy_pocketbase_tenant()` — para tenants existentes
+### G6 · `backup_pocketbase_tenant()` + schedule 3:30 AM
 
-**Archivo**: `apps/meta-agent/src/tools/write_ops.py` + `agents/operador.py`
-
-Tool que el Operador puede ejecutar para t001 y futuros tenants creados antes del Sprint G:
-
-```
-Admin → meta-agente: "despliega pocketbase para t001 con slug acme"
-Operador ejecuta: deploy_pocketbase_tenant("t001", "acme")
-→ mismos pasos que G4 pero sin crear el container Hermes
-→ reinicia hermes-t001 para cargar las nuevas vars del .env
-```
+API nativa PocketBase → `.zip` → SeaweedFS `pb-backups/{tenant_code}/` → últimos 7.  
+Independiente del backup de Hermes (3:00 AM).
 
 ---
 
-### G7 · Test en VPS con tenant de prueba
+### G7 · `deploy_pocketbase_tenant()` para tenants existentes
 
-No tocar t001. Crear un tenant de prueba (ej: `t_test`) para validar:
-1. `create_tenant()` crea ambos containers
-2. `{slug}.martes.app` responde con la admin UI de PocketBase
-3. Las colecciones del CRM están creadas
-4. Hermes puede hacer `curl` al PocketBase desde su terminal
-5. `delete_tenant("t_test")` elimina ambos containers limpiamente
+Tool del Operador para t001 y tenants creados antes del Sprint G.
 
 ---
 
-### G8 · PWA (trabajo externo, no en este repo)
+### G8 · Test en VPS con tenant de prueba
 
-Next.js + PocketBase JS SDK en Vercel. Cubre:
-- Login via PocketBase auth (email/OTP)
-- Dashboard: inventario, pedidos, conversaciones
-- Realtime via SSE subscriptions de PocketBase
-- Mobile PWA installable
+No tocar t001. Tenant `t_test` → validar ambos containers → colecciones → MCP → backup → delete limpio.
+
+---
+
+### G9 · React SPA (trabajo externo, no en este repo)
+
+React + Vite + TypeScript + PocketBase JS SDK.  
+`new PocketBase(window.location.origin)` — same-origin, sin CORS.  
+Build output → `/var/lib/martes/pb_public/` en el VPS.  
+Actualizar la UI = `rsync dist/ root@vps:/var/lib/martes/pb_public/` — todos los tenants actualizados sin reiniciar containers.
 
 ---
 
