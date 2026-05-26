@@ -420,14 +420,30 @@ async def run_health_check() -> JSONResponse:
                 details={"detected_by": "health-check-all", "status": t["status"]},
             )
 
-    # Disco en /var/lib/martes — alerta si > 80%
+    # Disco en /var/lib/martes — alerta si > 80% y persiste en server_metrics
     try:
+        import psycopg
+
         disk = shutil.disk_usage("/var/lib/martes")
         disk_pct = round(disk.used / disk.total * 100, 1)
+        used_gb = round(disk.used / (1 << 30), 2)
+        total_gb = round(disk.total / (1 << 30), 2)
         result["disk_pct"] = disk_pct
+        result["disk_used_gb"] = used_gb
+
+        # Persistir en server_metrics para historial en Metabase
+        _pg_url = settings.database_url.replace("+psycopg", "")
+        try:
+            with psycopg.connect(_pg_url) as conn:
+                conn.execute(
+                    "INSERT INTO server_metrics (disk_used_gb, disk_total_gb, disk_pct)"
+                    " VALUES (%s, %s, %s)",
+                    (used_gb, total_gb, disk_pct),
+                )
+        except Exception as db_exc:
+            logger.debug("server_metrics write failed: %s", db_exc)
+
         if disk_pct > 80:
-            used_gb = round(disk.used / (1 << 30), 1)
-            total_gb = round(disk.total / (1 << 30), 1)
             alerts.append(f"💾 Disco al {disk_pct}% ({used_gb}GB / {total_gb}GB)")
             logger.warning("Health check: disk usage at %.1f%%", disk_pct)
     except OSError as exc:
