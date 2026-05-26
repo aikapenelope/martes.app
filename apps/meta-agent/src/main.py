@@ -404,14 +404,17 @@ async def run_health_check() -> JSONResponse:
     result = json.loads(check_all_health())
     alerts: list[str] = []
 
-    # Tenants que no están healthy — registrar en error_logs para Metabase
-    unhealthy = [t for t in result.get("tenants", []) if t.get("status") != "healthy"]
-    if unhealthy:
-        tenant_list = ", ".join(f"{t['tenant']}({t['status']})" for t in unhealthy)
-        alerts.append(f"⚠️ {len(unhealthy)} tenant(s) unhealthy: {tenant_list}")
+    # Tenants con problema real — excluir "starting" (container recién levantado, es normal)
+    # FIX: antes incluía "starting" en las alertas, disparando falsos positivos tras create_tenant.
+    truly_unhealthy = [
+        t for t in result.get("tenants", []) if t.get("status") in ("unhealthy", "stopped")
+    ]
+    if truly_unhealthy:
+        tenant_list = ", ".join(f"{t['tenant']}({t['status']})" for t in truly_unhealthy)
+        alerts.append(f"⚠️ {len(truly_unhealthy)} tenant(s) unhealthy: {tenant_list}")
         logger.warning("Health check: unhealthy tenants: %s", tenant_list)
         # Persistir en error_logs: source='system' porque fue el scheduler quien lo detectó
-        for t in unhealthy:
+        for t in truly_unhealthy:
             _record_error_log(
                 tenant_code=t["tenant"],
                 source="system",
@@ -453,7 +456,7 @@ async def run_health_check() -> JSONResponse:
     if alerts:
         await _send_telegram_alert("🔔 martes.app\n" + "\n".join(alerts))
 
-    status_code = 200 if not unhealthy else 207
+    status_code = 200 if not truly_unhealthy else 207
     return JSONResponse(status_code=status_code, content=result)
 
 
