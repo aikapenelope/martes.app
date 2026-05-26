@@ -1,6 +1,4 @@
 ---
-// DocsLayout — layout compartido por todas las páginas de documentación.
-// Sidebar con navegación por secciones + área de contenido central.
 import Layout from './Layout.astro';
 import { getCollection } from 'astro:content';
 
@@ -12,144 +10,138 @@ export interface Props {
 
 const { title, description, currentSlug } = Astro.props;
 
-// Obtener todos los docs y agrupar por sección
 const allDocs = (await getCollection('docs')).sort((a, b) => a.data.order - b.data.order);
-
 const sections: Record<string, typeof allDocs> = {};
 for (const doc of allDocs) {
   const s = doc.data.section;
   if (!sections[s]) sections[s] = [];
   sections[s].push(doc);
 }
+
+// Anterior / Siguiente para navegación inline
+const flat = allDocs;
+const idx  = flat.findIndex(d => d.slug === currentSlug);
+const prev = idx > 0 ? flat[idx - 1] : null;
+const next = idx >= 0 && idx < flat.length - 1 ? flat[idx + 1] : null;
 ---
 
-<Layout title={`${title} — Docs martes.app`} description={description}>
-  <div class="min-h-screen flex flex-col">
+<Layout title={`${title} — Docs`} description={description}>
+<style is:global>
+  /* Scroll suave para anchors internos */
+  html { scroll-behavior: smooth; }
+</style>
 
-    <!-- Top nav docs -->
-    <header class="fixed top-0 w-full z-40 border-b border-sys-border bg-sys-bg/90 backdrop-blur-md">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        <div class="flex items-center gap-6">
-          <a href="/" class="flex items-center gap-2 text-sys-text font-bold tracking-widest uppercase text-sm">
-            <span class="w-2 h-2 bg-sys-accent-1 rounded-full"></span>
-            SYS.HERMES
-          </a>
+<!-- NAV SUPERIOR -->
+<header class="fixed top-0 w-full z-40 border-b border-sys-border bg-sys-bg/95 backdrop-blur-md">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-4">
+    <div class="flex items-center gap-4 min-w-0">
+      <a href="/" class="flex items-center gap-2 shrink-0">
+        <span class="w-1.5 h-1.5 bg-sys-accent-1 rounded-full"></span>
+        <span class="text-sys-text font-bold tracking-widest uppercase text-xs font-mono">martes.app</span>
+      </a>
+      <span class="text-sys-border">/</span>
+      <a href="/docs" class="text-sys-muted text-xs font-mono hover:text-sys-accent-1 transition-colors shrink-0">Docs</a>
+      {currentSlug && (
+        <>
           <span class="text-sys-border">/</span>
-          <span class="text-sys-muted text-xs uppercase tracking-widest">Docs</span>
-        </div>
-        <div class="flex items-center gap-6 text-xs">
-          <a href="/" class="text-sys-muted hover:text-sys-accent-1 transition-colors uppercase tracking-wider">Landing</a>
-          <a href="#contact" class="bg-sys-text text-black px-4 py-2 font-bold uppercase tracking-wider hover:bg-sys-accent-1 transition-colors">
-            [ DEPLOY_AGENT ]
-          </a>
-        </div>
-      </div>
-    </header>
-
-    <div class="flex pt-16 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 gap-8 py-12">
-
-      <!-- SIDEBAR -->
-      <aside class="hidden lg:block w-64 shrink-0">
-        <nav class="sticky top-24 font-mono text-xs">
-          <a href="/docs" class={`block mb-6 text-sm font-bold uppercase tracking-widest ${!currentSlug ? 'text-sys-accent-1' : 'text-sys-text hover:text-sys-accent-1'} transition-colors`}>
-            ← Docs
-          </a>
-
-          {Object.entries(sections).map(([section, docs]) => (
-            <div class="mb-6">
-              <div class="text-[10px] text-sys-muted uppercase tracking-widest mb-2 border-b border-sys-border pb-1">
-                {section}
-              </div>
-              <ul class="space-y-1">
-                {docs.map(doc => (
-                  <li>
-                    <a
-                      href={`/docs/${doc.slug}`}
-                      class={`block px-2 py-1.5 transition-colors ${
-                        currentSlug === doc.slug
-                          ? 'text-sys-accent-1 border-l-2 border-sys-accent-1 pl-3 bg-sys-surface'
-                          : 'text-sys-muted hover:text-sys-text hover:pl-3'
-                      }`}
-                    >
-                      {doc.data.title}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </nav>
-      </aside>
-
-      <!-- CONTENIDO -->
-      <main class="flex-1 min-w-0">
-        <div class="border-b border-sys-border pb-8 mb-8">
-          <h1 class="text-3xl font-bold font-sans text-white mb-2">{title}</h1>
-          {description && <p class="text-sys-muted text-sm">{description}</p>}
-        </div>
-
-        <!-- Prose: estilos para el Markdown renderizado -->
-        <div class="prose-docs">
-          <slot />
-        </div>
-      </main>
-
+          <span class="text-sys-text text-xs font-mono truncate">{title}</span>
+        </>
+      )}
+    </div>
+    <div class="flex items-center gap-4 shrink-0 text-xs font-mono">
+      <a href="/blog"     class="text-sys-muted hover:text-sys-accent-1 transition-colors hidden sm:block">Blog</a>
+      <a href="/#contacto" class="bg-sys-accent-1 text-black px-3 py-1.5 font-bold uppercase tracking-wider hover:bg-white transition-colors text-[10px]">
+        Contacto
+      </a>
     </div>
   </div>
-</Layout>
+</header>
 
-<style is:global>
-/* Estilos para el contenido Markdown renderizado en docs */
-.prose-docs h2 {
-  @apply text-xl font-bold text-white mt-10 mb-4 pb-2 border-b border-sys-border font-sans;
-}
-.prose-docs h3 {
-  @apply text-base font-bold text-sys-accent-1 mt-6 mb-3 font-mono;
-}
-.prose-docs p {
-  @apply text-sys-muted text-sm leading-relaxed mb-4;
-}
-.prose-docs a {
-  @apply text-sys-accent-1 hover:underline;
-}
-.prose-docs strong {
-  @apply text-sys-text font-bold;
-}
-.prose-docs ul {
-  @apply list-none space-y-1 mb-4;
-}
-.prose-docs ul li::before {
-  content: '→ ';
-  @apply text-sys-accent-1;
-}
-.prose-docs li {
-  @apply text-sys-muted text-sm;
-}
-.prose-docs code {
-  @apply bg-sys-surface border border-sys-border text-sys-accent-1 px-1.5 py-0.5 rounded text-xs font-mono;
-}
-.prose-docs pre {
-  @apply bg-sys-surface border border-sys-border rounded p-4 mb-4 overflow-x-auto;
-}
-.prose-docs pre code {
-  @apply bg-transparent border-0 p-0 text-sys-text text-xs;
-}
-.prose-docs table {
-  @apply w-full text-xs font-mono mb-6 border-collapse;
-}
-.prose-docs th {
-  @apply text-left text-sys-muted uppercase tracking-wider border-b border-sys-border pb-2 pr-4;
-}
-.prose-docs td {
-  @apply text-sys-text border-b border-sys-border/30 py-2 pr-4;
-}
-.prose-docs td strong {
-  @apply text-sys-accent-1;
-}
-.prose-docs hr {
-  @apply border-sys-border my-8;
-}
-.prose-docs blockquote {
-  @apply border-l-2 border-sys-accent-2 pl-4 text-sys-muted italic text-sm my-4;
-}
-</style>
+<div class="flex pt-14 min-h-screen">
+
+  <!-- SIDEBAR -->
+  <aside class="hidden lg:flex flex-col w-60 shrink-0 border-r border-sys-border/60 bg-sys-bg">
+    <div class="sticky top-14 overflow-y-auto h-[calc(100vh-3.5rem)] py-6 px-4">
+
+      <!-- Volver al hub -->
+      <a href="/docs" class="flex items-center gap-2 text-[11px] font-mono text-sys-muted hover:text-sys-accent-1 transition-colors mb-6 group">
+        <span class="group-hover:-translate-x-0.5 transition-transform">←</span>
+        <span>Documentación</span>
+      </a>
+
+      {Object.entries(sections).map(([section, docs]) => (
+        <div class="mb-5">
+          <div class="text-[9px] text-sys-muted uppercase tracking-widest font-mono mb-2 px-2">
+            {section}
+          </div>
+          <nav>
+            {docs.map(doc => (
+              <a
+                href={`/docs/${doc.slug}`}
+                class={[
+                  'flex items-center gap-2 px-2 py-1.5 rounded text-[12px] font-mono transition-all',
+                  currentSlug === doc.slug
+                    ? 'bg-sys-accent-1/10 text-sys-accent-1 border-l-2 border-sys-accent-1 pl-3'
+                    : 'text-sys-muted hover:text-sys-text hover:bg-sys-surface/60',
+                ].join(' ')}
+              >
+                {currentSlug === doc.slug && <span class="w-1 h-1 rounded-full bg-sys-accent-1 shrink-0"></span>}
+                {doc.data.title}
+              </a>
+            ))}
+          </nav>
+        </div>
+      ))}
+    </div>
+  </aside>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <div class="flex-1 min-w-0 flex flex-col">
+    <main class="flex-1 max-w-3xl mx-auto w-full px-6 lg:px-10 py-12">
+
+      <!-- Breadcrumb mobile -->
+      <div class="lg:hidden flex items-center gap-2 text-[11px] font-mono text-sys-muted mb-8">
+        <a href="/docs" class="hover:text-sys-accent-1 transition-colors">Docs</a>
+        {currentSlug && <><span>/</span><span class="text-sys-text">{title}</span></>}
+      </div>
+
+      <!-- Header del artículo -->
+      <div class="mb-10 pb-8 border-b border-sys-border">
+        <h1 class="text-[32px] font-black font-sans text-white leading-tight mb-3">{title}</h1>
+        {description && <p class="text-sys-muted text-base leading-relaxed">{description}</p>}
+      </div>
+
+      <!-- Contenido Markdown -->
+      <div class="prose-docs">
+        <slot />
+      </div>
+
+      <!-- Navegación anterior / siguiente -->
+      <div class="mt-16 pt-8 border-t border-sys-border grid grid-cols-2 gap-4">
+        {prev ? (
+          <a href={`/docs/${prev.slug}`} class="group p-4 border border-sys-border hover:border-sys-accent-1/50 transition-all text-left">
+            <div class="text-[9px] font-mono text-sys-muted uppercase tracking-widest mb-1 flex items-center gap-1">
+              <span>←</span> Anterior
+            </div>
+            <div class="text-sm text-sys-text group-hover:text-sys-accent-1 transition-colors font-medium">{prev.data.title}</div>
+          </a>
+        ) : <div></div>}
+        {next && (
+          <a href={`/docs/${next.slug}`} class="group p-4 border border-sys-border hover:border-sys-accent-1/50 transition-all text-right">
+            <div class="text-[9px] font-mono text-sys-muted uppercase tracking-widest mb-1 flex items-center gap-1 justify-end">
+              Siguiente <span>→</span>
+            </div>
+            <div class="text-sm text-sys-text group-hover:text-sys-accent-1 transition-colors font-medium">{next.data.title}</div>
+          </a>
+        )}
+      </div>
+
+    </main>
+
+    <footer class="border-t border-sys-border py-5 text-center text-[10px] font-mono text-sys-muted">
+      &copy; 2026 martes.app
+    </footer>
+  </div>
+
+</div>
+</Layout>

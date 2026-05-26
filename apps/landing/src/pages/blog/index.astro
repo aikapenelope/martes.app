@@ -1,103 +1,143 @@
 ---
 // Blog hub — /blog
+// Filtrado por tag con JS client-side (Astro static no procesa query params en runtime)
 import { getCollection } from 'astro:content';
 import Layout from '../../layouts/Layout.astro';
 import '../../styles/global.css';
 
-const url = Astro.url;
-const activeTag = url.searchParams.get('tag') ?? '';
-
 const allPosts = (await getCollection('blog'))
   .sort((a, b) => b.data.date.localeCompare(a.data.date));
 
-const posts = activeTag
-  ? allPosts.filter(p => p.data.tags.includes(activeTag))
-  : allPosts;
-
-// Todos los tags únicos
 const allTags = [...new Set(allPosts.flatMap(p => p.data.tags))].sort();
 ---
 
-<Layout title="Blog — martes.app" description="Noticias, tutoriales y actualizaciones de martes.app y Hermes Agent.">
+<Layout title="Blog — martes.app" description="Artículos sobre IA, Hermes Agent, tutoriales y actualizaciones de martes.app.">
 
-  <!-- Nav -->
-  <header class="fixed top-0 w-full z-40 border-b border-sys-border bg-sys-bg/90 backdrop-blur-md">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-      <div class="flex items-center gap-6">
-        <a href="/" class="flex items-center gap-2 text-sys-text font-bold tracking-widest uppercase text-sm">
-          <span class="w-2 h-2 bg-sys-accent-1 rounded-full"></span>SYS.HERMES
+  <header class="fixed top-0 w-full z-40 border-b border-sys-border bg-sys-bg/95 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <a href="/" class="flex items-center gap-2">
+          <span class="w-1.5 h-1.5 bg-sys-accent-1 rounded-full"></span>
+          <span class="text-sys-text font-bold tracking-widest uppercase text-xs font-mono">martes.app</span>
         </a>
         <span class="text-sys-border">/</span>
-        <span class="text-sys-muted text-xs uppercase tracking-widest font-mono">Blog</span>
+        <span class="text-sys-muted text-xs font-mono">Blog</span>
       </div>
-      <div class="flex items-center gap-6 text-xs">
-        <a href="/docs" class="text-sys-muted hover:text-sys-accent-1 transition-colors uppercase tracking-wider">Docs</a>
-        <a href="/#contact" class="bg-sys-text text-black px-4 py-2 font-bold uppercase tracking-wider hover:bg-sys-accent-1 transition-colors">[ DEPLOY_AGENT ]</a>
+      <div class="flex items-center gap-4 text-xs font-mono">
+        <a href="/docs"      class="text-sys-muted hover:text-sys-accent-1 transition-colors hidden sm:block">Docs</a>
+        <a href="/#contacto" class="bg-sys-accent-1 text-black px-3 py-1.5 font-bold uppercase tracking-wider hover:bg-white transition-colors text-[10px]">Contacto</a>
       </div>
     </div>
   </header>
 
-  <div class="pt-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+  <div class="pt-14 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
 
     <!-- Header -->
-    <div class="mb-12 border-b border-sys-border pb-8">
-      <div class="text-xs text-sys-muted font-mono tracking-widest uppercase mb-3">SYS.BLOG // martes.app</div>
-      <h1 class="text-4xl font-bold font-sans text-white mb-3">Blog</h1>
-      <p class="text-sys-muted text-sm max-w-xl">
-        Noticias del producto, tutoriales de Hermes, actualizaciones de plataforma y casos de uso.
+    <div class="mb-12 pb-8 border-b border-sys-border">
+      <div class="text-[9px] font-mono text-sys-muted uppercase tracking-widest mb-3">SYS.BLOG</div>
+      <h1 class="text-4xl font-black font-sans text-white mb-3">Blog</h1>
+      <p class="text-sys-muted text-sm max-w-lg">
+        Artículos sobre software IA, Hermes Agent, tutoriales y novedades de martes.app.
       </p>
     </div>
 
-    <!-- Tag filter -->
-    <div class="flex gap-2 flex-wrap mb-10 font-mono text-xs">
-      <a href="/blog" class={`px-3 py-1.5 border transition-colors ${!activeTag ? 'border-sys-accent-1 text-sys-accent-1' : 'border-sys-border text-sys-muted hover:border-sys-accent-1 hover:text-sys-accent-1'}`}>
+    <!-- Tag filter (client-side) -->
+    <div class="flex gap-2 flex-wrap mb-10 font-mono text-xs" id="tag-filters">
+      <button
+        data-tag=""
+        class="tag-btn active px-3 py-1.5 border border-sys-accent-1 text-sys-accent-1 transition-colors text-[11px]"
+      >
         Todos ({allPosts.length})
-      </a>
+      </button>
       {allTags.map(tag => (
-        <a
-          href={`/blog?tag=${tag}`}
-          class={`px-3 py-1.5 border transition-colors ${activeTag === tag ? 'border-sys-accent-1 text-sys-accent-1' : 'border-sys-border text-sys-muted hover:border-sys-accent-1 hover:text-sys-accent-1'}`}
+        <button
+          data-tag={tag}
+          class="tag-btn px-3 py-1.5 border border-sys-border text-sys-muted hover:border-sys-accent-1 hover:text-sys-accent-1 transition-colors text-[11px]"
         >
           {tag}
-        </a>
+        </button>
       ))}
     </div>
 
-    <!-- Posts grid -->
-    {posts.length === 0 ? (
-      <p class="text-sys-muted font-mono text-sm">No hay posts con el tag "{activeTag}".</p>
-    ) : (
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {posts.map(post => (
-          <a href={`/blog/${post.slug}`} class="group border border-sys-border bg-sys-surface/30 p-6 hover:border-sys-accent-1 hover:bg-sys-surface transition-all flex flex-col">
-            <!-- Tags -->
-            <div class="flex gap-1.5 flex-wrap mb-3">
-              {post.data.tags.map(tag => (
-                <span class="px-1.5 py-0.5 bg-sys-surface border border-sys-border text-[9px] font-mono text-sys-muted">
-                  {tag}
-                </span>
-              ))}
-            </div>
-            <!-- Title -->
-            <h2 class="text-white font-bold text-base mb-2 group-hover:text-sys-accent-1 transition-colors leading-snug flex-grow">
+    <!-- Grid de posts -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5" id="posts-grid">
+      {allPosts.map(post => (
+        <article
+          data-tags={JSON.stringify(post.data.tags)}
+          class="post-card group border border-sys-border bg-sys-surface/20 p-6 hover:border-sys-accent-1/50 hover:bg-sys-surface/40 transition-all flex flex-col"
+        >
+          <!-- Tags -->
+          <div class="flex gap-1.5 flex-wrap mb-4">
+            {post.data.tags.map(tag => (
+              <span class="px-2 py-0.5 bg-sys-surface border border-sys-border text-[9px] font-mono text-sys-muted">
+                {tag}
+              </span>
+            ))}
+          </div>
+          <!-- Title -->
+          <a href={`/blog/${post.slug}`} class="block flex-grow">
+            <h2 class="text-white font-bold text-[15px] leading-snug mb-3 group-hover:text-sys-accent-1 transition-colors">
               {post.data.title}
             </h2>
-            <!-- Description -->
-            <p class="text-sys-muted text-xs leading-relaxed mb-4 line-clamp-3">{post.data.description}</p>
-            <!-- Meta -->
-            <div class="flex items-center justify-between text-[10px] font-mono text-sys-muted border-t border-sys-border/50 pt-3 mt-auto">
-              <span>{post.data.date}</span>
-              <span class="text-sys-accent-1 opacity-0 group-hover:opacity-100 transition-opacity">leer →</span>
-            </div>
+            <p class="text-sys-muted text-xs leading-relaxed line-clamp-3">{post.data.description}</p>
           </a>
-        ))}
-      </div>
-    )}
+          <!-- Footer -->
+          <div class="flex items-center justify-between mt-5 pt-4 border-t border-sys-border/50 text-[10px] font-mono">
+            <span class="text-sys-muted">{post.data.date}</span>
+            <a href={`/blog/${post.slug}`} class="text-sys-accent-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              leer →
+            </a>
+          </div>
+        </article>
+      ))}
+    </div>
 
   </div>
 
-  <footer class="border-t border-sys-border py-6 text-center text-xs font-mono text-sys-muted mt-4">
-    &copy; 2026 HERMES AGENT DEPLOYMENT FACILITY
+  <footer class="border-t border-sys-border py-6 text-center text-[10px] font-mono text-sys-muted mt-4">
+    &copy; 2026 martes.app
   </footer>
 
 </Layout>
+
+<!-- Filtrado client-side: funciona con Astro static -->
+<script is:inline>
+(function() {
+  var activeTag = '';
+
+  var buttons = document.querySelectorAll('.tag-btn');
+  var cards   = document.querySelectorAll('.post-card');
+
+  function filter(tag) {
+    activeTag = tag;
+    // Actualizar botones
+    buttons.forEach(function(btn) {
+      var isActive = btn.getAttribute('data-tag') === tag;
+      btn.classList.toggle('active', isActive);
+      btn.classList.toggle('border-sys-accent-1', isActive);
+      btn.classList.toggle('text-sys-accent-1', isActive);
+      btn.classList.toggle('border-sys-border', !isActive);
+      btn.classList.toggle('text-sys-muted', !isActive);
+    });
+    // Mostrar/ocultar cards
+    cards.forEach(function(card) {
+      if (!tag) {
+        card.style.display = '';
+        return;
+      }
+      var tags = JSON.parse(card.getAttribute('data-tags') || '[]');
+      card.style.display = tags.includes(tag) ? '' : 'none';
+    });
+  }
+
+  buttons.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      filter(btn.getAttribute('data-tag') || '');
+    });
+  });
+
+  // Leer tag de la URL si existe
+  var urlTag = new URLSearchParams(window.location.search).get('tag');
+  if (urlTag) filter(urlTag);
+})();
+</script>
