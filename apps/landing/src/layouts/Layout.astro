@@ -1,4 +1,6 @@
 ---
+// global.css aquí → aplica a TODAS las páginas (fix: antes solo en páginas individuales)
+import '../styles/global.css';
 export interface Props { title?: string; description?: string; }
 const { title = 'martes.app — SYS.HERMES', description = 'Agentes IA para empresas.' } = Astro.props;
 ---
@@ -9,7 +11,7 @@ const { title = 'martes.app — SYS.HERMES', description = 'Agentes IA para empr
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{title}</title>
   <meta name="description" content={description} />
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100;300;400;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100;300;400;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <script is:inline src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body class="font-mono text-sm antialiased selection:bg-sys-accent-1 selection:text-black">

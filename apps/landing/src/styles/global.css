@@ -128,8 +128,106 @@ body {
 .pulse-ring { animation: pulse-ring 2s infinite; }
 
 /* ────────────────────────────────────────────────────────────────────────
-   DOCS — Prose styles (moderna, no la versión antigua)
+   BLOG — Prose styles (lectura cómoda, tipografía Inter)
    ──────────────────────────────────────────────────────────────────────── */
+.prose-blog {
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  line-height: 1.8;
+  color: #c0c0c0;
+}
+.prose-blog h2 {
+  font-family: 'Inter', sans-serif;
+  font-size: 24px;
+  font-weight: 800;
+  color: #fff;
+  margin: 2.5rem 0 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #222;
+  line-height: 1.25;
+}
+.prose-blog h3 {
+  font-family: 'Inter', sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: #00ffcc;
+  margin: 2rem 0 0.75rem;
+}
+.prose-blog h4 {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #e0e0e0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 1.5rem 0 0.5rem;
+}
+.prose-blog p { margin-bottom: 1.25rem; }
+.prose-blog a { color: #00ffcc; text-decoration: underline; text-underline-offset: 3px; }
+.prose-blog a:hover { color: #fff; }
+.prose-blog strong { color: #fff; font-weight: 700; }
+.prose-blog em { color: #b026ff; font-style: italic; }
+
+/* Listas */
+.prose-blog ul  { list-style: none; padding: 0; margin: 0 0 1.25rem; }
+.prose-blog ol  { padding-left: 1.5rem; margin: 0 0 1.25rem; }
+.prose-blog li  { margin-bottom: 0.5rem; font-size: 15px; }
+.prose-blog ul > li { padding-left: 1.5rem; position: relative; }
+.prose-blog ul > li::before { content: '→'; position: absolute; left: 0; color: #00ffcc; font-size: 13px; }
+
+/* Código inline */
+.prose-blog :not(pre) > code {
+  background: rgba(0,255,204,0.08);
+  border: 1px solid rgba(0,255,204,0.2);
+  color: #00ffcc;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 13.5px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Bloques de código */
+.prose-blog pre {
+  background: #0d0d0d;
+  border: 1px solid #1e1e1e;
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  margin: 1.75rem 0;
+  overflow-x: auto;
+  position: relative;
+}
+.prose-blog pre code {
+  background: none; border: none; padding: 0;
+  color: #c9d1d9; font-size: 13px; line-height: 1.7;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Tablas */
+.prose-blog table {
+  width: 100%; border-collapse: collapse; margin: 1.75rem 0;
+  font-size: 14px; font-family: 'JetBrains Mono', monospace;
+}
+.prose-blog th {
+  text-align: left; padding: 10px 14px;
+  color: #666; font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.1em; border-bottom: 1px solid #333;
+}
+.prose-blog tbody tr { border-bottom: 1px solid #1a1a1a; transition: background 0.15s; }
+.prose-blog tbody tr:hover { background: rgba(255,255,255,0.02); }
+.prose-blog td { padding: 10px 14px; color: #999; vertical-align: top; }
+.prose-blog td:first-child { color: #e0e0e0; }
+
+/* Blockquote */
+.prose-blog blockquote {
+  border-left: 3px solid #00ffcc;
+  padding: 0.875rem 1.25rem; margin: 1.75rem 0;
+  background: rgba(0,255,204,0.04);
+  border-radius: 0 6px 6px 0;
+}
+.prose-blog blockquote p { margin: 0; color: #999; font-style: italic; font-size: 15px; }
+
+/* HR */
+.prose-blog hr { border-color: #1e1e1e; margin: 2.5rem 0; }
 .prose-docs h2 {
   @apply text-2xl font-bold text-white mt-12 mb-5 font-sans;
   padding-bottom: 0.5rem;
