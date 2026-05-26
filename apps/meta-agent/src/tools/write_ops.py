@@ -869,7 +869,7 @@ def inject_wiki_content(
 
 # Nombres de archivo que nunca deben ir en un backup.
 # Ref: hermes_cli/backup.py:_EXCLUDED_NAMES
-_BACKUP_EXCLUDE_NAMES: frozenset[str] = frozenset({"gateway.pid", "cron.pid"})
+_BACKUP_EXCLUDE_NAMES: frozenset[str] = frozenset({"gateway.pid", "gateway.lock", "cron.pid"})
 
 # Sufijos de archivo que nunca deben ir en un backup.
 # Ref: hermes_cli/backup.py:_EXCLUDED_SUFFIXES
