@@ -577,15 +577,40 @@ def update_tenant_resources(
 
         container.update(**update_kwargs)
 
-        # Actualizar el label del container para reflejar el nuevo límite
-        # (los labels no son actualizables en caliente — solo para referencia futura)
-
         # Leer los nuevos valores del inspect para confirmar
         container.reload()
         host_cfg = container.attrs.get("HostConfig", {})
         actual_mem_mb = round(host_cfg.get("Memory", 0) / (1024 * 1024))
         actual_nano = host_cfg.get("NanoCpus", 0)
         actual_cpu = round(actual_nano / 1e9, 2) if actual_nano else None
+
+        # Persistir en instance_configs para que recreate_tenant_container() y
+        # upgrade_tenant() respeten los nuevos límites si recrean el container.
+        # Sin esto, los cambios en caliente se pierden en el siguiente redeploy.
+        # Fallo silencioso — el hot-update ya aplicó; la DB es solo trazabilidad.
+        try:
+            with psycopg.connect(_pg()) as conn:
+                if memory_mb is not None:
+                    conn.execute(
+                        "UPDATE instance_configs ic SET memory_limit_mb = %s "
+                        "FROM tenants t WHERE t.id = ic.tenant_id AND t.tenant_code = %s",
+                        (memory_mb, tenant_code),
+                    )
+                if cpu_cores is not None:
+                    conn.execute(
+                        "UPDATE instance_configs ic SET cpu_limit = %s "
+                        "FROM tenants t WHERE t.id = ic.tenant_id AND t.tenant_code = %s",
+                        (cpu_cores, tenant_code),
+                    )
+                conn.commit()
+        except Exception as db_exc:
+            import logging as _logging
+            _logging.getLogger(__name__).warning(
+                "update_tenant_resources: DB sync failed for %s: %s — "
+                "hot-update OK but instance_configs not updated",
+                tenant_code,
+                db_exc,
+            )
 
         return json.dumps(
             {
