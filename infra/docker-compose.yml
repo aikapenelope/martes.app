@@ -39,7 +39,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 512M    # 256M era demasiado ajustado con shared_buffers=128MB.
+                          # Con 20 tenants generando health_checks, error_logs y
+                          # backup_logs continua, 512M da margen suficiente.
 
   # ==========================================================================
   # Meta-agente Agno AgentOS
