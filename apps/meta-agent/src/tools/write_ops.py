@@ -975,13 +975,30 @@ def backup_tenant(tenant_code: str) -> str:
         else:
             remote_key = None
 
+        storage_label = "seaweedfs" if remote_key else "local"
+
+        # 3. Persistir en backup_log para historial en Metabase
+        try:
+            with psycopg.connect(_pg()) as conn:
+                conn.execute(
+                    "INSERT INTO backup_log (tenant_code, filename, size_mb, storage)"
+                    " VALUES (%s, %s, %s, %s)",
+                    (tenant_code, filename, size_mb, storage_label),
+                )
+        except Exception as db_exc:
+            import logging as _logging
+
+            _logging.getLogger(__name__).debug(
+                "backup_log write failed for %s: %s", tenant_code, db_exc
+            )
+
         return json.dumps(
             {
                 "success": True,
                 "tenant": tenant_code,
                 "backup_file": filename,
                 "size_mb": size_mb,
-                "storage": "seaweedfs" if remote_key else "local",
+                "storage": storage_label,
                 "remote_key": remote_key,
                 "deleted_old": deleted_old,
                 "message": (
