@@ -440,6 +440,7 @@ async def run_health_check() -> JSONResponse:
                     " VALUES (%s, %s, %s)",
                     (used_gb, total_gb, disk_pct),
                 )
+                conn.commit()
         except Exception as db_exc:
             logger.debug("server_metrics write failed: %s", db_exc)
 

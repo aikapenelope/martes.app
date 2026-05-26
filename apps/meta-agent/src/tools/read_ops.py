@@ -238,7 +238,7 @@ def check_all_health() -> str:
     """Health check global de todos los tenants."""
     try:
         cs = _docker().containers.list(all=True, filters={"label": "martes.tenant"})
-        healthy = unhealthy = stopped = 0
+        healthy = unhealthy = stopped = starting = 0
         results = []
         for c in cs:
             t = c.labels.get("martes.tenant", "?")
@@ -247,6 +247,24 @@ def check_all_health() -> str:
                 _record_health_check(t, "stopped", 0, "container not running")
                 stopped += 1
             else:
+                # Detectar containers recién arrancados (mismo criterio que container_health)
+                attrs = c.attrs or {}
+                started_at_str: str = attrs.get("State", {}).get("StartedAt", "")
+                restart_count: int = attrs.get("RestartCount", 0)
+                container_age_s = 999
+                if started_at_str:
+                    try:
+                        from datetime import datetime, timezone
+
+                        started_dt = datetime.fromisoformat(
+                            started_at_str[:26].replace("Z", "+00:00")
+                        )
+                        container_age_s = (
+                            datetime.now(tz=timezone.utc) - started_dt
+                        ).total_seconds()
+                    except Exception:
+                        pass
+
                 try:
                     start_t = time.time()
                     r = c.exec_run("curl -sf http://127.0.0.1:8642/health")
@@ -258,6 +276,17 @@ def check_all_health() -> str:
                         results.append({"tenant": t, "status": "healthy"})
                         _record_health_check(t, "healthy", ms_t, raw_str)
                         healthy += 1
+                    elif restart_count == 0 and container_age_s < 60:
+                        # Falso positivo: container recién creado, Hermes aún iniciando.
+                        # No registrar en health_checks — no contaminar historial de SLA.
+                        results.append(
+                            {
+                                "tenant": t,
+                                "status": "starting",
+                                "age_seconds": round(container_age_s),
+                            }
+                        )
+                        starting += 1
                     else:
                         results.append({"tenant": t, "status": "unhealthy"})
                         _record_health_check(t, "unhealthy", ms_t, raw_str)
@@ -272,6 +301,7 @@ def check_all_health() -> str:
                 "healthy": healthy,
                 "unhealthy": unhealthy,
                 "stopped": stopped,
+                "starting": starting,
                 "tenants": results,
             }
         )
