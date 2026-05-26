@@ -1,0 +1,97 @@
+---
+import Layout from './Layout.astro';
+import { getCollection } from 'astro:content';
+
+export interface Props {
+  title:        string;
+  description?: string;
+  date?:        string;
+  tags?:        string[];
+  author?:      string;
+}
+
+const { title, description, date, tags = [], author } = Astro.props;
+
+// Últimos posts para el aside
+const recentPosts = (await getCollection('blog'))
+  .sort((a, b) => b.data.date.localeCompare(a.data.date))
+  .slice(0, 4);
+---
+
+<Layout title={`${title} — Blog martes.app`} description={description}>
+
+  <!-- Nav -->
+  <header class="fixed top-0 w-full z-40 border-b border-sys-border bg-sys-bg/90 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-6">
+        <a href="/" class="flex items-center gap-2 text-sys-text font-bold tracking-widest uppercase text-sm">
+          <span class="w-2 h-2 bg-sys-accent-1 rounded-full"></span>SYS.HERMES
+        </a>
+        <span class="text-sys-border">/</span>
+        <a href="/blog" class="text-sys-muted text-xs uppercase tracking-widest font-mono hover:text-sys-accent-1 transition-colors">Blog</a>
+      </div>
+      <div class="flex items-center gap-6 text-xs">
+        <a href="/docs"  class="text-sys-muted hover:text-sys-accent-1 transition-colors uppercase tracking-wider">Docs</a>
+        <a href="/#contact" class="bg-sys-text text-black px-4 py-2 font-bold uppercase tracking-wider hover:bg-sys-accent-1 transition-colors">[ DEPLOY_AGENT ]</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="pt-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-12">
+
+    <!-- Artículo principal -->
+    <article>
+      <!-- Meta -->
+      <div class="mb-8">
+        {tags.length > 0 && (
+          <div class="flex gap-2 mb-3 flex-wrap">
+            {tags.map(tag => (
+              <a href={`/blog?tag=${tag}`} class="px-2 py-0.5 bg-sys-surface border border-sys-border text-[10px] font-mono text-sys-muted hover:border-sys-accent-1 hover:text-sys-accent-1 transition-colors">
+                {tag}
+              </a>
+            ))}
+          </div>
+        )}
+        <h1 class="text-3xl font-bold font-sans text-white mb-3">{title}</h1>
+        {description && <p class="text-sys-muted text-sm mb-3">{description}</p>}
+        <div class="flex items-center gap-4 text-[10px] font-mono text-sys-muted border-t border-sys-border pt-3">
+          {date && <span>{date}</span>}
+          {author && <span>by {author}</span>}
+        </div>
+      </div>
+
+      <!-- Contenido -->
+      <div class="prose-docs">
+        <slot />
+      </div>
+
+      <!-- Back link -->
+      <div class="mt-12 pt-6 border-t border-sys-border">
+        <a href="/blog" class="text-xs font-mono text-sys-muted hover:text-sys-accent-1 transition-colors">← volver al blog</a>
+      </div>
+    </article>
+
+    <!-- Sidebar: posts recientes -->
+    <aside class="hidden lg:block">
+      <div class="sticky top-24">
+        <div class="text-[10px] text-sys-muted uppercase tracking-widest font-mono mb-4 border-b border-sys-border pb-2">
+          Artículos recientes
+        </div>
+        <div class="space-y-3">
+          {recentPosts.map(post => (
+            <a href={`/blog/${post.slug}`} class="block p-3 border border-sys-border hover:border-sys-accent-1 transition-colors group">
+              <div class="text-xs text-white font-bold group-hover:text-sys-accent-1 transition-colors leading-snug mb-1">{post.data.title}</div>
+              <div class="text-[10px] text-sys-muted font-mono">{post.data.date}</div>
+            </a>
+          ))}
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  <footer class="border-t border-sys-border py-6 text-center text-xs font-mono text-sys-muted">
+    &copy; 2026 HERMES AGENT DEPLOYMENT FACILITY
+  </footer>
+
+</Layout>
