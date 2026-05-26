@@ -14,6 +14,7 @@ import asyncio
 import json
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import AsyncGenerator
 
 from agno.os.app import AgentOS
@@ -452,6 +453,32 @@ async def run_health_check() -> JSONResponse:
             logger.warning("Health check: disk usage at %.1f%%", disk_pct)
     except OSError as exc:
         logger.debug("Disk usage check failed: %s", exc)
+
+    # RAM disponible del servidor — alerta si queda < 20%
+    # Permite detectar cuando el servidor se acerca al límite de tenants (~20 en CX43)
+    # antes de que los containers empiecen a fallar por OOM.
+    try:
+        meminfo = Path("/proc/meminfo").read_text()
+        mem_total_kb = int(
+            next(ln for ln in meminfo.splitlines() if ln.startswith("MemTotal")).split()[1]
+        )
+        mem_avail_kb = int(
+            next(ln for ln in meminfo.splitlines() if ln.startswith("MemAvailable")).split()[1]
+        )
+        mem_avail_pct = round(mem_avail_kb / mem_total_kb * 100, 1)
+        mem_avail_mb = mem_avail_kb // 1024
+        result["ram_available_pct"] = mem_avail_pct
+        result["ram_available_mb"] = mem_avail_mb
+        if mem_avail_pct < 20:
+            alerts.append(
+                f"🧠 RAM crítica: {mem_avail_pct}% disponible ({mem_avail_mb} MB libre). "
+                "Considera upgrade a CX53 o pausa tenants inactivos."
+            )
+            logger.warning(
+                "Health check: RAM available at %.1f%% (%d MB)", mem_avail_pct, mem_avail_mb
+            )
+    except (OSError, StopIteration) as exc:
+        logger.debug("RAM check failed: %s", exc)
 
     if alerts:
         await _send_telegram_alert("🔔 martes.app\n" + "\n".join(alerts))

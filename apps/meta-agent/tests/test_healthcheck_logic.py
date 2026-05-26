@@ -1,4 +1,4 @@
-"""Tests para la lógica del health check — sin Docker.
+"""Tests para la lógica del health check y alerta RAM — sin Docker.
 
 Documenta y verifica los patrones críticos de producción:
 - El bug exit_code or 1 nunca más puede volver (regresión)
@@ -19,7 +19,7 @@ class TestExitCodeFix:
     def test_zero_is_falsy_in_python(self):
         """Documenta por qué `or 1` es incorrecto para valores que pueden ser 0."""
         assert (0 or 1) == 1   # Python: 0 es falsy → el bug
-        assert (0 if 0 is not None else 1) == 0   # Fix correcto
+        assert (0 if 0 != None else 1) == 0   # noqa: E711 — documenta el fix correcto
 
     @pytest.mark.parametrize("exit_code,expected_healthy", [
         (0,    True),   # curl exitoso → healthy
@@ -114,3 +114,70 @@ class TestTrulyUnhealthyFilter:
             for i in range(1, 6)
         ]
         assert self._filter(tenants) == []
+
+
+class TestRamAlertLogic:
+    """Alerta de RAM — lógica de umbral y formato del mensaje.
+
+    Documenta el comportamiento del chequeo de RAM añadido en run_health_check().
+    El servidor CX43 tiene 32 GB RAM; ~20 tenants × 768 MB = 15 GB. Con 20% libre
+    (~6.4 GB) ya es momento de pensar en escalar.
+    Ref: docs/10-ROADMAP.md — capacidad: ~20 tenants en CX43.
+    """
+
+    def _should_alert(self, avail_pct: float, threshold: float = 20.0) -> bool:
+        """Replica la condición de alerta de run_health_check()."""
+        return avail_pct < threshold
+
+    @pytest.mark.parametrize("avail_pct,expected_alert", [
+        (50.0,  False),  # servidor con capacidad
+        (25.0,  False),  # cerca pero por encima del umbral
+        (20.0,  False),  # exactamente en el umbral → NO alerta (< 20, no <= 20)
+        (19.9,  True),   # justo por debajo → alerta
+        (10.0,  True),   # crítico
+        (5.0,   True),   # muy crítico
+        (0.1,   True),   # casi sin RAM
+    ])
+    def test_ram_alert_threshold(self, avail_pct: float, expected_alert: bool):
+        """La alerta se dispara cuando RAM disponible es estrictamente < 20%."""
+        assert self._should_alert(avail_pct) == expected_alert, (
+            f"avail_pct={avail_pct}%: se esperaba alert={expected_alert}"
+        )
+
+    def test_ram_pct_calculation(self):
+        """El porcentaje de RAM disponible se calcula correctamente."""
+        # CX43: 32 GB RAM = 33554432 KB total
+        mem_total_kb = 33_554_432
+        # 6 GB disponibles → ~18.8%
+        mem_avail_kb = 6_291_456
+        avail_pct = round(mem_avail_kb / mem_total_kb * 100, 1)
+        assert avail_pct == 18.8
+        assert self._should_alert(avail_pct) is True
+
+    def test_avail_mb_conversion(self):
+        """KB → MB usa división entera para evitar decimales en el mensaje."""
+        mem_avail_kb = 6_291_456  # 6 GB
+        mem_avail_mb = mem_avail_kb // 1024
+        assert mem_avail_mb == 6144  # 6 * 1024
+
+    def test_proc_meminfo_parsing(self):
+        """El parser de /proc/meminfo extrae MemTotal y MemAvailable correctamente."""
+        # Muestra representativa de /proc/meminfo
+        fake_meminfo = (
+            "MemTotal:       32768000 kB\n"
+            "MemFree:         5000000 kB\n"
+            "MemAvailable:    6000000 kB\n"
+            "Buffers:          200000 kB\n"
+        )
+        lines = fake_meminfo.splitlines()
+        mem_total_kb = int(
+            next(ln for ln in lines if ln.startswith("MemTotal")).split()[1]
+        )
+        mem_avail_kb = int(
+            next(ln for ln in lines if ln.startswith("MemAvailable")).split()[1]
+        )
+        assert mem_total_kb == 32_768_000
+        assert mem_avail_kb == 6_000_000
+        avail_pct = round(mem_avail_kb / mem_total_kb * 100, 1)
+        assert avail_pct == 18.3
+        assert self._should_alert(avail_pct) is True
