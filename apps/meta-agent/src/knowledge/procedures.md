@@ -358,24 +358,34 @@ Si no paga después de 90 días:
 
 ### Bot no responde al cliente
 
-1. `container_health(tenant_code)` — verificar que está running
+1. `container_health(tenant_code)` — verificar que está running y healthy
 2. Si está parado: `restart_tenant(tenant_code)`
-3. Si está running pero no responde: verificar que `.env` tiene `TELEGRAM_ALLOWED_USERS`
-   → Si falta: `inject_credential(tenant_code, "telegram_allowed_users", "ID_DEL_CLIENTE")`
-4. **ANTES de asumir que falta API key**: revisar sección "Estado de credenciales"
-   → Si `container_health` da "healthy", el bot tiene credenciales. No inyectar key.
+3. Si está running y healthy: el bot TIENE credenciales. No inyectar key.
+   → `container_health` = "healthy" significa que el proceso está respondiendo.
+4. Si está running pero unhealthy:
+   → `get_tenant_env_keys(tenant_code)` — verificar que TELEGRAM_ALLOWED_USERS está seteado
+   → Si `set: False` en TELEGRAM_ALLOWED_USERS:
+      `inject_credential(tenant_code, "telegram_allowed_users", "ID_DEL_CLIENTE")`
+   → Si falta el token: `inject_credential(tenant_code, "telegram_bot_token", "nuevo_token")`
+5. **ANTES de asumir que falta API key**: revisar estado de credenciales
    → Ejecutar `expire_platform_key(tenant_code, dry_run=True)` para ver el estado real.
+   → Si `client_auth_active` o `client_key_active`: el bot tiene credenciales propias.
 
 ### Bot parece confundido o responde cosas extrañas (loop de herramienta)
 
-El cliente intentó algo que requiere el CLI de Hermes internamente y Hermes cayó en un
-loop de reintentos. **No reiniciar el container** — solo la sesión.
+El cliente probablemente pidió al bot que "se actualice" o "instale algo".
+El CLI de Hermes (`/opt/hermes/.venv/bin/hermes`) NO está en el PATH de bash,
+entonces Hermes intenta ejecutarlo, falla, y reintenta indefinidamente.
 
-El cliente envía `/restart` a su bot desde Telegram. El gateway hace exit 75, Docker
-lo levanta en segundos, sesión nueva sin el loop.
+**Fix correcto: el cliente envía `/restart` a su bot desde Telegram.**
+- El gateway hace exit 75 → Docker lo levanta en ~10 segundos
+- El cliente tiene sesión nueva limpia, el loop se rompe
+- No es necesario `restart_tenant()` desde el meta-agente
 
-Si el admin quiere hacerlo desde aquí: `restart_tenant(tenant_code)` (reinicia el container)
-funciona también pero es más brusco — el cliente tiene que esperar ~30s.
+**Cuándo usar `restart_tenant()` en su lugar:**
+- El container no responde a `/restart` (proceso completamente colgado)
+- El admin no puede contactar al cliente para que envíe el comando
+- En esos casos: `restart_tenant()` funciona pero causa ~30s de downtime
 
 ### Container no arranca
 
@@ -394,3 +404,39 @@ update_tenant_model(tenant_code, "deepseek/deepseek-v4-flash")
 
 Sin reinicio. Efecto en el próximo mensaje del cliente.
 El cliente también puede cambiarlo él mismo con `/model` en Telegram.
+
+---
+
+## Actualizar versión de Hermes (upgrade_tenant)
+
+`upgrade_tenant()` hace todo el proceso con rollback automático si falla:
+
+```
+upgrade_tenant("t001", "nousresearch/hermes-agent:vNUEVA")
+```
+
+**Flujo automático interno:**
+1. Pull de la nueva imagen (falla rápido si el tag no existe)
+2. Backup del volumen → SeaweedFS
+3. Stop + remove del container actual
+4. Crear container con nueva imagen y misma config
+5. Health check hasta 30s (6 intentos × 5s)
+6. Si healthy: guarda nueva imagen en `instance_configs.extra_config`
+7. Si no healthy: rollback automático a imagen anterior
+
+**Buenas prácticas:**
+- Probar siempre en un tenant de test antes de upgradear clientes reales
+- Verificar el health result en la respuesta — si `success: true` y `health: healthy`, está listo
+- Si el rollback se activa: revisar logs con `container_logs()` para entender la causa
+
+---
+
+## Actualizar recursos de un tenant sin reiniciar
+
+```
+update_tenant_resources("t001", memory_mb=1024, cpu_cores=1.0)
+```
+
+- Modifica cgroups en caliente (efecto inmediato, sin restart)
+- Guarda los nuevos valores en `instance_configs` en DB
+- Los cambios persisten si el container se recrea (upgrade, restore)

@@ -52,9 +52,19 @@ tiene efecto en el próximo mensaje SIN reiniciar el container.
 | `OPENROUTER_BASE_URL` | Sí | `https://openrouter.ai/api/v1` |
 | `TELEGRAM_BOT_TOKEN` | Sí | Token del bot de @BotFather |
 | `TELEGRAM_ALLOWED_USERS` | Sí | ID de Telegram del cliente. Sin esto: bot no responde |
+| `TELEGRAM_HOME_CHANNEL` | Recomendado | chat_id destino de notificaciones del agente |
+| `TELEGRAM_HOME_CHANNEL_NAME` | Recomendado | Nombre del canal (solo informativo) |
 
 **TELEGRAM_ALLOWED_USERS es crítico**: si no está seteado, el bot no responde
 a nadie y logea un warning de seguridad. Siempre se escribe al crear el tenant.
+
+**TELEGRAM_HOME_CHANNEL**: chat_id para notificaciones automáticas de Hermes
+(resultados de cron jobs, resúmenes programados, alertas internas).
+En un DM de Telegram, el chat_id coincide con el user_id del destinatario.
+Si no está configurado: Hermes muestra "📬 No home channel is set" en cada
+primera conversación. No es un error fatal pero es ruido para el cliente.
+Al crear el tenant, se configura automáticamente con el `telegram_user_id`.
+El cliente puede cambiarlo con `/sethome` desde su chat de Telegram.
 
 ## Variables de entorno del container Docker (no del .env)
 
@@ -71,6 +81,68 @@ Estas se pasan en `docker run`, no se leen desde el volumen:
 usan `docker exec` para acceder al endpoint desde dentro, no por red.
 Ref: https://hermes-agent.nousresearch.com/docs/user-guide/docker
 
+## Factory defaults — capacidades completas del container
+
+Desde PR #76 (fde7a01), todos los containers de tenants usan los factory
+defaults de NousResearch: **sin** `cap_drop`, **sin** `pids_limit`,
+**sin** `tmpfs`, **sin** `security_opt`. Solo `mem_limit=768m`.
+
+Con estos defaults, Hermes puede hacer todo lo que viene de fábrica:
+- `pip install` / `apt install` dentro del container
+- Browser automation (Playwright, Selenium)
+- Subagentes paralelos
+- Code execution con acceso a filesystem
+- `npm`, `git`, `ssh` (usa `home/` como HOME)
+- `hermes update` — self-update de la imagen base (exit 75 → Docker lo revive)
+
+**IMPORTANTE — CLI de Hermes**:
+El CLI de Hermes (`hermes`) está en `/opt/hermes/.venv/bin/hermes`.
+**NO está en el PATH de bash de los subprocesos del sistema operativo**.
+
+Si un cliente le pide a Hermes que "se actualice" o "instale algo" y el
+bot cae en un loop respondiendo cosas extrañas, probablemente Hermes está
+intentando ejecutar `hermes` en bash y fallando repetidamente.
+Fix: el cliente envía `/restart` a su bot (ver sección de restart más abajo).
+
+## /restart — comportamiento y diferencia con restart_tenant()
+
+Hermes tiene el comando `/restart` que el cliente puede enviar desde Telegram:
+
+1. El gateway ejecuta `hermes gateway restart` internamente
+2. El proceso sale con **exit code 75**
+3. Docker detecta el exit y reinicia el container automáticamente
+   (`restart_policy=unless-stopped`)
+4. El container vuelve en ~10 segundos con sesión nueva limpia
+
+**Diferencia con restart_tenant() del meta-agente:**
+- `/restart` (cliente desde Telegram): mata solo la sesión activa, container
+  se reinicia en ~10s. Preferido para problemas de sesión o loops.
+- `restart_tenant()` (admin desde meta-agente): Docker restart más brusco,
+  ~30s de downtime, útil cuando el proceso está colgado o el container no responde.
+
+**Exit 75 es normal**: si ves exit_code=75 en `diagnose_container_error()`,
+no es un error. El container se está reiniciando correctamente por solicitud del cliente.
+
+## Prioridad de credenciales en Hermes
+
+Hermes usa credenciales en este orden (mayor a menor prioridad):
+
+```
+1. auth.json en /opt/data/auth.json  ← MÁXIMA PRIORIDAD
+   El cliente configuró su cuenta vía /auth en Telegram (OAuth con OpenRouter,
+   Anthropic, Google, xAI, etc.). Si este archivo existe con > 50 bytes,
+   el bot funciona con esas credenciales INDEPENDIENTEMENTE del .env.
+
+2. OPENROUTER_API_KEY en .env  ← segunda prioridad
+   Puede ser: a) la platform key que pusimos al crear el tenant
+              b) una key propia del cliente inyectada con inject_credential()
+
+3. Nada → el bot muestra error de credencial al responder
+```
+
+**Si container_health() devuelve "healthy", el bot TIENE credenciales.**
+No asumir que falta una key solo porque no la inyectamos nosotros.
+
 ## Backup — qué incluir y qué excluir
 
 Fuente oficial: `hermes_cli/backup.py` del repo de Hermes.
@@ -80,8 +152,10 @@ Fuente oficial: `hermes_cli/backup.py` del repo de Hermes.
 | Archivo/patrón | Por qué |
 |---|---|
 | `gateway.pid`, `cron.pid` | PIDs del proceso. Stale en cualquier restore. |
+| `gateway.lock` | File lock del OS. Se excluye por seguridad aunque el OS lo libera al morir el proceso. |
 | `*.db-wal`, `*.db-shm`, `*.db-journal` | Sidecars WAL de SQLite. Si van en el backup junto al `.db`, producen un **torn restore** (BD inconsistente). Hermes los excluye explícitamente. |
 | `checkpoints/` | Caches de sesión locales, no portables entre containers. |
+| `.cache/archive-v0/` | Caché de uv con symlinks absolutos. Python 3.12+ los rechaza con AbsoluteLinkError. uv los regenera automáticamente al arrancar. |
 | `backups/` | Para evitar backups anidados. |
 | `*.pyc`, `*.pyo` | Bytecache, se regeneran. |
 
@@ -108,7 +182,7 @@ respeta los archivos restaurados y no los sobreescribe.
 2. list_backups(tenant_code)        → elegir backup de SeaweedFS
 3. restore_tenant_from_backup(      → descarga SeaweedFS → extrae
      tenant_code, backup_filename)
-     
+
    Interno (automático en restore_tenant_from_backup):
    a. Descarga el tar.gz de SeaweedFS a /tmp/
    b. Extrae sobre /var/lib/martes/tenants/{code}/
@@ -117,7 +191,7 @@ respeta los archivos restaurados y no los sobreescribe.
       - *.db-wal, *.db-shm (sidecars WAL stale)
    d. Aplica chmod 600 a .env, auth.json, state.db
    e. chown 1000:1000 recursivo (usuario hermes)
-   
+
 4. restart_tenant(tenant_code)      → nuevo container, datos restaurados
 5. container_health(tenant_code)    → verificar que arrancó
 ```
@@ -138,7 +212,9 @@ respeta los archivos restaurados y no los sobreescribe.
 /cron add "0 9 * * *" "resumen"   → programar tarea
 /memory                           → ver memoria persistente
 /reset                            → nueva sesión (memoria preservada)
-/restart                          → reinicia el gateway (exit 75 → Docker lo revive)
+/restart                          → exit 75 → Docker reinicia en ~10s
+/auth                             → configurar credenciales OAuth de cualquier proveedor
+/sethome                          → cambiar el canal de notificaciones predeterminado
 ```
 
 El meta-agente puede hacer los mismos cambios desde fuera sin reiniciar:
@@ -150,18 +226,24 @@ El meta-agente puede hacer los mismos cambios desde fuera sin reiniciar:
 
 | Error | Causa | Solución |
 |---|---|---|
-| Bot no responde | `TELEGRAM_ALLOWED_USERS` faltante | `inject_credential(t, "telegram_allowed_users", id)` |
+| Bot no responde | `TELEGRAM_ALLOWED_USERS` faltante o vacío | `inject_credential(t, "telegram_allowed_users", id)` |
 | `Permission denied /opt/data` | UID/GID incorrecto | `chown 1000:1000 -R /var/lib/martes/tenants/{code}/` |
 | `Token must contain a colon` | Bot token inválido | Verificar formato `123456789:ABCdef...` |
 | `Connection refused :8642` | API server no habilitado | Verificar `API_SERVER_ENABLED=true` en docker run |
 | 402 en LLM | Créditos agotados | `inject_credential` con nueva key o recargar créditos |
 | `No such image` | Imagen no descargada | `docker pull nousresearch/hermes-agent:v2026.5.16` |
 | BD corrupta tras restore | WAL sidecars en backup | `restore_tenant_from_backup` los limpia automáticamente |
+| Bot en loop (responde cosas raras) | CLI de Hermes no en PATH | Cliente envía `/restart` a su bot — sesión nueva en 10s |
+| Exit code 75 en logs | `/restart` solicitado por el cliente | Normal — Docker reinicia el container automáticamente |
 
 ## Actualización de versión de Hermes
 
-1. Backup del volumen: `backup_tenant(tenant_code)`
-2. Cambiar `hermes_image` en `config.py` del meta-agente → nuevo PR → deploy
-3. Para el tenant específico: `stop_tenant()` → recrear container con nueva imagen
-4. Verificar health: `container_health(tenant_code)`
-5. Si falla: `restore_tenant_from_backup()` + recrear con imagen anterior
+```
+upgrade_tenant(tenant_code, new_image)
+```
+
+Flujo automático: backup → stop → remove → crear container con nueva imagen
+→ health check (hasta 30s) → si falla: rollback a imagen anterior.
+La imagen activa se guarda en `instance_configs.extra_config.hermes_image`.
+
+Para upgrades masivos: probar siempre en un tenant de test antes de escalar.
