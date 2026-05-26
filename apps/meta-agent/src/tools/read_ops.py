@@ -153,9 +153,11 @@ def container_health(tenant_code: str) -> str:
                 pass
 
         start = time.time()
-        result = c.exec_run("curl -sf http://127.0.0.1:8642/health")
+        result = c.exec_run("curl -sf --max-time 5 http://127.0.0.1:8642/health")
         ms = int((time.time() - start) * 1000)
-        exit_code: int = result.exit_code or 1
+        # FIX: `result.exit_code or 1` evaluaba a 1 cuando exit_code=0 (0 es falsy en Python).
+        # El health check NUNCA podía reportar "healthy". Fix correcto:
+        exit_code: int = result.exit_code if result.exit_code is not None else 1
         output: bytes = result.output  # type: ignore[assignment]
         output_str = output.decode("utf-8", errors="replace")[:200]
 
@@ -267,9 +269,9 @@ def check_all_health() -> str:
 
                 try:
                     start_t = time.time()
-                    r = c.exec_run("curl -sf http://127.0.0.1:8642/health")
+                    r = c.exec_run("curl -sf --max-time 5 http://127.0.0.1:8642/health")
                     ms_t = int((time.time() - start_t) * 1000)
-                    ec: int = r.exit_code or 1
+                    ec: int = r.exit_code if r.exit_code is not None else 1
                     raw_out: bytes = r.output or b""  # type: ignore[assignment]
                     raw_str = raw_out.decode("utf-8", errors="replace")[:200]
                     if ec == 0:
