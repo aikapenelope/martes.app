@@ -233,6 +233,53 @@ services:
         limits:
           memory: 1G    # Metabase (JVM) necesita mínimo 1 GB
 
+  # ==========================================================================
+  # Landing page — martes.app (raíz del dominio)
+  #
+  # nginx:alpine sirve apps/landing/ de forma estática.
+  # Traefik enruta martes.app → este servicio (HTTP → HTTPS automático).
+  #
+  # Para actualizar el contenido: editar apps/landing/index.html (u otros
+  # archivos) y mergear a main → Coolify redespliega automáticamente.
+  #
+  # Si el frontend necesita build (Astro, Vite, Next.js static):
+  #   1. Añadir Dockerfile en apps/landing/
+  #   2. Cambiar image: nginx:alpine por build: context/apps/landing aquí
+  #   3. El resto de la config (labels, networks) se mantiene igual
+  # ==========================================================================
+  landing:
+    image: nginx:alpine
+    restart: unless-stopped
+    volumes:
+      # Coolify usa --project-directory=<repo-root> → "." resuelve al raíz del repo.
+      # apps/landing/ se monta como DocumentRoot de nginx.
+      - ./apps/landing:/usr/share/nginx/html:ro
+    networks:
+      - coolify    # red de Traefik — routing de martes.app
+    labels:
+      # HTTPS martes.app → nginx puerto 80
+      - "traefik.enable=true"
+      - "traefik.docker.network=coolify"
+      - "traefik.http.routers.landing-https.rule=Host(`martes.app`)"
+      - "traefik.http.routers.landing-https.entrypoints=https"
+      - "traefik.http.routers.landing-https.tls=true"
+      - "traefik.http.routers.landing-https.tls.certresolver=letsencrypt"
+      - "traefik.http.services.landing.loadbalancer.server.port=80"
+      # HTTP → HTTPS redirect
+      - "traefik.http.routers.landing-http.rule=Host(`martes.app`)"
+      - "traefik.http.routers.landing-http.entrypoints=http"
+      - "traefik.http.routers.landing-http.middlewares=redirect-to-https@docker"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 64M   # nginx:alpine sirviendo estáticos: <20 MB real
+
 
 networks:
   # Red externa de Coolify/Traefik — necesaria para routing HTTP/HTTPS.
