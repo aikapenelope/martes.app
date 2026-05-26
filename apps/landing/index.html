@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SYS.HERMES // AGENT_DEPO</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100;300;400;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'sys-bg': '#0a0a0a',
+                        'sys-surface': '#111111',
+                        'sys-border': '#222222',
+                        'sys-text': '#e0e0e0',
+                        'sys-muted': '#666666',
+                        'sys-accent-1': '#00ffcc',
+                        'sys-accent-2': '#b026ff',
+                        'sys-accent-3': '#ff3366',
+                    },
+                    fontFamily: {
+                        'mono': ['"JetBrains Mono"', 'monospace'],
+                        'sans': ['Inter', 'sans-serif'],
+                    },
+                    backgroundImage: {
+                        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+                        'hero-glow': 'conic-gradient(from 180deg at 50% 50%, #b026ff55 0deg, #00ffcc55 180deg, #b026ff55 360deg)',
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'float': 'float 6s ease-in-out infinite',
+                        'scanline': 'scanline 8s linear infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-20px)' },
+                        },
+                        scanline: {
+                            '0%': { transform: 'translateY(-100%)' },
+                            '100%': { transform: 'translateY(100vh)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #0a0a0a;
+            color: #e0e0e0;
+            overflow-x: hidden;
+            background-image:
+                linear-gradient(to right, #111 1px, transparent 1px),
+                linear-gradient(to bottom, #111 1px, transparent 1px);
+            background-size: 50px 50px;
+            background-position: center center;
+        }
+
+        .glitch-hover:hover {
+            animation: glitch-anim 0.3s linear infinite;
+            text-shadow: 2px 0 #00ffcc, -2px 0 #ff3366;
+        }
+
+        @keyframes glitch-anim {
+            0%   { transform: translate(0) }
+            20%  { transform: translate(-2px, 1px) }
+            40%  { transform: translate(-2px, -1px) }
+            60%  { transform: translate(2px, 1px) }
+            80%  { transform: translate(2px, -1px) }
+            100% { transform: translate(0) }
+        }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0a0a0a; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        .data-card {
+            background: rgba(17, 17, 17, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid #222;
+            transition: all 0.3s ease;
+        }
+        .data-card:hover {
+            border-color: #444;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px -10px rgba(0, 255, 204, 0.1);
+        }
+
+        .tech-border { position: relative; }
+        .tech-border::before, .tech-border::after {
+            content: '';
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-color: #00ffcc;
+            border-style: solid;
+            transition: all 0.3s ease;
+            opacity: 0.5;
+        }
+        .tech-border::before { top: 0; left: 0; border-width: 1px 0 0 1px; }
+        .tech-border::after  { bottom: 0; right: 0; border-width: 0 1px 1px 0; }
+        .tech-border:hover::before, .tech-border:hover::after {
+            width: 100%; height: 100%; opacity: 0.1;
+        }
+
+        #bg-canvas {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: -1; opacity: 0.4;
+            pointer-events: none;
+        }
+
+        .scanline-overlay {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: linear-gradient(to bottom,
+                rgba(255,255,255,0), rgba(255,255,255,0) 50%,
+                rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
+            background-size: 100% 4px;
+            z-index: 50; pointer-events: none; opacity: 0.3;
+        }
+    </style>
+</head>
+<body class="font-mono text-sm antialiased selection:bg-sys-accent-1 selection:text-black">
+
+    <canvas id="bg-canvas"></canvas>
+    <div class="scanline-overlay"></div>
+
+    <!-- NAV -->
+    <nav class="fixed top-0 w-full z-40 border-b border-sys-border bg-sys-bg/80 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-4">
+                    <div class="w-2 h-2 bg-sys-accent-1 rounded-full animate-pulse"></div>
+                    <span class="text-sys-text font-bold tracking-widest uppercase">
+                        SYS.HERMES <span class="text-sys-muted font-normal">// DEPLOYMENT_FACILITY</span>
+                    </span>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-8">
+                        <a href="#features" class="text-sys-muted hover:text-sys-accent-1 px-3 py-2 transition-colors uppercase tracking-wider text-xs">Capabilities</a>
+                        <a href="#process"  class="text-sys-muted hover:text-sys-accent-1 px-3 py-2 transition-colors uppercase tracking-wider text-xs">Architecture</a>
+                        <a href="#contact"  class="text-sys-muted hover:text-sys-accent-1 px-3 py-2 transition-colors uppercase tracking-wider text-xs">Initiate Protocol</a>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4 text-xs">
+                    <span class="hidden sm:inline-block text-sys-muted">V.2026.AGENT // ONLINE</span>
+                    <a href="#contact" class="bg-sys-text text-black px-4 py-2 font-bold uppercase tracking-wider hover:bg-sys-accent-1 transition-colors">
+                        [ DEPLOY_AGENT ]
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- HERO -->
+    <main class="relative pt-32 pb-16 sm:pt-40 sm:pb-24 lg:pb-32 overflow-hidden">
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-hero-glow rounded-full blur-[100px] opacity-20 animate-pulse-slow"></div>
+
+        <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+
+            <div class="mb-4 inline-flex items-center gap-2 border border-sys-border px-3 py-1 rounded-full text-xs text-sys-muted">
+                <span class="w-1.5 h-1.5 rounded-full bg-sys-accent-2"></span>
+                HERMES MODEL INTEGRATION ACTIVE
+            </div>
+
+            <h1 class="text-5xl sm:text-7xl lg:text-8xl font-bold tracking-tighter mb-6 font-sans text-transparent bg-clip-text bg-gradient-to-r from-white via-gray-300 to-gray-600">
+                INGENIERÍA DE<br>
+                <span class="font-mono text-white glitch-hover">AGENTES AUTÓNOMOS</span>
+            </h1>
+
+            <p class="mt-4 max-w-2xl mx-auto text-lg sm:text-xl text-sys-muted font-light tracking-wide mb-10">
+                Diseñamos, entrenamos y desplegamos agentes IA basados en modelos Hermes. Configuración profunda,
+                memoria a largo plazo e integración de herramientas para automatización de nivel empresarial.
+            </p>
+
+            <div class="flex flex-col sm:flex-row justify-center gap-4">
+                <a href="#contact" class="tech-border inline-flex items-center justify-center px-8 py-4 border border-sys-accent-1 text-sys-accent-1 hover:bg-sys-accent-1 hover:text-black font-bold uppercase tracking-widest transition-all">
+                    Iniciar Secuencia
+                    <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                    </svg>
+                </a>
+                <a href="#demo" class="inline-flex items-center justify-center px-8 py-4 border border-sys-border text-sys-text hover:border-sys-text font-bold uppercase tracking-widest transition-all">
+                    Ver Terminal Data
+                </a>
+            </div>
+
+            <!-- Terminal mockup -->
+            <div class="mt-20 relative mx-auto max-w-4xl" id="demo">
+                <div class="absolute inset-0 bg-gradient-to-t from-sys-bg via-transparent to-transparent z-10 pointer-events-none"></div>
+                <div class="data-card rounded-none border border-sys-border overflow-hidden text-left shadow-2xl relative">
+                    <div class="border-b border-sys-border bg-sys-surface px-4 py-2 flex items-center justify-between text-xs text-sys-muted">
+                        <div class="flex gap-2">
+                            <span class="w-3 h-3 rounded-full bg-sys-border"></span>
+                            <span class="w-3 h-3 rounded-full bg-sys-border"></span>
+                            <span class="w-3 h-3 rounded-full bg-sys-border"></span>
+                        </div>
+                        <span>SYS_LOG // HERMES_AGENT_INITIALIZATION</span>
+                        <span>ACT_01</span>
+                    </div>
+                    <div class="p-6 font-mono text-xs sm:text-sm text-sys-accent-1 h-64 overflow-y-auto" id="terminal-output">
+                        <div class="text-sys-muted">> Loading core modules... [OK]</div>
+                        <div class="text-sys-muted">> Establishing neural pathways... [OK]</div>
+                        <div class="text-sys-muted">> Connecting to enterprise data silos... [PENDING]</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- CAPABILITIES -->
+    <section id="features" class="py-24 relative border-t border-sys-border/50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="mb-12 border-b border-sys-border pb-4 flex items-end justify-between">
+                <div>
+                    <h2 class="text-xs text-sys-muted tracking-widest uppercase mb-1">01 // Capabilities</h2>
+                    <h3 class="text-3xl font-bold font-sans text-white">ARQUITECTURA DE AGENTES</h3>
+                </div>
+                <div class="hidden sm:block text-right text-xs text-sys-muted">
+                    <span>CAPACITY: UNLIMITED</span><br>
+                    <span>LATENCY: &lt;12ms</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="data-card p-6 flex flex-col h-full group">
+                    <div class="mb-4 text-sys-accent-1 font-mono text-sm border-b border-sys-border/50 pb-2 flex justify-between">
+                        <span>MOD_01</span><span>[ ACTIVE ]</span>
+                    </div>
+                    <h4 class="text-xl font-bold text-white mb-3">Modelos Hermes Especializados</h4>
+                    <p class="text-sys-muted text-sm flex-grow">
+                        Implementamos iteraciones avanzadas de Hermes (NousResearch). Fine-tuning específico para el dominio de tu empresa, garantizando respuestas precisas y tono corporativo.
+                    </p>
+                    <div class="mt-6 pt-4 border-t border-sys-border/50">
+                        <div class="w-full bg-sys-surface h-1 mb-1">
+                            <div class="bg-gradient-to-r from-sys-accent-1 to-sys-accent-2 h-1 w-[85%]"></div>
+                        </div>
+                        <span class="text-[10px] text-sys-muted uppercase">Accuracy Confidence // 85%</span>
+                    </div>
+                </div>
+
+                <div class="data-card p-6 flex flex-col h-full group">
+                    <div class="mb-4 text-sys-accent-2 font-mono text-sm border-b border-sys-border/50 pb-2 flex justify-between">
+                        <span>MOD_02</span><span>[ ACTIVE ]</span>
+                    </div>
+                    <h4 class="text-xl font-bold text-white mb-3">Memoria a Largo Plazo (RAG)</h4>
+                    <p class="text-sys-muted text-sm flex-grow">
+                        Dotamos a los agentes de bases de datos vectoriales. Recuerdan interacciones pasadas, políticas de la empresa y contexto específico del usuario para decisiones informadas.
+                    </p>
+                    <div class="mt-6 pt-4 border-t border-sys-border/50 flex gap-2">
+                        <span class="px-2 py-1 bg-sys-surface border border-sys-border text-[10px] text-sys-muted">ChromaDB</span>
+                        <span class="px-2 py-1 bg-sys-surface border border-sys-border text-[10px] text-sys-muted">Pinecone</span>
+                    </div>
+                </div>
+
+                <div class="data-card p-6 flex flex-col h-full group">
+                    <div class="mb-4 text-sys-accent-3 font-mono text-sm border-b border-sys-border/50 pb-2 flex justify-between">
+                        <span>MOD_03</span><span>[ ACTIVE ]</span>
+                    </div>
+                    <h4 class="text-xl font-bold text-white mb-3">Integración de Herramientas (Tool Use)</h4>
+                    <p class="text-sys-muted text-sm flex-grow">
+                        Los agentes no solo hablan, actúan. Conexión directa mediante APIs a tu CRM, ERP, bases de datos o servicios externos para ejecutar tareas complejas de forma autónoma.
+                    </p>
+                    <div class="mt-6 flex justify-between items-end border-t border-sys-border/50 pt-4">
+                        <span class="text-[10px] text-sys-muted uppercase">API Requests</span>
+                        <span class="font-mono text-sys-accent-3">14,029/s</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ARCHITECTURE -->
+    <section id="process" class="py-24 bg-sys-surface relative border-y border-sys-border">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+                <div>
+                    <h2 class="text-xs text-sys-accent-1 tracking-widest uppercase mb-2">02 // Deployment Pipeline</h2>
+                    <h3 class="text-3xl sm:text-4xl font-bold font-sans text-white mb-6">SISTEMA NERVIOSO<br>CORPORATIVO</h3>
+                    <p class="text-sys-muted mb-8 text-sm leading-relaxed">
+                        No entregamos un chatbot de juguete. Construimos una infraestructura de inteligencia que se
+                        entrelaza con tus operaciones. Desde la ingesta de datos hasta el despliegue del agente en
+                        entornos seguros.
+                    </p>
+                    <ul class="space-y-6 font-mono text-sm">
+                        <li class="flex items-start">
+                            <span class="text-sys-accent-1 mr-4 mt-1">01_</span>
+                            <div>
+                                <strong class="text-white block mb-1">Auditoría de Datos & Knowledge Base</strong>
+                                <span class="text-sys-muted text-xs">Extracción y vectorización de documentación interna, históricos de chats y manuales de operaciones.</span>
+                            </div>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-sys-accent-2 mr-4 mt-1">02_</span>
+                            <div>
+                                <strong class="text-white block mb-1">Configuración del Modelo Base (Hermes)</strong>
+                                <span class="text-sys-muted text-xs">Ajuste de system prompts, definición de personalidad corporativa y constraints éticos/operativos.</span>
+                            </div>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-sys-accent-3 mr-4 mt-1">03_</span>
+                            <div>
+                                <strong class="text-white block mb-1">Despliegue & Monitoreo Continuo</strong>
+                                <span class="text-sys-muted text-xs">Implementación en infraestructura serverless o on-premise con dashboard de analytics en tiempo real.</span>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="relative h-[400px] border border-sys-border bg-sys-bg p-4 flex flex-col justify-between overflow-hidden">
+                    <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-sys-surface to-sys-bg opacity-50"></div>
+                    <div class="text-xs text-sys-muted flex justify-between font-mono z-10 relative">
+                        <span>DATA_INGESTION_RATE</span>
+                        <span class="text-sys-accent-1">99.9%</span>
+                    </div>
+                    <div class="flex-grow flex items-center justify-center relative z-10">
+                        <div class="w-full flex justify-between items-center px-8 relative">
+                            <div class="absolute left-10 right-10 h-[1px] bg-sys-border z-0">
+                                <div class="h-full bg-gradient-to-r from-sys-accent-1 via-sys-accent-2 to-sys-accent-3 w-[70%] animate-[pulse_3s_ease-in-out_infinite]"></div>
+                            </div>
+                            <div class="w-16 h-16 rounded bg-sys-surface border border-sys-border flex items-center justify-center relative z-10 shadow-[0_0_15px_rgba(0,255,204,0.2)]">
+                                <span class="text-sys-accent-1 text-xs">DATA</span>
+                            </div>
+                            <div class="w-20 h-20 rounded-full bg-sys-bg border border-sys-accent-2 flex items-center justify-center relative z-10 shadow-[0_0_20px_rgba(176,38,255,0.3)] animate-pulse-slow">
+                                <span class="text-white text-xs font-bold">HERMES</span>
+                            </div>
+                            <div class="w-16 h-16 rounded bg-sys-surface border border-sys-border flex items-center justify-center relative z-10 shadow-[0_0_15px_rgba(255,51,102,0.2)]">
+                                <span class="text-sys-accent-3 text-xs">ACTION</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-[10px] text-sys-muted text-right font-mono z-10 relative">
+                        PIPELINE_STATUS // <span class="text-green-500">OPTIMAL</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- METRICS -->
+    <section class="py-24 border-b border-sys-border">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="mb-8">
+                <h2 class="text-xs text-sys-muted tracking-widest uppercase">SYS.METRICS // PERFORMANCE_LOG</h2>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 font-mono text-xs">
+                <div class="border border-sys-border p-4 bg-sys-surface/50 relative overflow-hidden group hover:border-sys-accent-1 transition-colors">
+                    <div class="absolute top-0 right-0 bg-sys-border text-[9px] px-1 text-sys-muted">01</div>
+                    <div class="text-sys-muted mb-6">AGENTS // DEPLOYED_TOTAL</div>
+                    <div class="flex items-end justify-between">
+                        <div class="text-4xl text-white font-light tracking-tighter">2,048</div>
+                        <div class="w-24 h-6">
+                            <div class="flex items-end h-full gap-1 opacity-50 group-hover:opacity-100 transition-opacity">
+                                <div class="w-full bg-sys-accent-1 h-[30%]"></div>
+                                <div class="w-full bg-sys-accent-1 h-[50%]"></div>
+                                <div class="w-full bg-sys-accent-1 h-[80%]"></div>
+                                <div class="w-full bg-sys-accent-1 h-[100%]"></div>
+                                <div class="w-full bg-sys-accent-1 h-[60%]"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="border border-sys-border p-4 bg-sys-surface/50 relative overflow-hidden group hover:border-sys-accent-2 transition-colors">
+                    <div class="absolute top-0 right-0 bg-sys-border text-[9px] px-1 text-sys-muted">02</div>
+                    <div class="text-sys-muted mb-6">AVG_RESPONSE_TIME // MS</div>
+                    <div class="flex items-end justify-between">
+                        <div class="text-4xl text-white font-light tracking-tighter">420<span class="text-sm text-sys-muted">ms</span></div>
+                        <div class="text-right">
+                            <div class="text-sys-accent-2">-15%</div>
+                            <div class="text-[9px] text-sys-muted">vs last month</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="border border-sys-border p-4 bg-sys-surface/50 relative overflow-hidden group hover:border-sys-accent-3 transition-colors">
+                    <div class="absolute top-0 right-0 bg-sys-border text-[9px] px-1 text-sys-muted">03</div>
+                    <div class="text-sys-muted mb-6">TASKS_AUTOMATED // MONTHLY</div>
+                    <div class="flex items-end justify-between">
+                        <div class="text-4xl text-white font-light tracking-tighter">8.5<span class="text-sm text-sys-muted">M</span></div>
+                        <div class="relative w-10 h-10">
+                            <svg viewBox="0 0 36 36" class="w-full h-full transform -rotate-90">
+                                <path class="text-sys-border" stroke-width="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <path class="text-sys-accent-3 opacity-50 group-hover:opacity-100 transition-opacity" stroke-dasharray="75, 100" stroke-width="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CONTACT FORM -->
+    <section id="contact" class="py-24 relative">
+        <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="border border-sys-border bg-sys-surface/80 backdrop-blur-sm p-1">
+                <div class="border border-sys-border bg-sys-bg">
+                    <div class="border-b border-sys-border p-2 flex justify-between items-center bg-sys-surface text-xs font-mono">
+                        <div class="text-sys-muted">root@hermes-deploy:~</div>
+                        <div class="flex gap-2">
+                            <div class="w-2 h-2 bg-sys-border rounded-full hover:bg-sys-accent-3 cursor-pointer"></div>
+                            <div class="w-2 h-2 bg-sys-border rounded-full hover:bg-sys-accent-2 cursor-pointer"></div>
+                            <div class="w-2 h-2 bg-sys-border rounded-full hover:bg-sys-accent-1 cursor-pointer"></div>
+                        </div>
+                    </div>
+                    <div class="p-6 sm:p-8 font-mono">
+                        <div class="mb-8">
+                            <span class="text-sys-accent-1">root@hermes-deploy:~#</span>
+                            <span class="text-white"> ./initiate_onboarding.sh</span>
+                            <p class="text-sys-muted mt-2 text-sm">Initializing secure connection to sales engineering team...</p>
+                        </div>
+                        <form class="space-y-6">
+                            <div>
+                                <label class="block text-sys-muted text-xs mb-2 uppercase">Company_Name</label>
+                                <input type="text" class="w-full bg-sys-surface border border-sys-border focus:border-sys-accent-1 focus:ring-1 focus:ring-sys-accent-1 text-white text-sm px-4 py-3 outline-none transition-colors" placeholder="e.g. CyberDyne Systems">
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-sys-muted text-xs mb-2 uppercase">Admin_Email</label>
+                                    <input type="email" class="w-full bg-sys-surface border border-sys-border focus:border-sys-accent-1 focus:ring-1 focus:ring-sys-accent-1 text-white text-sm px-4 py-3 outline-none transition-colors" placeholder="admin@domain.com">
+                                </div>
+                                <div>
+                                    <label class="block text-sys-muted text-xs mb-2 uppercase">Use_Case_Parameters</label>
+                                    <select class="w-full bg-sys-surface border border-sys-border focus:border-sys-accent-1 focus:ring-1 focus:ring-sys-accent-1 text-white text-sm px-4 py-3 outline-none transition-colors appearance-none">
+                                        <option>Customer Support Automation</option>
+                                        <option>Internal Knowledge Retrieval (RAG)</option>
+                                        <option>Data Extraction &amp; Analysis</option>
+                                        <option>Custom Workflow (Specify below)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sys-muted text-xs mb-2 uppercase">System_Requirements / Specs</label>
+                                <textarea rows="4" class="w-full bg-sys-surface border border-sys-border focus:border-sys-accent-1 focus:ring-1 focus:ring-sys-accent-1 text-white text-sm px-4 py-3 outline-none transition-colors resize-none" placeholder="Describe your data sources and expected agent actions..."></textarea>
+                            </div>
+                            <div class="pt-4 flex justify-end">
+                                <button type="button" class="tech-border bg-sys-text text-black font-bold uppercase tracking-widest px-8 py-3 hover:bg-sys-accent-1 transition-colors text-sm w-full sm:w-auto">
+                                    [ EXECUTE_REQUEST ]
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="border-t border-sys-border bg-sys-bg py-8 text-xs font-mono">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-2 text-sys-muted">
+                <span class="w-1.5 h-1.5 bg-sys-accent-1 rounded-full"></span>
+                SYSTEM.ONLINE // SYNCHRONIZED
+            </div>
+            <div class="text-sys-muted">
+                &copy; 2026 HERMES AGENT DEPLOYMENT FACILITY. ALL PROTOCOLS RESERVED.
+            </div>
+            <div class="flex gap-6">
+                <a href="#" class="text-sys-muted hover:text-white transition-colors">GITHUB</a>
+                <a href="#" class="text-sys-muted hover:text-white transition-colors">DOCS</a>
+                <a href="#" class="text-sys-muted hover:text-white transition-colors">STATUS</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // --- Terminal Typing Effect ---
+        const terminalOutput = document.getElementById('terminal-output');
+        const lines = [
+            "> Initializing Hermes v3.1 model weights...",
+            "> Loading custom corporate context (RAG)...",
+            "> Connecting to secure API endpoints...",
+            "  - CRM: [CONNECTED]",
+            "  - ERP: [CONNECTED]",
+            "  - Internal Wiki: [CONNECTED]",
+            "> Configuring safety bounds and ethical constraints...",
+            "> Compiling agent behaviors...",
+            "> Agent 'OPERATOR_01' ready for deployment.",
+            "> Awaiting input..."
+        ];
+
+        let lineIndex = 0;
+
+        function typeLine() {
+            if (lineIndex < lines.length) {
+                const lineDiv = document.createElement('div');
+                lineDiv.className = lineIndex === lines.length - 1 ? 'text-sys-accent-1 mt-2' : 'text-sys-muted';
+                lineDiv.innerHTML = lines[lineIndex] + '<span class="animate-pulse">_</span>';
+                terminalOutput.appendChild(lineDiv);
+                terminalOutput.scrollTop = terminalOutput.scrollHeight;
+
+                setTimeout(() => {
+                    lineDiv.innerHTML = lines[lineIndex];
+                    lineIndex++;
+                    typeLine();
+                }, Math.random() * 500 + 300);
+            } else {
+                const cursorDiv = document.createElement('div');
+                cursorDiv.className = 'text-sys-accent-1 mt-1';
+                cursorDiv.innerHTML = '<span class="animate-pulse">█</span>';
+                terminalOutput.appendChild(cursorDiv);
+                terminalOutput.scrollTop = terminalOutput.scrollHeight;
+            }
+        }
+
+        setTimeout(typeLine, 1500);
+
+        // --- Three.js Background ---
+        const initThreeJS = () => {
+            const canvas = document.getElementById('bg-canvas');
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 30;
+
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+
+            // Particles
+            const particlesGeometry = new THREE.BufferGeometry();
+            const posArray = new Float32Array(1000 * 3);
+            for (let i = 0; i < posArray.length; i++) posArray[i] = (Math.random() - 0.5) * 100;
+            particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+            const particlesMesh = new THREE.Points(particlesGeometry, new THREE.PointsMaterial({
+                size: 0.1, color: '#00ffcc', transparent: true, opacity: 0.5,
+                blending: THREE.AdditiveBlending
+            }));
+            scene.add(particlesMesh);
+
+            // Wireframe sphere
+            const sphere = new THREE.Mesh(
+                new THREE.IcosahedronGeometry(15, 2),
+                new THREE.MeshBasicMaterial({ color: '#222222', wireframe: true, transparent: true, opacity: 0.3 })
+            );
+            scene.add(sphere);
+
+            let mouseX = 0, mouseY = 0;
+            const wHX = window.innerWidth / 2, wHY = window.innerHeight / 2;
+            document.addEventListener('mousemove', e => { mouseX = e.clientX - wHX; mouseY = e.clientY - wHY; });
+
+            const clock = new THREE.Clock();
+            const animate = () => {
+                requestAnimationFrame(animate);
+                const t = clock.getElapsedTime();
+                particlesMesh.rotation.y = t * 0.05;
+                particlesMesh.rotation.x = t * 0.02;
+                sphere.rotation.y = t * 0.02;
+                sphere.rotation.x = t * 0.01;
+                particlesMesh.rotation.y += 0.05 * (mouseX * 0.001 - particlesMesh.rotation.y);
+                particlesMesh.rotation.x += 0.05 * (mouseY * 0.001 - particlesMesh.rotation.x);
+                renderer.render(scene, camera);
+            };
+            animate();
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        };
+
+        window.onload = initThreeJS;
+    </script>
+</body>
+</html>
