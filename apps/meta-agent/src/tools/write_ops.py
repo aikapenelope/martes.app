@@ -618,6 +618,12 @@ _CREDENTIAL_FILE_MAP: dict[str, str] = {
     # openrouter_api_key va en .env y además limpia el marker de expiración BYOK
     # inmediatamente (en lugar de esperar el ciclo de 30 min del scheduler).
     "openrouter_api_key": ".env",
+    # Variables de Telegram — permiten al admin actualizar sin SSH si el bot_token
+    # fue revocado, el cliente cambió de Telegram ID, o falta home_channel.
+    # La lógica key.upper() mapea directamente a la var de entorno correcta.
+    "telegram_bot_token": ".env",        # → TELEGRAM_BOT_TOKEN
+    "telegram_allowed_users": ".env",    # → TELEGRAM_ALLOWED_USERS
+    "telegram_home_channel": ".env",     # → TELEGRAM_HOME_CHANNEL
 }
 
 # Tipo literal para credenciales soportadas.
@@ -630,7 +636,10 @@ CredentialType = Literal[
     "airtable_key",
     "github_token",
     "linear_key",
-    "openrouter_api_key",  # clave propia del cliente para OpenRouter
+    "openrouter_api_key",       # clave propia del cliente para OpenRouter
+    "telegram_bot_token",       # token del bot si fue revocado y hay uno nuevo
+    "telegram_allowed_users",   # IDs autorizados (ej: "123456789" o "123,456")
+    "telegram_home_channel",    # chat_id destino de notificaciones del agente
 ]
 
 
@@ -644,12 +653,18 @@ def inject_credential(
     Parámetros:
     - tenant_code: código del tenant (ej: t001)
     - credential_type: tipo de credencial. Valores válidos:
-        google_token — archivo google_token.json para integración Google
-        notion_key   — NOTION_KEY en .env
-        airtable_key — AIRTABLE_KEY en .env
-        github_token — GITHUB_TOKEN en .env
-        linear_key   — LINEAR_KEY en .env
-    - credential_value: valor de la credencial (string, puede ser JSON)
+        google_token          — archivo google_token.json para integración Google
+        notion_key            — NOTION_KEY en .env
+        airtable_key          — AIRTABLE_KEY en .env
+        github_token          — GITHUB_TOKEN en .env
+        linear_key            — LINEAR_KEY en .env
+        openrouter_api_key    — OPENROUTER_API_KEY (key propia del cliente)
+        telegram_bot_token    — TELEGRAM_BOT_TOKEN (si el token fue revocado)
+        telegram_allowed_users — TELEGRAM_ALLOWED_USERS (IDs autorizados)
+        telegram_home_channel  — TELEGRAM_HOME_CHANNEL (destino de notificaciones)
+    - credential_value: valor de la credencial (string)
+
+    Hermes recarga .env en cada turno — efecto en el próximo mensaje, sin restart.
     """
     tp = Path(settings.tenants_base_path) / tenant_code
     if not tp.exists():
