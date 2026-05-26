@@ -233,47 +233,6 @@ services:
         limits:
           memory: 1G    # Metabase (JVM) necesita mínimo 1 GB
 
-  # ==========================================================================
-  # Landing page — martes.app (raíz del dominio)
-  #
-  # Build: Coolify construye la imagen desde apps/landing/Dockerfile.
-  # El HTML queda baked en la imagen — sin bind mounts en producción.
-  # Mismo patrón que el servicio meta-agent (build context = repo root).
-  #
-  # Para actualizar el contenido: editar apps/landing/ y mergear a main
-  # → Coolify detecta el push, reconstruye la imagen y redespliega.
-  # ==========================================================================
-  landing:
-    build:
-      context: .
-      dockerfile: apps/landing/Dockerfile
-    restart: unless-stopped
-    networks:
-      - coolify    # red de Traefik — routing de martes.app
-    labels:
-      # HTTPS martes.app → nginx puerto 80
-      - "traefik.enable=true"
-      - "traefik.docker.network=coolify"
-      - "traefik.http.routers.landing-https.rule=Host(`martes.app`)"
-      - "traefik.http.routers.landing-https.entrypoints=https"
-      - "traefik.http.routers.landing-https.tls=true"
-      - "traefik.http.routers.landing-https.tls.certresolver=letsencrypt"
-      - "traefik.http.services.landing.loadbalancer.server.port=80"
-      # HTTP → HTTPS redirect
-      - "traefik.http.routers.landing-http.rule=Host(`martes.app`)"
-      - "traefik.http.routers.landing-http.entrypoints=http"
-      - "traefik.http.routers.landing-http.middlewares=redirect-to-https@docker"
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/"]
-      interval: 30s
-      timeout: 5s
-      start_period: 5s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: 64M   # nginx sirviendo estáticos: <20 MB real
-
 
 networks:
   # Red externa de Coolify/Traefik — necesaria para routing HTTP/HTTPS.
