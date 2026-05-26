@@ -120,8 +120,8 @@ class TestRamAlertLogic:
     """Alerta de RAM — lógica de umbral y formato del mensaje.
 
     Documenta el comportamiento del chequeo de RAM añadido en run_health_check().
-    El servidor CX43 tiene 32 GB RAM; ~20 tenants × 768 MB = 15 GB. Con 20% libre
-    (~6.4 GB) ya es momento de pensar en escalar.
+    El servidor CX43 tiene 16 GB RAM; ~20 tenants × 768 MB = 15 GB. Con 20% libre
+    (~3.2 GB) ya es momento de pensar en escalar.
     Ref: docs/10-ROADMAP.md — capacidad: ~20 tenants en CX43.
     """
 
@@ -146,27 +146,27 @@ class TestRamAlertLogic:
 
     def test_ram_pct_calculation(self):
         """El porcentaje de RAM disponible se calcula correctamente."""
-        # CX43: 32 GB RAM = 33554432 KB total
-        mem_total_kb = 33_554_432
-        # 6 GB disponibles → ~18.8%
-        mem_avail_kb = 6_291_456
+        # CX43: 16 GB RAM ≈ 16_000_000 KB en /proc/meminfo
+        mem_total_kb = 16_000_000
+        # 3 GB disponibles → 18.75% ≈ 18.8%
+        mem_avail_kb = 3_000_000
         avail_pct = round(mem_avail_kb / mem_total_kb * 100, 1)
         assert avail_pct == 18.8
         assert self._should_alert(avail_pct) is True
 
     def test_avail_mb_conversion(self):
         """KB → MB usa división entera para evitar decimales en el mensaje."""
-        mem_avail_kb = 6_291_456  # 6 GB
+        mem_avail_kb = 3_145_728  # 3 GB exactos en KB
         mem_avail_mb = mem_avail_kb // 1024
-        assert mem_avail_mb == 6144  # 6 * 1024
+        assert mem_avail_mb == 3072  # 3 * 1024
 
     def test_proc_meminfo_parsing(self):
         """El parser de /proc/meminfo extrae MemTotal y MemAvailable correctamente."""
         # Muestra representativa de /proc/meminfo
         fake_meminfo = (
-            "MemTotal:       32768000 kB\n"
-            "MemFree:         5000000 kB\n"
-            "MemAvailable:    6000000 kB\n"
+            "MemTotal:       16000000 kB\n"
+            "MemFree:         2000000 kB\n"
+            "MemAvailable:    3000000 kB\n"
             "Buffers:          200000 kB\n"
         )
         lines = fake_meminfo.splitlines()
@@ -176,8 +176,8 @@ class TestRamAlertLogic:
         mem_avail_kb = int(
             next(ln for ln in lines if ln.startswith("MemAvailable")).split()[1]
         )
-        assert mem_total_kb == 32_768_000
-        assert mem_avail_kb == 6_000_000
+        assert mem_total_kb == 16_000_000
+        assert mem_avail_kb == 3_000_000
         avail_pct = round(mem_avail_kb / mem_total_kb * 100, 1)
-        assert avail_pct == 18.3
+        assert avail_pct == 18.8
         assert self._should_alert(avail_pct) is True
