@@ -114,6 +114,63 @@ inject_credential("t001", "openrouter_api_key", "sk-or-v1-xxxxx")
 
 ---
 
+## Estado de credenciales de un tenant — cómo leer correctamente
+
+**CRÍTICO**: antes de asumir que un tenant no tiene credenciales propias, verificar
+el estado real. Un tenant PUEDE estar funcionando perfectamente aunque no hayas
+inyectado una key desde aquí.
+
+### Cómo funciona la prioridad de credenciales en Hermes
+
+Hermes usa credenciales en este orden de prioridad (de mayor a menor):
+
+```
+1. auth.json en /opt/data/auth.json  ← MÁXIMA PRIORIDAD
+   El cliente configuró su cuenta vía /auth en Telegram (OAuth con OpenRouter,
+   Anthropic, Google, xAI, etc.). Si este archivo existe con >50 bytes,
+   el bot funciona con esas credenciales INDEPENDIENTEMENTE de lo que haya en .env.
+
+2. OPENROUTER_API_KEY en .env  ← segunda prioridad
+   Puede ser: a) la platform key que pusimos al crear el tenant
+              b) una key propia del cliente inyectada con inject_credential()
+
+3. Nada → el bot muestra error de credencial al responder
+```
+
+### Cómo verificar el estado real antes de actuar
+
+```
+expire_platform_key("t001", dry_run=True)
+```
+
+Devuelve uno de estos estados:
+- `"client_auth_active"` → auth.json existe con credenciales → **bot funciona, NO intervenir**
+- `"client_key_active"` → .env tiene la key propia del cliente → **bot funciona, NO intervenir**
+- `"not_expired"` → platform key activa, TTL no vencido → **bot funciona temporalmente**
+- `"blanked"` → platform key fue borrada → **el cliente debe configurar su key**
+
+### Señal práctica: si el container está "healthy", tiene credenciales
+
+Si `container_health("t001")` devuelve `"healthy"`, el bot está respondiendo peticiones.
+Hermes solo responde si tiene credenciales válidas. No asumir que falta una key
+solo porque no la inyectamos nosotros.
+
+### Por qué el bot puede parecer que "tiene dos conversaciones"
+
+Esto ocurre por dos razones independientes:
+
+**Causa 1 — Loop de herramienta fallida**: el cliente le pidió al bot que ejecutara
+algo que usa el CLI de Hermes (ej: "actualízate", "instala skills"). El CLI de Hermes
+(`hermes`) no está en el PATH de bash del container, entonces Hermes cae en un loop
+reintentando con pip, apt, sudo — todos fallando. El bot parece responder cosas raras.
+**Fix**: el cliente envía `/restart` a su bot. Mata la sesión activa. El container
+no necesita reiniciarse.
+
+**Causa 2 — Conflicto de polling de Telegram**: cuando el container se reinicia,
+momentáneamente hay dos conexiones de getUpdates activas. Se resuelve solo en 10-30s.
+
+
+
 ## Pausar Tenant (No Pago)
 
 1. `backup_tenant(tenant_code)` — SIEMPRE backup antes de pausar
@@ -305,6 +362,20 @@ Si no paga después de 90 días:
 2. Si está parado: `restart_tenant(tenant_code)`
 3. Si está running pero no responde: verificar que `.env` tiene `TELEGRAM_ALLOWED_USERS`
    → Si falta: `inject_credential(tenant_code, "telegram_allowed_users", "ID_DEL_CLIENTE")`
+4. **ANTES de asumir que falta API key**: revisar sección "Estado de credenciales"
+   → Si `container_health` da "healthy", el bot tiene credenciales. No inyectar key.
+   → Ejecutar `expire_platform_key(tenant_code, dry_run=True)` para ver el estado real.
+
+### Bot parece confundido o responde cosas extrañas (loop de herramienta)
+
+El cliente intentó algo que requiere el CLI de Hermes internamente y Hermes cayó en un
+loop de reintentos. **No reiniciar el container** — solo la sesión.
+
+El cliente envía `/restart` a su bot desde Telegram. El gateway hace exit 75, Docker
+lo levanta en segundos, sesión nueva sin el loop.
+
+Si el admin quiere hacerlo desde aquí: `restart_tenant(tenant_code)` (reinicia el container)
+funciona también pero es más brusco — el cliente tiene que esperar ~30s.
 
 ### Container no arranca
 
