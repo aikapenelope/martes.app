@@ -21,6 +21,8 @@ from src.tools.read_ops import (
     find_stale_resources,
     get_all_tenants,
     get_server_capacity,
+    get_tenant_config,
+    get_tenant_env_keys,
     list_backups,
     list_containers,
 )
@@ -46,6 +48,8 @@ diagnosticador = Agent(
         get_server_capacity,
         list_backups,
         check_backup_status,
+        get_tenant_config,      # modelo activo, plataformas, skills, cron jobs
+        get_tenant_env_keys,    # claves del .env (sin valores — diagnóstico seguro)
     ],
     tool_call_limit=10,
     retries=1,

@@ -1028,3 +1028,148 @@ def get_tenant_payment_history(tenant_code: str) -> str:
             )
     except psycopg.Error as e:
         return json.dumps({"error": str(e)})
+
+
+# =============================================================================
+# Herramientas de diagnóstico de volumen — leen archivos del tenant sin Docker
+# =============================================================================
+
+
+def get_tenant_config(tenant_code: str) -> str:
+    """Lee la configuración activa de un tenant desde su volumen en disco.
+
+    Lee config.yaml (modelo, memoria, session_reset) y gateway_state.json
+    (plataformas activas, versión del gateway) directamente desde el volumen
+    montado en el host. No requiere que el container esté corriendo.
+
+    Útil para el Diagnosticador cuando necesita saber qué modelo usa realmente
+    un tenant (puede diferir de instance_configs si el cliente usó /model).
+
+    Ref: Hermes hot-reload — config.yaml se recarga en cada turno.
+    Ref: https://hermes-agent.nousresearch.com/docs/user-guide/docker
+    """
+    import yaml as _yaml
+
+    tenant_path = Path(settings.tenants_base_path) / tenant_code
+    if not tenant_path.exists():
+        return json.dumps({"error": f"Tenant {tenant_code} no encontrado en disco."})
+
+    result: dict = {"tenant": tenant_code}
+
+    # config.yaml — modelo LLM, memoria, session_reset
+    config_file = tenant_path / "config.yaml"
+    if config_file.exists():
+        try:
+            cfg = _yaml.safe_load(config_file.read_text()) or {}
+            result["config"] = {
+                "model": (cfg.get("model") or {}).get("default", "desconocido"),
+                "memory_enabled": (cfg.get("memory") or {}).get("memory_enabled"),
+                "session_reset_mode": (cfg.get("session_reset") or {}).get("mode"),
+                "max_turns": (cfg.get("agent") or {}).get("max_turns"),
+            }
+        except Exception as e:
+            result["config_error"] = str(e)
+    else:
+        result["config"] = None
+
+    # gateway_state.json — plataformas activas, versión
+    gw_state_file = tenant_path / "gateway_state.json"
+    if gw_state_file.exists():
+        try:
+            gw = json.loads(gw_state_file.read_text())
+            result["gateway_state"] = {
+                "platforms": list(gw.get("platforms", {}).keys()),
+                "version": gw.get("version"),
+            }
+        except Exception as e:
+            result["gateway_state_error"] = str(e)
+    else:
+        result["gateway_state"] = None
+
+    # skills instalados (directorio skills/)
+    skills_dir = tenant_path / "skills"
+    if skills_dir.exists():
+        skill_names = [
+            d.name
+            for d in sorted(skills_dir.iterdir())
+            if d.is_dir() and not d.name.startswith(".")
+        ]
+        result["skills_installed"] = skill_names
+        result["skills_count"] = len(skill_names)
+    else:
+        result["skills_installed"] = []
+        result["skills_count"] = 0
+
+    # cron jobs activos (cron/jobs.json si existe)
+    cron_file = tenant_path / "cron" / "jobs.json"
+    if cron_file.exists():
+        try:
+            cron_data = json.loads(cron_file.read_text())
+            jobs = cron_data if isinstance(cron_data, list) else cron_data.get("jobs", [])
+            result["cron_jobs"] = len(jobs)
+        except Exception:
+            result["cron_jobs"] = "error_leyendo"
+    else:
+        result["cron_jobs"] = 0
+
+    return json.dumps(result)
+
+
+def get_tenant_env_keys(tenant_code: str) -> str:
+    """Lista las claves del .env de un tenant (NUNCA los valores).
+
+    Devuelve cada clave con un indicador booleano de si tiene valor seteado
+    (non-empty). Los valores nunca se incluyen en la respuesta.
+
+    Útil para diagnosticar sin SSH si el bot tiene TELEGRAM_ALLOWED_USERS,
+    si falta OPENROUTER_API_KEY, o si TELEGRAM_HOME_CHANNEL está configurado.
+
+    Seguridad: solo se devuelven nombres de claves. Los valores se mantienen
+    ocultos — el Diagnosticador no necesita ver keys ni tokens para diagnosticar.
+    """
+    tenant_path = Path(settings.tenants_base_path) / tenant_code
+    env_file = tenant_path / ".env"
+
+    if not tenant_path.exists():
+        return json.dumps({"error": f"Tenant {tenant_code} no encontrado en disco."})
+
+    if not env_file.exists():
+        return json.dumps({"tenant": tenant_code, "env_exists": False, "keys": []})
+
+    try:
+        keys: list[dict] = []
+        for raw_line in env_file.read_text().splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" in line:
+                key, _, value = line.partition("=")
+                keys.append({
+                    "key": key.strip(),
+                    "set": bool(value.strip()),  # True si tiene valor, False si vacío
+                })
+
+        # Indicadores de alto nivel para diagnóstico rápido
+        key_names = {k["key"] for k in keys}
+        summary = {
+            "has_openrouter_key": any(
+                k["key"] == "OPENROUTER_API_KEY" and k["set"] for k in keys
+            ),
+            "has_telegram_token": any(
+                k["key"] == "TELEGRAM_BOT_TOKEN" and k["set"] for k in keys
+            ),
+            "has_allowed_users": any(
+                k["key"] == "TELEGRAM_ALLOWED_USERS" and k["set"] for k in keys
+            ),
+            "has_home_channel": "TELEGRAM_HOME_CHANNEL" in key_names,
+        }
+
+        return json.dumps({
+            "tenant": tenant_code,
+            "env_exists": True,
+            "keys_count": len(keys),
+            "keys": keys,
+            "summary": summary,
+        })
+    except OSError as e:
+        return json.dumps({"error": str(e)})
