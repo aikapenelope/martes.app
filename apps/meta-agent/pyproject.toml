@@ -1,0 +1,67 @@
+[project]
+name = "martes-meta-agent"
+version = "0.1.0"
+description = "Meta-agente Agno para gestionar tenants Hermes en martes.app"
+requires-python = ">=3.12"
+dependencies = [
+    # Versiones pineadas exactas (==x.y.z) — filosofía martes.app
+    # Refs verificadas en PyPI mayo 2026
+    # Agno AgentOS con extras telegram + scheduler.
+    # telegram: Telegram interface (bot, webhook, polling)
+    # scheduler: habilita POST /schedules en AgentOS (requiere croniter)
+    # Ref: https://docs.agno.com/agent-os/scheduler
+    "agno[telegram,scheduler]==2.6.8",
+    "fastapi==0.136.1",
+    "uvicorn[standard]==0.47.0",
+    "openai==2.37.0",
+    "psycopg[binary]==3.3.4",
+    "pgvector==0.4.2",
+    "docker==7.1.0",
+    "pydantic==2.13.4",
+    "pydantic-settings==2.14.1",
+    "pyyaml==6.0.3",
+    "sqlalchemy==2.0.49",
+    # boto3 — SDK oficial de AWS, compatible con SeaweedFS S3 y cualquier
+    # servicio S3-compatible. Usado para backups de tenants.
+    # Ref: https://boto3.amazonaws.com/v1/documentation/api/latest/index.html
+    "boto3==1.43.14",
+    # httpx — cliente HTTP async para el startup handler del Agno scheduler.
+    # Registra el schedule de backup diario al arrancar el meta-agente.
+    # Ref: https://www.python-httpx.org/
+    "httpx==0.28.1",
+    # OpenTelemetry — requerido para tracing en AgentOS
+    # Sin estos paquetes tracing=True en AgentOS no registra trazas.
+    # Las trazas se guardan en ai.martes_traces y se ven en os.agno.com.
+    # Ref: https://docs.agno.com/agent-os/tracing
+    "opentelemetry-api==1.42.1",
+    "opentelemetry-sdk==1.42.1",
+    "openinference-instrumentation-agno==0.1.34",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pyright>=1.1.0",
+    "ruff>=0.4.0",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+venvPath = "."
+venv = ".venv"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W"]

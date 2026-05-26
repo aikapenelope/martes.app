@@ -1,0 +1,248 @@
+services:
+
+  # ==========================================================================
+  # PostgreSQL con pgvector
+  # Imagen oficial de Agno: https://docs.agno.com/runtime/deploy
+  # Datos en host volume para persistencia entre redeploys de Coolify.
+  # Sin container_name — Coolify gestiona el nombre del container.
+  # Sin custom networks — Coolify crea red aislada por stack automáticamente.
+  # Ref: https://coolify.io/docs/applications/build-packs/docker-compose
+  # ==========================================================================
+  db:
+    image: agnohq/pgvector:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: martes
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?}
+      POSTGRES_DB: martes
+    volumes:
+      - /var/lib/martes/pg-data:/var/lib/postgresql
+      - ./db/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U martes -d martes"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=128MB"
+      - "-c"
+      - "max_connections=50"
+      - "-c"
+      - "work_mem=4MB"
+      - "-c"
+      - "log_min_duration_statement=1000"
+      - "-c"
+      - "log_statement=ddl"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # ==========================================================================
+  # Meta-agente Agno AgentOS
+  # Puerto 7777 interno, expuesto en:
+  #   - 8000 via Tailscale (acceso admin directo)
+  #   - api.martes.app via Traefik (webhook Telegram + API pública)
+  #
+  # Build nativo de Coolify: Coolify construye la imagen desde el repo GitHub.
+  # En cada push a main el GitHub App de Coolify detecta el commit, reconstruye
+  # la imagen en el servidor y redespliega automáticamente.
+  # Ref: https://coolify.io/docs/applications/ci-cd/github/auto-deploy
+  #
+  # Raw compose mode requiere labels de Traefik explícitas.
+  # Coolify no las inyecta en raw compose — confirmado en source:
+  # github.com/coollabsio/coolify ApplicationDeploymentJob.php
+  #
+  # El container debe estar en la red "coolify" para que Traefik lo descubra.
+  # Ref entrypoints: /data/coolify/proxy/dynamic/coolify.yaml
+  # Ref: https://coolify.io/docs/applications/build-packs/docker-compose
+  # ==========================================================================
+  meta-agent:
+    build:
+      # Coolify pasa --project-directory=<repo-root> cuando ejecuta el build,
+      # así que "." resuelve a la raíz del repo (no a infra/).
+      # Localmente: docker compose --project-directory . -f infra/docker-compose.yml build
+      # Ref comportamiento: https://docs.docker.com/compose/how-tos/project-name/
+      context: .
+      dockerfile: apps/meta-agent/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "100.104.89.128:8000:7777"   # AgentOS API via Tailscale — solo interfaz Tailscale
+    networks:
+      - default    # red del stack — comunicación con db
+      - coolify    # red de Traefik — routing de api.martes.app
+    labels:
+      # Traefik routing: api.martes.app → AgentOS puerto 7777
+      # HTTPS con TLS via Let's Encrypt (certresolver de Coolify)
+      - "traefik.enable=true"
+      - "traefik.docker.network=coolify"
+      - "traefik.http.routers.meta-agent-https.rule=Host(`api.martes.app`)"
+      - "traefik.http.routers.meta-agent-https.entrypoints=https"
+      - "traefik.http.routers.meta-agent-https.tls=true"
+      - "traefik.http.routers.meta-agent-https.tls.certresolver=letsencrypt"
+      - "traefik.http.services.meta-agent.loadbalancer.server.port=7777"
+      # HTTP redirect → HTTPS
+      - "traefik.http.routers.meta-agent-http.rule=Host(`api.martes.app`)"
+      - "traefik.http.routers.meta-agent-http.entrypoints=http"
+      - "traefik.http.routers.meta-agent-http.middlewares=redirect-to-https@docker"
+    environment:
+      DATABASE_URL: postgresql+psycopg://martes:${PG_PASSWORD:?}@db:5432/martes
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?}
+      TELEGRAM_TOKEN: ${META_AGENT_TELEGRAM_TOKEN:?}
+      # TELEGRAM_WEBHOOK_SECRET_TOKEN: requerido por Agno en APP_ENV=production
+      # Valida header X-Telegram-Bot-Api-Secret-Token en cada webhook.
+      # Ref: https://docs.agno.com/agent-os/interfaces/telegram/introduction
+      TELEGRAM_WEBHOOK_SECRET_TOKEN: ${TELEGRAM_WEBHOOK_SECRET_TOKEN:?}
+      # TELEGRAM_ADMIN_IDS: IDs de Telegram autorizados para hablar al meta-agente.
+      # Separa múltiples IDs con coma. Tu ID lo obtiene @userinfobot en Telegram.
+      # Obligatorio en producción — sin esto cualquier persona puede usar el bot.
+      TELEGRAM_ADMIN_IDS: ${TELEGRAM_ADMIN_IDS:?}
+      # AGENT_OS_HOST requerido para containers — ref: https://docs.agno.com/agent-os/overview
+      AGENT_OS_HOST: "0.0.0.0"
+      APP_ENV: production
+      TENANTS_BASE_PATH: /var/lib/martes/tenants
+      HERMES_IMAGE: nousresearch/hermes-agent:v2026.5.16
+      TEMPLATES_PATH: /app/infra/templates
+      # Storage SeaweedFS — mapeamos las mismas credenciales Coolify al nombre
+      # que lee config.py (storage_access_key → STORAGE_ACCESS_KEY).
+      # SeaweedFS ya las recibe como AWS_ACCESS_KEY_ID en su propio servicio.
+      STORAGE_ENDPOINT: http://seaweedfs:8333
+      STORAGE_ACCESS_KEY: ${SEAWEEDFS_ACCESS_KEY:?}
+      STORAGE_SECRET_KEY: ${SEAWEEDFS_SECRET_KEY:?}
+      STORAGE_BUCKET: martes-backups
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock   # Docker SDK para gestionar containers de tenants
+      - /var/lib/martes/tenants:/var/lib/martes/tenants
+      - /var/lib/martes/meta-agent:/var/lib/martes/meta-agent
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:7777/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 25s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ==========================================================================
+  # SeaweedFS — Object storage S3-compatible para backups de tenants
+  #
+  # Corre como single-node (weed mini) — arquitectura documentada para
+  # despliegues single-server:
+  # Ref: https://github.com/seaweedfs/seaweedfs?tab=readme-ov-file#quick-start-with-weed-mini
+  #
+  # Acceso SOLO por red Docker interna (sin puerto expuesto al host).
+  # El meta-agente lo alcanza en http://seaweedfs:8333 via la red del stack.
+  # Ref S3 API: https://github.com/seaweedfs/seaweedfs/wiki/Amazon-S3-API
+  #
+  # Credenciales en Coolify UI → Environment Variables:
+  #   SEAWEEDFS_ACCESS_KEY  — generar: openssl rand -hex 16
+  #   SEAWEEDFS_SECRET_KEY  — generar: openssl rand -hex 32
+  # ==========================================================================
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.28
+    restart: unless-stopped
+    environment:
+      # Credenciales S3 — el mismo valor va en config.py del meta-agente
+      # Ref env vars: https://github.com/seaweedfs/seaweedfs#quick-start-for-s3-api-on-docker
+      AWS_ACCESS_KEY_ID: ${SEAWEEDFS_ACCESS_KEY:?}
+      AWS_SECRET_ACCESS_KEY: ${SEAWEEDFS_SECRET_KEY:?}
+      S3_BUCKET: martes-backups
+    volumes:
+      # Volumen persistente para datos de SeaweedFS (objetos, índice, metadatos)
+      # El directorio se crea en cloud-init del servidor.
+      - /var/lib/martes/seaweedfs:/data
+    networks:
+      - default    # solo red del stack — sin exposición a Traefik ni al host
+    # Sin ports: el meta-agente accede por http://seaweedfs:8333 (Docker DNS)
+    healthcheck:
+      # Usa el endpoint /healthz del S3 API (puerto 8333).
+      # Bug anterior: :8888/dir/status — el filer (8888) no tiene /dir/status;
+      # ese endpoint pertenece al master (9333). /healthz en el S3 port es la
+      # opción correcta porque es lo que usamos en producción.
+      # curl está disponible en chrislusf/seaweedfs:4.28 (confirmado en Dockerfile).
+      # Ref: seaweedfs/weed/s3api/s3api_server.go — Path("/healthz").HandlerFunc(...)
+      test: ["CMD-SHELL", "curl -sf http://localhost:8333/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ==========================================================================
+  # Metabase — Super Admin dashboard para gestión de tenants
+  #
+  # Solo accesible por Tailscale (100.104.89.128:3000) — nunca expuesto
+  # a internet. El admin accede desde su dispositivo con Tailscale activo.
+  #
+  # Conectado a la red 'default' del stack → puede conectar a db:5432.
+  # Al configurar la fuente de datos, usar host='db', puerto=5432,
+  # usuario='martes', contraseña=PG_PASSWORD, base de datos='martes'.
+  #
+  # Versión pineada: v0.61.2.6 (última estable, 22 mayo 2026)
+  # Compatible con PostgreSQL 18 + pgvector (Metabase ignora extensiones).
+  # Ref: https://www.metabase.com/docs/latest/databases/connections/postgresql
+  # Ref Docker: https://www.metabase.com/docs/latest/installation-and-operation/running-metabase-on-docker
+  # ==========================================================================
+  metabase:
+    image: metabase/metabase:v0.61.2.6
+    restart: unless-stopped
+    ports:
+      - "100.104.89.128:3000:3000"   # Solo interfaz Tailscale — no expuesto a internet
+    environment:
+      # H2 embebido — suficiente para uso de admin personal (un solo usuario).
+      # Si en el futuro se necesita alta disponibilidad, migrar a PostgreSQL.
+      # Ref: https://www.metabase.com/docs/latest/installation-and-operation/configuring-application-database
+      MB_DB_FILE: /metabase-data/metabase.db
+      MB_SITE_URL: http://100.104.89.128:3000
+      MB_EMOJI_IN_LOGS: "false"
+      # Limitar heap JVM — el servidor tiene 16 GB pero conviene reservar
+      # RAM para los containers de tenants Hermes.
+      JAVA_OPTS: "-Xmx768m"
+    volumes:
+      # Volumen nombrado: Docker gestiona permisos automáticamente,
+      # evitando el problema de root:root en bind mounts con imágenes no-root.
+      - metabase_data:/metabase-data
+    networks:
+      - default   # misma red que 'db' → alcanza db:5432
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      # Metabase expone GET /api/health cuando está listo.
+      # start_period largo porque la primera inicialización tarda ~90s.
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 15s
+      start_period: 120s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1G    # Metabase (JVM) necesita mínimo 1 GB
+
+
+networks:
+  # Red externa de Coolify/Traefik — necesaria para routing HTTP/HTTPS.
+  # Creada automáticamente por Coolify al instalar. No se gestiona desde aquí.
+  # Ref: https://coolify.io/docs/knowledge-base/docker/compose
+  coolify:
+    external: true
+    name: coolify
+
+
+volumes:
+  # Volumen de datos de Metabase (metadata interna: dashboards, preguntas, usuarios).
+  # Docker gestiona el lifecycle. Los datos de negocio (tenants, pagos) viven en
+  # el PostgreSQL del stack, no aquí.
+  metabase_data:

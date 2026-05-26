@@ -1,0 +1,13 @@
+{
+    "name": "martes-infra",
+    "main": "index.ts",
+    "devDependencies": {
+        "@types/node": "^18",
+        "typescript": "^5.0.0"
+    },
+    "dependencies": {
+        "@pulumi/hcloud": "^1.36.0",
+        "@pulumi/pulumi": "^3.113.0",
+        "@pulumi/tls": "^5.4.0"
+    }
+}
