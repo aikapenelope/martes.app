@@ -1,0 +1,103 @@
+---
+// Blog hub — /blog
+import { getCollection } from 'astro:content';
+import Layout from '../../layouts/Layout.astro';
+import '../../styles/global.css';
+
+const url = Astro.url;
+const activeTag = url.searchParams.get('tag') ?? '';
+
+const allPosts = (await getCollection('blog'))
+  .sort((a, b) => b.data.date.localeCompare(a.data.date));
+
+const posts = activeTag
+  ? allPosts.filter(p => p.data.tags.includes(activeTag))
+  : allPosts;
+
+// Todos los tags únicos
+const allTags = [...new Set(allPosts.flatMap(p => p.data.tags))].sort();
+---
+
+<Layout title="Blog — martes.app" description="Noticias, tutoriales y actualizaciones de martes.app y Hermes Agent.">
+
+  <!-- Nav -->
+  <header class="fixed top-0 w-full z-40 border-b border-sys-border bg-sys-bg/90 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-6">
+        <a href="/" class="flex items-center gap-2 text-sys-text font-bold tracking-widest uppercase text-sm">
+          <span class="w-2 h-2 bg-sys-accent-1 rounded-full"></span>SYS.HERMES
+        </a>
+        <span class="text-sys-border">/</span>
+        <span class="text-sys-muted text-xs uppercase tracking-widest font-mono">Blog</span>
+      </div>
+      <div class="flex items-center gap-6 text-xs">
+        <a href="/docs" class="text-sys-muted hover:text-sys-accent-1 transition-colors uppercase tracking-wider">Docs</a>
+        <a href="/#contact" class="bg-sys-text text-black px-4 py-2 font-bold uppercase tracking-wider hover:bg-sys-accent-1 transition-colors">[ DEPLOY_AGENT ]</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="pt-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+
+    <!-- Header -->
+    <div class="mb-12 border-b border-sys-border pb-8">
+      <div class="text-xs text-sys-muted font-mono tracking-widest uppercase mb-3">SYS.BLOG // martes.app</div>
+      <h1 class="text-4xl font-bold font-sans text-white mb-3">Blog</h1>
+      <p class="text-sys-muted text-sm max-w-xl">
+        Noticias del producto, tutoriales de Hermes, actualizaciones de plataforma y casos de uso.
+      </p>
+    </div>
+
+    <!-- Tag filter -->
+    <div class="flex gap-2 flex-wrap mb-10 font-mono text-xs">
+      <a href="/blog" class={`px-3 py-1.5 border transition-colors ${!activeTag ? 'border-sys-accent-1 text-sys-accent-1' : 'border-sys-border text-sys-muted hover:border-sys-accent-1 hover:text-sys-accent-1'}`}>
+        Todos ({allPosts.length})
+      </a>
+      {allTags.map(tag => (
+        <a
+          href={`/blog?tag=${tag}`}
+          class={`px-3 py-1.5 border transition-colors ${activeTag === tag ? 'border-sys-accent-1 text-sys-accent-1' : 'border-sys-border text-sys-muted hover:border-sys-accent-1 hover:text-sys-accent-1'}`}
+        >
+          {tag}
+        </a>
+      ))}
+    </div>
+
+    <!-- Posts grid -->
+    {posts.length === 0 ? (
+      <p class="text-sys-muted font-mono text-sm">No hay posts con el tag "{activeTag}".</p>
+    ) : (
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {posts.map(post => (
+          <a href={`/blog/${post.slug}`} class="group border border-sys-border bg-sys-surface/30 p-6 hover:border-sys-accent-1 hover:bg-sys-surface transition-all flex flex-col">
+            <!-- Tags -->
+            <div class="flex gap-1.5 flex-wrap mb-3">
+              {post.data.tags.map(tag => (
+                <span class="px-1.5 py-0.5 bg-sys-surface border border-sys-border text-[9px] font-mono text-sys-muted">
+                  {tag}
+                </span>
+              ))}
+            </div>
+            <!-- Title -->
+            <h2 class="text-white font-bold text-base mb-2 group-hover:text-sys-accent-1 transition-colors leading-snug flex-grow">
+              {post.data.title}
+            </h2>
+            <!-- Description -->
+            <p class="text-sys-muted text-xs leading-relaxed mb-4 line-clamp-3">{post.data.description}</p>
+            <!-- Meta -->
+            <div class="flex items-center justify-between text-[10px] font-mono text-sys-muted border-t border-sys-border/50 pt-3 mt-auto">
+              <span>{post.data.date}</span>
+              <span class="text-sys-accent-1 opacity-0 group-hover:opacity-100 transition-opacity">leer →</span>
+            </div>
+          </a>
+        ))}
+      </div>
+    )}
+
+  </div>
+
+  <footer class="border-t border-sys-border py-6 text-center text-xs font-mono text-sys-muted mt-4">
+    &copy; 2026 HERMES AGENT DEPLOYMENT FACILITY
+  </footer>
+
+</Layout>

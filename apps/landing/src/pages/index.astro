@@ -2,7 +2,11 @@
 import Layout from '../layouts/Layout.astro';
 import '../styles/global.css';
 ---
-<Layout title="SYS.HERMES // AGENT_DEPO — martes.app" description="Agentes IA para empresas en LATAM.">
+
+<Layout
+  title="SYS.HERMES // AGENT_DEPO — martes.app"
+  description="Agentes IA completos para tu empresa. Hermes en producción desde $30/mes."
+>
 
 <canvas id="bg-canvas"></canvas>
 <div class="scanline-overlay"></div>
@@ -13,32 +17,33 @@ import '../styles/global.css';
     <div class="flex items-center justify-between h-16">
       <div class="flex items-center gap-4">
         <div class="w-2 h-2 bg-sys-accent-1 rounded-full animate-pulse"></div>
-        <span class="text-sys-text font-bold tracking-widest uppercase">
+        <span class="text-sys-text font-bold tracking-widest uppercase text-sm">
           SYS.HERMES <span class="text-sys-muted font-normal">// DEPLOYMENT_FACILITY</span>
         </span>
       </div>
-      <div class="hidden md:flex items-baseline space-x-8">
-        <a href="#features" class="text-sys-muted hover:text-sys-accent-1 px-3 py-2 transition-colors uppercase tracking-wider text-xs">Capabilities</a>
-        <a href="/docs"     class="text-sys-muted hover:text-sys-accent-1 px-3 py-2 transition-colors uppercase tracking-wider text-xs">Docs</a>
-        <a href="#process"  class="text-sys-muted hover:text-sys-accent-1 px-3 py-2 transition-colors uppercase tracking-wider text-xs">Architecture</a>
-        <a href="#contact"  class="text-sys-muted hover:text-sys-accent-1 px-3 py-2 transition-colors uppercase tracking-wider text-xs">Initiate Protocol</a>
+      <div class="hidden md:flex items-baseline space-x-6">
+        <a href="#features"  class="text-sys-muted hover:text-sys-accent-1 px-2 py-2 transition-colors uppercase tracking-wider text-xs">Capacidades</a>
+        <a href="/docs"      class="text-sys-muted hover:text-sys-accent-1 px-2 py-2 transition-colors uppercase tracking-wider text-xs">Docs</a>
+        <a href="/blog"      class="text-sys-muted hover:text-sys-accent-1 px-2 py-2 transition-colors uppercase tracking-wider text-xs">Blog</a>
+        <a href="#pricing"   class="text-sys-muted hover:text-sys-accent-1 px-2 py-2 transition-colors uppercase tracking-wider text-xs">Precio</a>
+        <a href="#contact"   class="text-sys-muted hover:text-sys-accent-1 px-2 py-2 transition-colors uppercase tracking-wider text-xs">Contacto</a>
       </div>
-      <div class="flex items-center gap-4 text-xs">
-        <span class="hidden sm:inline-block text-sys-muted">V.2026.AGENT // ONLINE</span>
-        <a href="#contact" class="bg-sys-text text-black px-4 py-2 font-bold uppercase tracking-wider hover:bg-sys-accent-1 transition-colors">[ DEPLOY_AGENT ]</a>
-      </div>
+      <a href="#contact" class="bg-sys-text text-black px-4 py-2 font-bold uppercase tracking-wider hover:bg-sys-accent-1 transition-colors text-xs">
+        [ DEPLOY_AGENT ]
+      </a>
     </div>
   </div>
 </nav>
 
 <!-- HERO -->
-<main class="relative pt-32 pb-16 sm:pt-40 overflow-hidden">
-  <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-hero-glow rounded-full blur-[100px] opacity-20 animate-pulse-slow"></div>
+<main class="relative pt-32 pb-8 sm:pt-40 overflow-hidden">
+  <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-hero-glow rounded-full blur-[100px] opacity-20 animate-pulse-slow pointer-events-none"></div>
+
   <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
 
     <div class="mb-4 inline-flex items-center gap-2 border border-sys-border px-3 py-1 rounded-full text-xs text-sys-muted">
-      <span class="w-1.5 h-1.5 rounded-full bg-sys-accent-2"></span>
-      HERMES MODEL INTEGRATION ACTIVE
+      <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+      HERMES v0.14.0 · 165K ⭐ GitHub · PRODUCCIÓN ACTIVA
     </div>
 
     <h1 class="text-5xl sm:text-7xl lg:text-8xl font-bold tracking-tighter mb-6 font-sans text-transparent bg-clip-text bg-gradient-to-r from-white via-gray-300 to-gray-600">
@@ -46,24 +51,44 @@ import '../styles/global.css';
       <span class="font-mono text-white glitch-hover">AGENTES AUTÓNOMOS</span>
     </h1>
 
-    <p class="mt-4 max-w-2xl mx-auto text-lg sm:text-xl text-sys-muted font-light tracking-wide mb-10">
-      Diseñamos, entrenamos y desplegamos agentes IA basados en modelos Hermes.
-      Configuración profunda, memoria a largo plazo e integración de herramientas
-      para automatización de nivel empresarial.
+    <p class="mt-4 max-w-2xl mx-auto text-lg text-sys-muted font-light tracking-wide mb-10">
+      Cada cliente recibe un Hermes completo y sin restricciones, corriendo 24/7 en
+      infraestructura propia. Telegram, WhatsApp o las 20 plataformas restantes.
+      Memoria persistente. 200+ modelos. Desde <strong class="text-sys-accent-1">$30/mes</strong>.
     </p>
 
-    <div class="flex flex-col sm:flex-row justify-center gap-4">
+    <div class="flex flex-col sm:flex-row justify-center gap-4 mb-16">
       <a href="#contact" class="tech-border inline-flex items-center justify-center px-8 py-4 border border-sys-accent-1 text-sys-accent-1 hover:bg-sys-accent-1 hover:text-black font-bold uppercase tracking-widest transition-all">
         Iniciar Secuencia
         <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
       </a>
-      <a href="#demo" class="inline-flex items-center justify-center px-8 py-4 border border-sys-border text-sys-text hover:border-sys-text font-bold uppercase tracking-widest transition-all">
-        Ver Terminal Data
+      <a href="/docs" class="inline-flex items-center justify-center px-8 py-4 border border-sys-border text-sys-text hover:border-sys-accent-1 font-bold uppercase tracking-widest transition-all">
+        Ver Documentación
       </a>
     </div>
 
+    <!-- Stats bar -->
+    <div class="border border-sys-border bg-sys-surface/40 backdrop-blur-sm grid grid-cols-2 md:grid-cols-4 divide-x divide-sys-border">
+      <div class="p-4 text-center">
+        <div class="text-2xl font-bold text-white font-mono">22</div>
+        <div class="text-[10px] text-sys-muted uppercase tracking-widest mt-1">Plataformas</div>
+      </div>
+      <div class="p-4 text-center">
+        <div class="text-2xl font-bold text-white font-mono">200<span class="text-sys-muted text-sm">+</span></div>
+        <div class="text-[10px] text-sys-muted uppercase tracking-widest mt-1">Modelos IA</div>
+      </div>
+      <div class="p-4 text-center">
+        <div class="text-2xl font-bold text-sys-accent-1 font-mono">30d</div>
+        <div class="text-[10px] text-sys-muted uppercase tracking-widest mt-1">Trial gratis</div>
+      </div>
+      <div class="p-4 text-center">
+        <div class="text-2xl font-bold text-sys-accent-2 font-mono">99.9<span class="text-sys-muted text-sm">%</span></div>
+        <div class="text-[10px] text-sys-muted uppercase tracking-widest mt-1">Uptime</div>
+      </div>
+    </div>
+
     <!-- Terminal mockup -->
-    <div class="mt-20 relative mx-auto max-w-4xl" id="demo">
+    <div class="mt-12 relative mx-auto max-w-4xl" id="demo">
       <div class="absolute inset-0 bg-gradient-to-t from-sys-bg via-transparent to-transparent z-10 pointer-events-none"></div>
       <div class="data-card rounded-none border border-sys-border overflow-hidden text-left shadow-2xl">
         <div class="border-b border-sys-border bg-sys-surface px-4 py-2 flex items-center justify-between text-xs text-sys-muted">
@@ -73,9 +98,9 @@ import '../styles/global.css';
             <span class="w-3 h-3 rounded-full bg-sys-border"></span>
           </div>
           <span>SYS_LOG // HERMES_AGENT_INITIALIZATION</span>
-          <span>ACT_01</span>
+          <span class="text-green-500">● ONLINE</span>
         </div>
-        <div class="p-6 font-mono text-xs sm:text-sm text-sys-accent-1 h-64 overflow-y-auto" id="terminal-output">
+        <div class="p-6 font-mono text-xs sm:text-sm text-sys-accent-1 h-48 overflow-y-auto" id="terminal-output">
           <div class="text-sys-muted">&gt; Loading core modules... [OK]</div>
           <div class="text-sys-muted">&gt; Establishing neural pathways... [OK]</div>
           <div class="text-sys-muted">&gt; Connecting to enterprise data silos... [PENDING]</div>
@@ -85,46 +110,95 @@ import '../styles/global.css';
   </div>
 </main>
 
-<!-- CAPABILITIES -->
+<!-- CAPABILITIES — 6 cards -->
 <section id="features" class="py-24 relative border-t border-sys-border/50">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="mb-12 border-b border-sys-border pb-4 flex items-end justify-between">
       <div>
         <h2 class="text-xs text-sys-muted tracking-widest uppercase mb-1">01 // Capabilities</h2>
-        <h3 class="text-3xl font-bold font-sans text-white">ARQUITECTURA DE AGENTES</h3>
+        <h3 class="text-3xl font-bold font-sans text-white">HERMES COMPLETO.<br>SIN RESTRICCIONES.</h3>
       </div>
-      <div class="hidden sm:block text-right text-xs text-sys-muted">
-        <span>22 PLATAFORMAS</span><br><span>200+ MODELOS</span>
-      </div>
+      <a href="/docs/capabilities" class="hidden sm:block text-xs font-mono text-sys-accent-1 hover:underline">ver docs →</a>
     </div>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+      <!-- Card 1: Modelos -->
       <div class="data-card p-6 flex flex-col h-full">
-        <div class="mb-4 text-sys-accent-1 font-mono text-sm border-b border-sys-border/50 pb-2 flex justify-between"><span>MOD_01</span><span>[ ACTIVE ]</span></div>
-        <h4 class="text-xl font-bold text-white mb-3">Modelos Hermes Especializados</h4>
-        <p class="text-sys-muted text-sm flex-grow">Implementamos Hermes (NousResearch). Fine-tuning específico para el dominio de tu empresa. 200+ modelos via OpenRouter con una sola API key.</p>
-        <div class="mt-6 pt-4 border-t border-sys-border/50">
-          <div class="w-full bg-sys-surface h-1 mb-1"><div class="bg-gradient-to-r from-sys-accent-1 to-sys-accent-2 h-1 w-[85%]"></div></div>
-          <span class="text-[10px] text-sys-muted uppercase">Accuracy Confidence // 85%</span>
+        <div class="mb-4 text-sys-accent-1 font-mono text-sm border-b border-sys-border/50 pb-2 flex justify-between"><span>MOD_01</span><span class="text-green-500 text-xs">[ ACTIVE ]</span></div>
+        <h4 class="text-lg font-bold text-white mb-2">200+ Modelos de IA</h4>
+        <p class="text-sys-muted text-xs flex-grow leading-relaxed">GPT-4o, Claude Opus 4.6, DeepSeek V4 Flash, Grok 4.3 (1M ctx), Gemini, Llama y más. Todo via OpenRouter con una sola API key. El cliente cambia de modelo con <code class="text-sys-accent-1">/model</code>.</p>
+        <div class="mt-4 pt-3 border-t border-sys-border/50 flex flex-wrap gap-1">
+          <span class="px-1.5 py-0.5 bg-sys-surface border border-sys-border text-[9px] text-sys-muted">OpenAI</span>
+          <span class="px-1.5 py-0.5 bg-sys-surface border border-sys-border text-[9px] text-sys-muted">Anthropic</span>
+          <span class="px-1.5 py-0.5 bg-sys-surface border border-sys-border text-[9px] text-sys-muted">DeepSeek</span>
+          <span class="px-1.5 py-0.5 bg-sys-surface border border-sys-border text-[9px] text-sys-muted">Google</span>
+          <span class="px-1.5 py-0.5 bg-sys-surface border border-sys-border text-[9px] text-sys-muted">+196</span>
         </div>
       </div>
+
+      <!-- Card 2: Memoria -->
       <div class="data-card p-6 flex flex-col h-full">
-        <div class="mb-4 text-sys-accent-2 font-mono text-sm border-b border-sys-border/50 pb-2 flex justify-between"><span>MOD_02</span><span>[ ACTIVE ]</span></div>
-        <h4 class="text-xl font-bold text-white mb-3">Memoria a Largo Plazo (RAG)</h4>
-        <p class="text-sys-muted text-sm flex-grow">Hermes aprende quién eres entre sesiones. Recuerda tu empresa, clientes, proyectos y estilo de trabajo. Base vectorial pgvector integrada.</p>
-        <div class="mt-6 pt-4 border-t border-sys-border/50 flex gap-2">
-          <span class="px-2 py-1 bg-sys-surface border border-sys-border text-[10px] text-sys-muted">pgvector</span>
-          <span class="px-2 py-1 bg-sys-surface border border-sys-border text-[10px] text-sys-muted">FTS5 Search</span>
+        <div class="mb-4 text-sys-accent-2 font-mono text-sm border-b border-sys-border/50 pb-2 flex justify-between"><span>MOD_02</span><span class="text-green-500 text-xs">[ ACTIVE ]</span></div>
+        <h4 class="text-lg font-bold text-white mb-2">Memoria Persistente</h4>
+        <p class="text-sys-muted text-xs flex-grow leading-relaxed">Hermes aprende quién eres entre sesiones. Recuerda tu empresa, equipo, clientes y proyectos. Búsqueda semántica en todo el historial. Auto-crea skills desde la experiencia.</p>
+        <div class="mt-4 pt-3 border-t border-sys-border/50">
+          <div class="w-full bg-sys-surface h-1 mb-1"><div class="bg-gradient-to-r from-sys-accent-2 to-sys-accent-1 h-1 w-full"></div></div>
+          <span class="text-[10px] text-sys-muted uppercase">UserMemory · EntityMemory · FTS5 Search</span>
         </div>
       </div>
+
+      <!-- Card 3: MCP -->
       <div class="data-card p-6 flex flex-col h-full">
-        <div class="mb-4 text-sys-accent-3 font-mono text-sm border-b border-sys-border/50 pb-2 flex justify-between"><span>MOD_03</span><span>[ ACTIVE ]</span></div>
-        <h4 class="text-xl font-bold text-white mb-3">MCP + Tool Use</h4>
-        <p class="text-sys-muted text-sm flex-grow">Conecta cualquier servidor MCP con OAuth 2.1. GitHub, Linear, Sentry, Figma, Stripe y más. Los agentes actúan, no solo responden.</p>
-        <div class="mt-6 flex justify-between items-end border-t border-sys-border/50 pt-4">
-          <span class="text-[10px] text-sys-muted uppercase">Protocol</span>
-          <span class="font-mono text-sys-accent-3">OAuth 2.1</span>
+        <div class="mb-4 text-sys-accent-3 font-mono text-sm border-b border-sys-border/50 pb-2 flex justify-between"><span>MOD_03</span><span class="text-green-500 text-xs">[ ACTIVE ]</span></div>
+        <h4 class="text-lg font-bold text-white mb-2">MCP + Integraciones</h4>
+        <p class="text-sys-muted text-xs flex-grow leading-relaxed">Conecta Hermes con cualquier sistema vía MCP (OAuth 2.1). GitHub, Linear, Figma, Stripe, Sentry, Notion, Airtable, Google Workspace y más.</p>
+        <div class="mt-4 pt-3 border-t border-sys-border/50 flex flex-wrap gap-1">
+          <span class="px-1.5 py-0.5 bg-sys-surface border border-sys-border text-[9px] text-sys-muted">GitHub</span>
+          <span class="px-1.5 py-0.5 bg-sys-surface border border-sys-border text-[9px] text-sys-muted">Linear</span>
+          <span class="px-1.5 py-0.5 bg-sys-surface border border-sys-border text-[9px] text-sys-muted">Stripe</span>
+          <span class="px-1.5 py-0.5 bg-sys-surface border border-sys-border text-[9px] text-sys-muted">Figma</span>
         </div>
       </div>
+
+      <!-- Card 4: Automatizaciones -->
+      <div class="data-card p-6 flex flex-col h-full">
+        <div class="mb-4 text-sys-accent-1 font-mono text-sm border-b border-sys-border/50 pb-2 flex justify-between"><span>MOD_04</span><span class="text-green-500 text-xs">[ ACTIVE ]</span></div>
+        <h4 class="text-lg font-bold text-white mb-2">Automatizaciones (Cron)</h4>
+        <p class="text-sys-muted text-xs flex-grow leading-relaxed">El cliente programa tareas en lenguaje natural. "Cada lunes a las 8am, resumen de ventas de Airtable". Entrega vía Telegram, WhatsApp, Discord o email.</p>
+        <div class="mt-4 pt-3 border-t border-sys-border/50 font-mono text-[10px] text-sys-muted">
+          <div class="text-sys-accent-1">$ cron "0 8 * * 1" "resumen ventas"</div>
+        </div>
+      </div>
+
+      <!-- Card 5: 22 Plataformas -->
+      <div class="data-card p-6 flex flex-col h-full">
+        <div class="mb-4 text-sys-accent-2 font-mono text-sm border-b border-sys-border/50 pb-2 flex justify-between"><span>MOD_05</span><span class="text-green-500 text-xs">[ ACTIVE ]</span></div>
+        <h4 class="text-lg font-bold text-white mb-2">22 Plataformas</h4>
+        <p class="text-sys-muted text-xs flex-grow leading-relaxed">Telegram, WhatsApp, Discord, Slack, Signal, SMS, Email, Microsoft Teams, LINE y 13 más. Un solo Hermes, todas las plataformas que el cliente necesite.</p>
+        <div class="mt-4 pt-3 border-t border-sys-border/50 flex flex-wrap gap-1">
+          <span class="px-1.5 py-0.5 bg-sys-surface border border-sys-border text-[9px] text-sys-muted">Telegram</span>
+          <span class="px-1.5 py-0.5 bg-sys-surface border border-sys-border text-[9px] text-sys-muted">WhatsApp</span>
+          <span class="px-1.5 py-0.5 bg-sys-surface border border-sys-border text-[9px] text-sys-muted">Discord</span>
+          <span class="px-1.5 py-0.5 bg-sys-surface border border-sys-border text-[9px] text-sys-muted">+19</span>
+        </div>
+      </div>
+
+      <!-- Card 6: Browser + Tools -->
+      <div class="data-card p-6 flex flex-col h-full">
+        <div class="mb-4 text-sys-accent-3 font-mono text-sm border-b border-sys-border/50 pb-2 flex justify-between"><span>MOD_06</span><span class="text-green-500 text-xs">[ ACTIVE ]</span></div>
+        <h4 class="text-lg font-bold text-white mb-2">Browser + Código + Multimedia</h4>
+        <p class="text-sys-muted text-xs flex-grow leading-relaxed">Automatización de navegador (180x más rápido en v0.14.0), ejecución de Python/JS/Bash, generación de imágenes (FAL.ai), transcripción de voz, OCR.</p>
+        <div class="mt-4 pt-3 border-t border-sys-border/50 flex justify-between text-[10px] font-mono">
+          <span class="text-sys-muted">Playwright CDP</span>
+          <span class="text-sys-accent-3">180x faster</span>
+        </div>
+      </div>
+
+    </div>
+    <div class="mt-6 text-center">
+      <a href="/docs/capabilities" class="text-xs font-mono text-sys-muted hover:text-sys-accent-1 transition-colors">
+        ver todas las capacidades → docs/capabilities
+      </a>
     </div>
   </div>
 </section>
@@ -134,22 +208,26 @@ import '../styles/global.css';
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
       <div>
-        <h2 class="text-xs text-sys-accent-1 tracking-widest uppercase mb-2">02 // Deployment Pipeline</h2>
-        <h3 class="text-3xl sm:text-4xl font-bold font-sans text-white mb-6">SISTEMA NERVIOSO<br>CORPORATIVO</h3>
-        <ul class="space-y-6 font-mono text-sm">
-          <li class="flex items-start"><span class="text-sys-accent-1 mr-4 mt-1">01_</span><div><strong class="text-white block mb-1">Auditoría de Datos & Knowledge Base</strong><span class="text-sys-muted text-xs">Vectorización de documentación interna, chats e históricos.</span></div></li>
-          <li class="flex items-start"><span class="text-sys-accent-2 mr-4 mt-1">02_</span><div><strong class="text-white block mb-1">Configuración del Modelo (Hermes)</strong><span class="text-sys-muted text-xs">System prompts, personalidad corporativa y constraints operativos.</span></div></li>
-          <li class="flex items-start"><span class="text-sys-accent-3 mr-4 mt-1">03_</span><div><strong class="text-white block mb-1">Despliegue & Monitoreo Continuo</strong><span class="text-sys-muted text-xs">Infraestructura propia. Alertas vía Telegram. Uptime 99.9%.</span></div></li>
+        <h2 class="text-xs text-sys-accent-1 tracking-widest uppercase mb-2">02 // Para el mercado LATAM</h2>
+        <h3 class="text-3xl sm:text-4xl font-bold font-sans text-white mb-6">DISEÑADO PARA<br>PYMES REALES</h3>
+        <p class="text-sys-muted mb-6 text-sm leading-relaxed">
+          El 92% de Venezuela y gran parte de LATAM usa WhatsApp para comunicación de negocios.
+          Hermes está donde están tus clientes. No requiere apps adicionales, no requiere configuración técnica del cliente.
+        </p>
+        <ul class="space-y-5 font-mono text-sm">
+          <li class="flex items-start"><span class="text-sys-accent-1 mr-4 mt-1">01_</span><div><strong class="text-white block mb-1">Setup en 30 segundos</strong><span class="text-sys-muted text-xs">Un bot token de Telegram y el ID del cliente. El agente está activo.</span></div></li>
+          <li class="flex items-start"><span class="text-sys-accent-2 mr-4 mt-1">02_</span><div><strong class="text-white block mb-1">El cliente configura todo desde Telegram</strong><span class="text-sys-muted text-xs">/model, /skills install, /cron add — sin panel, sin código.</span></div></li>
+          <li class="flex items-start"><span class="text-sys-accent-3 mr-4 mt-1">03_</span><div><strong class="text-white block mb-1">Pagos locales</strong><span class="text-sys-muted text-xs">Transferencia, pago móvil, efectivo. Sin Stripe ni PayPal.</span></div></li>
         </ul>
       </div>
       <div class="relative h-[300px] border border-sys-border bg-sys-bg p-4 flex flex-col justify-between overflow-hidden">
-        <div class="text-xs text-sys-muted flex justify-between font-mono"><span>DATA_INGESTION_RATE</span><span class="text-sys-accent-1">99.9%</span></div>
+        <div class="text-xs text-sys-muted flex justify-between font-mono"><span>TENANT_ISOLATION</span><span class="text-sys-accent-1">100%</span></div>
         <div class="flex-grow flex items-center justify-center">
           <div class="w-full flex justify-between items-center px-8 relative">
             <div class="absolute left-10 right-10 h-[1px] bg-sys-border"><div class="h-full bg-gradient-to-r from-sys-accent-1 via-sys-accent-2 to-sys-accent-3 w-[70%] animate-[pulse_3s_ease-in-out_infinite]"></div></div>
-            <div class="w-16 h-16 rounded bg-sys-surface border border-sys-border flex items-center justify-center relative z-10 shadow-[0_0_15px_rgba(0,255,204,0.2)]"><span class="text-sys-accent-1 text-xs">DATA</span></div>
+            <div class="w-16 h-16 rounded bg-sys-surface border border-sys-border flex items-center justify-center relative z-10 shadow-[0_0_15px_rgba(0,255,204,0.2)] text-center"><span class="text-sys-accent-1 text-[9px] leading-tight">WhatsApp<br>Telegram</span></div>
             <div class="w-20 h-20 rounded-full bg-sys-bg border border-sys-accent-2 flex items-center justify-center relative z-10 shadow-[0_0_20px_rgba(176,38,255,0.3)] animate-pulse-slow"><span class="text-white text-xs font-bold">HERMES</span></div>
-            <div class="w-16 h-16 rounded bg-sys-surface border border-sys-border flex items-center justify-center relative z-10 shadow-[0_0_15px_rgba(255,51,102,0.2)]"><span class="text-sys-accent-3 text-xs">ACTION</span></div>
+            <div class="w-16 h-16 rounded bg-sys-surface border border-sys-border flex items-center justify-center relative z-10 shadow-[0_0_15px_rgba(255,51,102,0.2)] text-center"><span class="text-sys-accent-3 text-[9px] leading-tight">CRM<br>Airtable</span></div>
           </div>
         </div>
         <div class="text-[10px] text-sys-muted text-right font-mono">PIPELINE_STATUS // <span class="text-green-500">OPTIMAL</span></div>
@@ -158,40 +236,66 @@ import '../styles/global.css';
   </div>
 </section>
 
-<!-- METRICS -->
-<section class="py-24 border-b border-sys-border">
+<!-- PRICING -->
+<section id="pricing" class="py-24 border-b border-sys-border">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="mb-8"><h2 class="text-xs text-sys-muted tracking-widest uppercase">SYS.METRICS // PERFORMANCE_LOG</h2></div>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 font-mono text-xs">
-      <div class="border border-sys-border p-4 bg-sys-surface/50 relative group hover:border-sys-accent-1 transition-colors">
-        <div class="absolute top-0 right-0 bg-sys-border text-[9px] px-1 text-sys-muted">01</div>
-        <div class="text-sys-muted mb-6">PLATFORMS // SUPPORTED</div>
-        <div class="flex items-end justify-between">
-          <div class="text-4xl text-white font-light tracking-tighter">22</div>
-          <div class="w-24 h-6 flex items-end gap-1 opacity-50 group-hover:opacity-100 transition-opacity">
-            <div class="w-full bg-sys-accent-1 h-[30%]"></div><div class="w-full bg-sys-accent-1 h-[50%]"></div><div class="w-full bg-sys-accent-1 h-[80%]"></div><div class="w-full bg-sys-accent-1 h-[100%]"></div><div class="w-full bg-sys-accent-1 h-[60%]"></div>
+    <div class="mb-12 text-center">
+      <h2 class="text-xs text-sys-muted tracking-widest uppercase mb-2 font-mono">03 // Pricing</h2>
+      <h3 class="text-3xl font-bold font-sans text-white">UN SOLO PLAN.<br>TODO INCLUIDO.</h3>
+      <p class="text-sys-muted text-sm mt-3 max-w-xl mx-auto">Sin tiers, sin features premium, sin restricciones. Todos los clientes tienen el mismo Hermes completo.</p>
+    </div>
+
+    <div class="max-w-lg mx-auto">
+      <div class="border border-sys-accent-1 bg-sys-surface/50 p-8 relative">
+        <!-- Badge -->
+        <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-sys-accent-1 text-black text-[10px] font-bold uppercase tracking-widest px-3 py-1">
+          30 días de trial
+        </div>
+
+        <div class="text-center mb-8">
+          <div class="text-6xl font-bold text-white font-mono mb-1">$30</div>
+          <div class="text-sys-muted text-sm font-mono">/ mes · USD</div>
+        </div>
+
+        <ul class="space-y-3 mb-8 font-mono text-xs">
+          {[
+            'Hermes Agent v0.14.0 completo',
+            '22 plataformas de mensajería',
+            '200+ modelos via OpenRouter',
+            'Memoria persistente entre sesiones',
+            'Skills built-in: Notion, Airtable, Google Workspace',
+            'MCP con OAuth 2.1 (GitHub, Linear, Figma...)',
+            'Automatizaciones programadas (cron)',
+            'Browser automation 180x más rápido',
+            'Backup diario automático a SeaweedFS',
+            'Health monitoring 24/7',
+            'Soporte vía Telegram del admin',
+          ].map(f => (
+            <li class="flex items-start gap-2">
+              <span class="text-sys-accent-1 shrink-0">✓</span>
+              <span class="text-sys-muted">{f}</span>
+            </li>
+          ))}
+        </ul>
+
+        <div class="border-t border-sys-border pt-6 space-y-3">
+          <div class="text-[10px] text-sys-muted font-mono uppercase tracking-widest mb-3">Métodos de pago aceptados</div>
+          <div class="flex gap-2 flex-wrap">
+            {['Transferencia', 'Pago móvil', 'Zelle', 'Crypto', 'Efectivo'].map(m => (
+              <span class="px-2 py-1 bg-sys-surface border border-sys-border text-[10px] text-sys-muted font-mono">{m}</span>
+            ))}
           </div>
         </div>
+
+        <a href="#contact" class="mt-6 block w-full text-center bg-sys-accent-1 text-black font-bold uppercase tracking-widest py-3 hover:bg-white transition-colors text-sm">
+          INICIAR TRIAL DE 30 DÍAS
+        </a>
       </div>
-      <div class="border border-sys-border p-4 bg-sys-surface/50 relative group hover:border-sys-accent-2 transition-colors">
-        <div class="absolute top-0 right-0 bg-sys-border text-[9px] px-1 text-sys-muted">02</div>
-        <div class="text-sys-muted mb-6">MODELS // AVAILABLE</div>
-        <div class="flex items-end justify-between">
-          <div class="text-4xl text-white font-light tracking-tighter">200<span class="text-sm text-sys-muted">+</span></div>
-          <div class="text-right"><div class="text-sys-accent-2">OpenRouter</div><div class="text-[9px] text-sys-muted">1 API key</div></div>
-        </div>
-      </div>
-      <div class="border border-sys-border p-4 bg-sys-surface/50 relative group hover:border-sys-accent-3 transition-colors">
-        <div class="absolute top-0 right-0 bg-sys-border text-[9px] px-1 text-sys-muted">03</div>
-        <div class="text-sys-muted mb-6">GITHUB // STARS</div>
-        <div class="flex items-end justify-between">
-          <div class="text-4xl text-white font-light tracking-tighter">165<span class="text-sm text-sys-muted">K</span></div>
-          <svg viewBox="0 0 36 36" class="w-10 h-10 transform -rotate-90">
-            <path class="text-sys-border" stroke-width="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-            <path class="text-sys-accent-3 opacity-50 group-hover:opacity-100 transition-opacity" stroke-dasharray="90, 100" stroke-width="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-          </svg>
-        </div>
-      </div>
+
+      <p class="text-center text-[10px] text-sys-muted font-mono mt-4">
+        El cliente configura su propia API key de OpenRouter durante el trial.
+        El costo de tokens de IA es separado y va directo a OpenRouter.
+      </p>
     </div>
   </div>
 </section>
@@ -199,6 +303,10 @@ import '../styles/global.css';
 <!-- CONTACT -->
 <section id="contact" class="py-24 relative">
   <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-10">
+      <h2 class="text-xs text-sys-muted tracking-widest uppercase mb-2 font-mono">04 // Initiate Protocol</h2>
+      <h3 class="text-2xl font-bold font-sans text-white">¿LISTO PARA DESPLEGAR?</h3>
+    </div>
     <div class="border border-sys-border bg-sys-surface/80 backdrop-blur-sm p-1">
       <div class="border border-sys-border bg-sys-bg">
         <div class="border-b border-sys-border p-2 flex justify-between items-center bg-sys-surface text-xs font-mono">
@@ -208,34 +316,37 @@ import '../styles/global.css';
         <div class="p-6 sm:p-8 font-mono">
           <div class="mb-8">
             <span class="text-sys-accent-1">root@hermes-deploy:~#</span><span class="text-white"> ./initiate_onboarding.sh</span>
-            <p class="text-sys-muted mt-2 text-sm">Initializing secure connection to sales engineering team...</p>
+            <p class="text-sys-muted mt-2 text-sm">Iniciando conexión segura con el equipo...</p>
           </div>
-          <form class="space-y-6">
-            <div>
-              <label class="block text-sys-muted text-xs mb-2 uppercase">Company_Name</label>
-              <input type="text" class="w-full bg-sys-surface border border-sys-border focus:border-sys-accent-1 text-white text-sm px-4 py-3 outline-none transition-colors" placeholder="e.g. Acme Corp">
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <form class="space-y-5">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
-                <label class="block text-sys-muted text-xs mb-2 uppercase">Admin_Email</label>
-                <input type="email" class="w-full bg-sys-surface border border-sys-border focus:border-sys-accent-1 text-white text-sm px-4 py-3 outline-none transition-colors" placeholder="admin@empresa.com">
+                <label class="block text-sys-muted text-xs mb-2 uppercase">Empresa</label>
+                <input type="text" class="w-full bg-sys-surface border border-sys-border focus:border-sys-accent-1 text-white text-sm px-4 py-3 outline-none transition-colors" placeholder="Acme Corp">
               </div>
               <div>
-                <label class="block text-sys-muted text-xs mb-2 uppercase">Use_Case</label>
-                <select class="w-full bg-sys-surface border border-sys-border focus:border-sys-accent-1 text-white text-sm px-4 py-3 outline-none transition-colors appearance-none">
-                  <option>Atención al cliente (Telegram/WhatsApp)</option>
-                  <option>Knowledge Retrieval (RAG interno)</option>
-                  <option>Automatización de procesos</option>
-                  <option>Otro</option>
-                </select>
+                <label class="block text-sys-muted text-xs mb-2 uppercase">Email o Telegram</label>
+                <input type="text" class="w-full bg-sys-surface border border-sys-border focus:border-sys-accent-1 text-white text-sm px-4 py-3 outline-none transition-colors" placeholder="admin@empresa.com o @usuario">
               </div>
             </div>
             <div>
-              <label class="block text-sys-muted text-xs mb-2 uppercase">System_Requirements</label>
-              <textarea rows="4" class="w-full bg-sys-surface border border-sys-border focus:border-sys-accent-1 text-white text-sm px-4 py-3 outline-none transition-colors resize-none" placeholder="Describe tu caso de uso..."></textarea>
+              <label class="block text-sys-muted text-xs mb-2 uppercase">¿Para qué necesitas el agente?</label>
+              <select class="w-full bg-sys-surface border border-sys-border focus:border-sys-accent-1 text-white text-sm px-4 py-3 outline-none transition-colors appearance-none">
+                <option>Atención al cliente (WhatsApp / Telegram)</option>
+                <option>Asistente interno del equipo</option>
+                <option>Automatización de procesos repetitivos</option>
+                <option>Knowledge base + RAG para la empresa</option>
+                <option>Otro</option>
+              </select>
             </div>
-            <div class="pt-4 flex justify-end">
-              <button type="button" class="tech-border bg-sys-text text-black font-bold uppercase tracking-widest px-8 py-3 hover:bg-sys-accent-1 transition-colors text-sm w-full sm:w-auto">[ EXECUTE_REQUEST ]</button>
+            <div>
+              <label class="block text-sys-muted text-xs mb-2 uppercase">Detalles adicionales</label>
+              <textarea rows="3" class="w-full bg-sys-surface border border-sys-border focus:border-sys-accent-1 text-white text-sm px-4 py-3 outline-none transition-colors resize-none" placeholder="Cuéntame sobre tu empresa y caso de uso..."></textarea>
+            </div>
+            <div class="pt-2">
+              <button type="button" class="tech-border w-full sm:w-auto bg-sys-text text-black font-bold uppercase tracking-widest px-8 py-3 hover:bg-sys-accent-1 transition-colors text-sm">
+                [ INICIAR TRIAL GRATIS ]
+              </button>
             </div>
           </form>
         </div>
@@ -245,14 +356,29 @@ import '../styles/global.css';
 </section>
 
 <!-- FOOTER -->
-<footer class="border-t border-sys-border bg-sys-bg py-8 text-xs font-mono">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
-    <div class="flex items-center gap-2 text-sys-muted"><span class="w-1.5 h-1.5 bg-sys-accent-1 rounded-full"></span>SYSTEM.ONLINE // SYNCHRONIZED</div>
-    <div class="text-sys-muted">&copy; 2026 HERMES AGENT DEPLOYMENT FACILITY.</div>
-    <div class="flex gap-6">
-      <a href="#" class="text-sys-muted hover:text-white transition-colors">GITHUB</a>
-      <a href="#" class="text-sys-muted hover:text-white transition-colors">DOCS</a>
-      <a href="#" class="text-sys-muted hover:text-white transition-colors">STATUS</a>
+<footer class="border-t border-sys-border bg-sys-bg py-10 text-xs font-mono">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+      <div>
+        <div class="flex items-center gap-2 text-sys-text font-bold tracking-widest uppercase mb-2">
+          <span class="w-1.5 h-1.5 bg-sys-accent-1 rounded-full"></span>
+          SYS.HERMES // DEPLOYMENT_FACILITY
+        </div>
+        <div class="text-sys-muted text-[10px]">martes.app · Plataforma SaaS de Hermes Agent para LATAM</div>
+      </div>
+      <div class="flex gap-8">
+        <div>
+          <div class="text-sys-muted uppercase tracking-widest text-[9px] mb-2">Producto</div>
+          <div class="space-y-1"><a href="/docs" class="block text-sys-muted hover:text-white transition-colors">Docs</a><a href="/blog" class="block text-sys-muted hover:text-white transition-colors">Blog</a><a href="#pricing" class="block text-sys-muted hover:text-white transition-colors">Precio</a></div>
+        </div>
+        <div>
+          <div class="text-sys-muted uppercase tracking-widest text-[9px] mb-2">Links</div>
+          <div class="space-y-1"><a href="https://github.com/nousresearch/hermes-agent" target="_blank" rel="noopener" class="block text-sys-muted hover:text-white transition-colors">Hermes GitHub</a><a href="https://openrouter.ai" target="_blank" rel="noopener" class="block text-sys-muted hover:text-white transition-colors">OpenRouter</a></div>
+        </div>
+      </div>
+    </div>
+    <div class="border-t border-sys-border mt-8 pt-6 text-sys-muted text-[10px] text-center">
+      &copy; 2026 HERMES AGENT DEPLOYMENT FACILITY. ALL PROTOCOLS RESERVED.
     </div>
   </div>
 </footer>
@@ -261,19 +387,20 @@ import '../styles/global.css';
 
 <script is:inline>
 (function() {
-  // Terminal typing effect
   var out = document.getElementById('terminal-output');
   if (!out) return;
   var lines = [
-    '> Initializing Hermes v0.14.0 model weights...',
-    '> Loading custom corporate context (RAG)...',
-    '> Connecting to secure API endpoints...',
-    '  - CRM: [CONNECTED]',
-    '  - ERP: [CONNECTED]',
-    '  - Internal Wiki: [CONNECTED]',
-    '> Configuring safety bounds...',
-    '> Agent OPERATOR_01 ready for deployment.',
-    '> Awaiting input...'
+    '> Initializing Hermes v0.14.0...',
+    '> Loading 200+ model registry...',
+    '> Connecting MCP servers...',
+    '  - GitHub: [CONNECTED]',
+    '  - Airtable: [CONNECTED]',
+    '  - Google Workspace: [CONNECTED]',
+    '> Activating 22 messaging platforms...',
+    '> Memory store: pgvector ready',
+    '> Cron scheduler: 6 jobs active',
+    '> Agent OPERATOR_01 deployed successfully.',
+    '> $30/mes · Trial 30d · Awaiting input...'
   ];
   var i = 0;
   function next() {
@@ -290,12 +417,11 @@ import '../styles/global.css';
     d.innerHTML = lines[i] + '<span class="animate-pulse">_</span>';
     out.appendChild(d);
     out.scrollTop = out.scrollHeight;
-    setTimeout(function() { d.textContent = lines[i]; i++; next(); }, Math.random() * 500 + 300);
+    setTimeout(function() { d.textContent = lines[i]; i++; next(); }, Math.random() * 400 + 200);
   }
-  setTimeout(next, 1500);
+  setTimeout(next, 1000);
 })();
 
-// Three.js
 window.onload = function() {
   var canvas = document.getElementById('bg-canvas');
   if (!canvas || typeof THREE === 'undefined') return;
