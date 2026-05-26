@@ -236,24 +236,18 @@ services:
   # ==========================================================================
   # Landing page — martes.app (raíz del dominio)
   #
-  # nginx:alpine sirve apps/landing/ de forma estática.
-  # Traefik enruta martes.app → este servicio (HTTP → HTTPS automático).
+  # Build: Coolify construye la imagen desde apps/landing/Dockerfile.
+  # El HTML queda baked en la imagen — sin bind mounts en producción.
+  # Mismo patrón que el servicio meta-agent (build context = repo root).
   #
-  # Para actualizar el contenido: editar apps/landing/index.html (u otros
-  # archivos) y mergear a main → Coolify redespliega automáticamente.
-  #
-  # Si el frontend necesita build (Astro, Vite, Next.js static):
-  #   1. Añadir Dockerfile en apps/landing/
-  #   2. Cambiar image: nginx:alpine por build: context/apps/landing aquí
-  #   3. El resto de la config (labels, networks) se mantiene igual
+  # Para actualizar el contenido: editar apps/landing/ y mergear a main
+  # → Coolify detecta el push, reconstruye la imagen y redespliega.
   # ==========================================================================
   landing:
-    image: nginx:alpine
+    build:
+      context: .
+      dockerfile: apps/landing/Dockerfile
     restart: unless-stopped
-    volumes:
-      # Coolify usa --project-directory=<repo-root> → "." resuelve al raíz del repo.
-      # apps/landing/ se monta como DocumentRoot de nginx.
-      - ./apps/landing:/usr/share/nginx/html:ro
     networks:
       - coolify    # red de Traefik — routing de martes.app
     labels:
@@ -278,7 +272,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 64M   # nginx:alpine sirviendo estáticos: <20 MB real
+          memory: 64M   # nginx sirviendo estáticos: <20 MB real
 
 
 networks:
