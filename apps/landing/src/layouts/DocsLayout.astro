@@ -1,0 +1,155 @@
+---
+// DocsLayout — layout compartido por todas las páginas de documentación.
+// Sidebar con navegación por secciones + área de contenido central.
+import Layout from './Layout.astro';
+import { getCollection } from 'astro:content';
+
+export interface Props {
+  title:        string;
+  description?: string;
+  currentSlug?: string;
+}
+
+const { title, description, currentSlug } = Astro.props;
+
+// Obtener todos los docs y agrupar por sección
+const allDocs = (await getCollection('docs')).sort((a, b) => a.data.order - b.data.order);
+
+const sections: Record<string, typeof allDocs> = {};
+for (const doc of allDocs) {
+  const s = doc.data.section;
+  if (!sections[s]) sections[s] = [];
+  sections[s].push(doc);
+}
+---
+
+<Layout title={`${title} — Docs martes.app`} description={description}>
+  <div class="min-h-screen flex flex-col">
+
+    <!-- Top nav docs -->
+    <header class="fixed top-0 w-full z-40 border-b border-sys-border bg-sys-bg/90 backdrop-blur-md">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div class="flex items-center gap-6">
+          <a href="/" class="flex items-center gap-2 text-sys-text font-bold tracking-widest uppercase text-sm">
+            <span class="w-2 h-2 bg-sys-accent-1 rounded-full"></span>
+            SYS.HERMES
+          </a>
+          <span class="text-sys-border">/</span>
+          <span class="text-sys-muted text-xs uppercase tracking-widest">Docs</span>
+        </div>
+        <div class="flex items-center gap-6 text-xs">
+          <a href="/" class="text-sys-muted hover:text-sys-accent-1 transition-colors uppercase tracking-wider">Landing</a>
+          <a href="#contact" class="bg-sys-text text-black px-4 py-2 font-bold uppercase tracking-wider hover:bg-sys-accent-1 transition-colors">
+            [ DEPLOY_AGENT ]
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <div class="flex pt-16 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 gap-8 py-12">
+
+      <!-- SIDEBAR -->
+      <aside class="hidden lg:block w-64 shrink-0">
+        <nav class="sticky top-24 font-mono text-xs">
+          <a href="/docs" class={`block mb-6 text-sm font-bold uppercase tracking-widest ${!currentSlug ? 'text-sys-accent-1' : 'text-sys-text hover:text-sys-accent-1'} transition-colors`}>
+            ← Docs
+          </a>
+
+          {Object.entries(sections).map(([section, docs]) => (
+            <div class="mb-6">
+              <div class="text-[10px] text-sys-muted uppercase tracking-widest mb-2 border-b border-sys-border pb-1">
+                {section}
+              </div>
+              <ul class="space-y-1">
+                {docs.map(doc => (
+                  <li>
+                    <a
+                      href={`/docs/${doc.slug}`}
+                      class={`block px-2 py-1.5 transition-colors ${
+                        currentSlug === doc.slug
+                          ? 'text-sys-accent-1 border-l-2 border-sys-accent-1 pl-3 bg-sys-surface'
+                          : 'text-sys-muted hover:text-sys-text hover:pl-3'
+                      }`}
+                    >
+                      {doc.data.title}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </nav>
+      </aside>
+
+      <!-- CONTENIDO -->
+      <main class="flex-1 min-w-0">
+        <div class="border-b border-sys-border pb-8 mb-8">
+          <h1 class="text-3xl font-bold font-sans text-white mb-2">{title}</h1>
+          {description && <p class="text-sys-muted text-sm">{description}</p>}
+        </div>
+
+        <!-- Prose: estilos para el Markdown renderizado -->
+        <div class="prose-docs">
+          <slot />
+        </div>
+      </main>
+
+    </div>
+  </div>
+</Layout>
+
+<style is:global>
+/* Estilos para el contenido Markdown renderizado en docs */
+.prose-docs h2 {
+  @apply text-xl font-bold text-white mt-10 mb-4 pb-2 border-b border-sys-border font-sans;
+}
+.prose-docs h3 {
+  @apply text-base font-bold text-sys-accent-1 mt-6 mb-3 font-mono;
+}
+.prose-docs p {
+  @apply text-sys-muted text-sm leading-relaxed mb-4;
+}
+.prose-docs a {
+  @apply text-sys-accent-1 hover:underline;
+}
+.prose-docs strong {
+  @apply text-sys-text font-bold;
+}
+.prose-docs ul {
+  @apply list-none space-y-1 mb-4;
+}
+.prose-docs ul li::before {
+  content: '→ ';
+  @apply text-sys-accent-1;
+}
+.prose-docs li {
+  @apply text-sys-muted text-sm;
+}
+.prose-docs code {
+  @apply bg-sys-surface border border-sys-border text-sys-accent-1 px-1.5 py-0.5 rounded text-xs font-mono;
+}
+.prose-docs pre {
+  @apply bg-sys-surface border border-sys-border rounded p-4 mb-4 overflow-x-auto;
+}
+.prose-docs pre code {
+  @apply bg-transparent border-0 p-0 text-sys-text text-xs;
+}
+.prose-docs table {
+  @apply w-full text-xs font-mono mb-6 border-collapse;
+}
+.prose-docs th {
+  @apply text-left text-sys-muted uppercase tracking-wider border-b border-sys-border pb-2 pr-4;
+}
+.prose-docs td {
+  @apply text-sys-text border-b border-sys-border/30 py-2 pr-4;
+}
+.prose-docs td strong {
+  @apply text-sys-accent-1;
+}
+.prose-docs hr {
+  @apply border-sys-border my-8;
+}
+.prose-docs blockquote {
+  @apply border-l-2 border-sys-accent-2 pl-4 text-sys-muted italic text-sm my-4;
+}
+</style>
