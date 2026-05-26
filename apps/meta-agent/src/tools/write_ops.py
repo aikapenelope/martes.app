@@ -810,7 +810,9 @@ def inject_wiki_content(
                 for p in _json.loads(custom_pages):
                     pn, pc = p.get("name", ""), p.get("content", "")
                     if pn and pc:
-                        pp = wiki / ("concepts" / pn if "/" not in pn else pn)
+                        # BUG CORREGIDO: "concepts" / pn era str / str → TypeError.
+                        # Path("concepts") / pn construye correctamente la ruta relativa.
+                        pp = wiki / (Path("concepts") / pn if "/" not in pn else Path(pn))
                         pp.parent.mkdir(parents=True, exist_ok=True)
                         pp.write_text(pc)
                         created.append(pn)
@@ -985,6 +987,7 @@ def backup_tenant(tenant_code: str) -> str:
                     " VALUES (%s, %s, %s, %s)",
                     (tenant_code, filename, size_mb, storage_label),
                 )
+                conn.commit()
         except Exception as db_exc:
             import logging as _logging
 
@@ -1429,12 +1432,10 @@ def upgrade_tenant(tenant_code: str, new_image: str) -> str:
                 memswap_limit=f"{mem_mb * 2}m",
                 nano_cpus=int(cpu * 1e9),
                 command=["gateway", "run"],
-                security_opt=["no-new-privileges"],
-                pids_limit=256,
-                cap_drop=["ALL"],
-                cap_add=["NET_RAW", "CHOWN", "SETUID", "SETGID", "DAC_OVERRIDE", "FOWNER"],
+                # Sin restricciones de caps/pids/tmpfs — mismos factory defaults que
+                # create_tenant() usa desde PR #76. Un tenant upgradeado debe tener
+                # la misma libertad que uno recién creado.
                 dns=["1.1.1.1", "8.8.8.8"],
-                tmpfs={"/tmp": "size=100m"},
                 log_config={  # type: ignore[arg-type]
                     "Type": "json-file",
                     "Config": {"max-size": "50m", "max-file": "3"},
@@ -1456,12 +1457,17 @@ def upgrade_tenant(tenant_code: str, new_image: str) -> str:
             health = json.loads(container_health(tenant_code))
             if health.get("status") == "healthy":
                 steps.append(f"health_ok:attempt_{attempt + 1}")
-                # Actualizar HERMES_IMAGE en instance_configs para reflejar la nueva versión
+                # Guardar la imagen activa en extra_config (JSONB) para trazabilidad.
+                # BUG CORREGIDO: antes escribía new_image en la columna 'template'
+                # (VARCHAR(20)) — lanzaba "value too long" con paths como
+                # "nousresearch/hermes-agent:v2026.6.1" (38 chars).
+                # extra_config es JSONB sin límite de longitud — es el lugar correcto.
                 with psycopg.connect(_pg()) as conn:
                     conn.execute(
-                        "UPDATE instance_configs ic SET template = %s "
+                        "UPDATE instance_configs ic "
+                        "SET extra_config = extra_config || %s::jsonb "
                         "FROM tenants t WHERE t.id = ic.tenant_id AND t.tenant_code = %s",
-                        (new_image, tenant_code),
+                        (json.dumps({"hermes_image": new_image}), tenant_code),
                     )
                     conn.commit()
                 return json.dumps(
