@@ -48,12 +48,4 @@
         <changefreq>daily</changefreq>
         <priority>0.6</priority>
     </url>
-
-    <!-- GitHub (external reference) -->
-    <url>
-        <loc>https://github.com/aikapenelope/martes.app</loc>
-        <lastmod>2026-06-13</lastmod>
-        <changefreq>weekly</changefreq>
-        <priority>0.7</priority>
-    </url>
 </urlset>
