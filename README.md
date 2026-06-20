@@ -103,6 +103,7 @@ El cliente habla con `@acme_bot` en Telegram. Hermes tiene capacidades completas
 | `billing-check` | 9:00 AM UTC | Alertas de vencimiento + auto-suspend |
 | `expire-platform-keys` | cada 30 min | BYOK: blanquea platform key cuando expira |
 | `docker-cleanup` | Dom 4:00 AM | Limpia imágenes Hermes huérfanas |
+| `prune-old-data` | Dom 2:00 AM | Limpia traces/sessions/health_checks (antes del backup) |
 
 ---
 

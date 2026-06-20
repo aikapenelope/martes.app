@@ -2,6 +2,82 @@
 
 ---
 
+## [Sprint 9] — 4–5 junio 2026
+
+### Schedules — fix crítico del startup handler (PR #82)
+
+**Root cause confirmado**: `@app.on_event("startup")` (deprecado en FastAPI ≥0.99) ejecutaba llamadas HTTP a `localhost:7777` antes de que el servidor aceptara conexiones. `ConnectionRefused` era silenciado por `except Exception`. Solo `daily-backup-all` existía (creado el 24 mayo en el primer deploy). Los otros 4 schedules nunca se registraron en los 10 días siguientes.
+
+**Fix**: patrón `lifespan=` documentado en https://docs.agno.com/agent-os/lifespan. `asyncio.create_task()` difiere la ejecución hasta que el servidor está listo. La función `_register_schedules_when_ready()` reintenta `GET /health` cada 5s (hasta 60s) antes de crear los schedules.
+
+Schedules ahora funcionando en producción (confirmado via `ai.agno_schedules`):
+- `daily-backup-all` · `health-check-all` · `billing-check` · `expire-platform-keys` · `docker-cleanup` · `prune-old-data`
+
+También en PR #82:
+- Nuevo endpoint `POST /maintenance/prune-old-data` — limpia `ai.martes_traces` (30d), `ai.martes_sessions` (90d), `public.health_checks` (90d). Schedule domingos 2AM UTC.
+- `container_health()` y `check_all_health()`: nuevo estado `"starting"` para containers con < 60s de vida y `restart_count == 0` — evita falsos positivos inmediatamente después de `create_tenant()` o restart.
+
+### Billing agent (PR #84)
+
+Nuevo agente `Billing` en el Team (`apps/meta-agent/src/agents/billing.py`). Tercer especialista del coordinador, solo lectura.
+
+4 tools en `read_ops.py`:
+- `get_billing_summary()` — conteo por status, vencen en 7d, revenue mes actual, tenants en trial
+- `get_expiring_tenants(days)` — tenants venciendo en N días con flag `overdue`
+- `get_revenue_by_period(year, month)` — revenue con desglose por tenant
+- `get_tenant_payment_history(tenant_code)` — historial completo de pagos
+
+Ejemplos desde Telegram: *"¿quiénes vencen esta semana?"*, *"¿cuánto revenue llevo este mes?"*, *"¿qué pagos tiene t001?"*
+
+### H1 — inject_credential soporta openrouter_api_key (PR #85)
+
+- Añadido `openrouter_api_key` al `CredentialType Literal` y `_CREDENTIAL_FILE_MAP`
+- Al inyectar `openrouter_api_key`, el marker `.platform_key_expires` se borra inmediatamente — sin esperar el ciclo de 30 min del scheduler BYOK
+
+### H5 — 104 tests unitarios + CI (PR #86, #89)
+
+**PR #86**: 74 tests en 4 archivos (tar filter, validación, BYOK, billing). Job `unit-tests` añadido al CI en paralelo con el build check.
+
+**PR #89** (+30 tests):
+- `test_backup_security.py`: path traversal en `_restore_filter()`, chmod 600 post-restore, consistencia `_RESTORE_STALE_FILES` vs `_BACKUP_EXCLUDE_NAMES`
+- `test_inject_credential.py`: lógica de cleanup marker BYOK, formato .env
+- `test_billing_edge_cases.py`: `paid_until=NULL`, `BILLING_AUTO_SUSPEND=False`, alertas en días exactos
+
+**Bugfix descubierto por tests**: `gateway.lock` estaba en `_RESTORE_STALE_FILES` pero no en `_BACKUP_EXCLUDE_NAMES` — podía entrar en backups y bloquear el arranque de Hermes al restaurar.
+
+### server_metrics + backup_log → Metabase (PR #87)
+
+**Nuevas tablas en schema `public`** (migración 004):
+- `server_metrics(disk_used_gb, disk_total_gb, disk_pct, checked_at)` — escrita por `health-check-all` cada 5 min
+- `backup_log(tenant_code, filename, size_mb, storage, created_at)` — escrita por `backup_tenant()` en cada backup
+
+**Metabase configurado completamente** (via API):
+- Dashboard "martes.app — Plataforma" con **16 cards** como homepage
+- 4 KPIs numéricos · tabla tenants + vencimientos · uptime · response time · health timeline · incidentes · revenue · disco histórico · schedules · historial de backups
+
+### Bugfixes críticos (PR #90)
+
+**Bug 1 — CRÍTICO — upgrade_tenant() columna incorrecta**:
+`SET template = %s` intentaba escribir `"nousresearch/hermes-agent:v2026.6.1"` (38 chars) en `template VARCHAR(20)`. PostgreSQL lo rechazaba. Ningún upgrade había registrado la versión nueva en DB. Fix: `SET extra_config = extra_config || %s::jsonb` con `{"hermes_image": "..."}`.
+
+**Bug 2 — inject_wiki_content() custom_pages nunca funcionaba**:
+`"concepts" / pn` era `str / str` → `TypeError` silenciado por `except Exception: pass`. Las páginas wiki custom nunca se creaban. Fix: `Path("concepts") / pn`.
+
+**Inconsistencia A — upgrade_tenant() con restricciones obsoletas**:
+`_run_container()` dentro de `upgrade_tenant()` seguía con `cap_drop=ALL`, `pids_limit=256`, `tmpfs=100m`, `security_opt=no-new-privileges` — los mismos que PR #76 eliminó de `create_tenant()`. Un tenant upgradeado quedaba más restringido que uno nuevo. Eliminados.
+
+**Inconsistencia B — check_all_health() sin estado 'starting'**:
+`container_health()` correctamente devuelve `"starting"` para containers recién arrancados. `check_all_health()` (scheduler global) los clasificaba como `"unhealthy"` generando alertas falsas. Corregido con el mismo criterio.
+
+**Inconsistencia C — commit() explícito**:
+`backup_log` y `server_metrics` ahora tienen `conn.commit()` explícito, consistente con el resto del código.
+
+### Principio verificado (todos los PRs de esta sesión)
+
+El `.env` de arranque tiene exactamente **6 vars** y nada más. La única limitación del container es `mem_limit=768m`. Confirmado en las tres funciones que crean containers (`create_tenant`, `upgrade_tenant`, `recreate_tenant_container`). Hermes tiene capacidades completas de fábrica — `hermes skills install`, `hermes update`, `agent-browser install`, subagentes.
+
+---
+
 ## [Sprint 8] — 4 junio 2026
 
 ### Paradigma plataforma vs agente (PR #74)
