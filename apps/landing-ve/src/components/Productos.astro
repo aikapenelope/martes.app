@@ -1,0 +1,36 @@
+---
+const cards = [
+  { cat: 't1', eyebrow: '// 03.a // COBRANZA', pill: 'RECOMENDADO', title: 'Cobra sin perseguir a nadie', body: 'Tu agente envia recordatorios por WhatsApp con el monto exacto, la referencia de Pago Movil de 4 digitos, y la confirmacion de pago. Trabaja 24/7. Tu equipo solo ve los resultados.', footer: 'Funciona con: Pago Movil (4 digitos) · Transferencia · Zelle · Efectivo $ · Binance' },
+  { cat: 't2', eyebrow: '// 03.b // REPORTES',  pill: null,           title: 'Tu negocio en un solo lugar',  body: 'Cierres diarios y semanales automaticos. Ventas por rubro, gastos, ganancia real, tendencias. Los recibes en tu correo o los consultas cuando quieras en un panel simple.', footer: 'Recibe reportes en: PDF · Email · WhatsApp · Dashboard' },
+  { cat: 't3', eyebrow: '// 03.c // MARKETING', pill: null,           title: 'Contenido sin que lo hagas',   body: 'Tu agente genera el contenido para tus redes, lo publica en los horarios correctos, y responde comentarios basicos. Tu marca activa, sin que tengas que pensar en que postear.', footer: 'Publica en: Instagram · Facebook · TikTok · WhatsApp Status' },
+];
+const cls = { t1: { bg: 'bg-cat-t1/15', border: 'border-cat-t1', text: 'text-cat-t1' }, t2: { bg: 'bg-cat-t2/15', border: 'border-cat-t2', text: 'text-cat-t2' }, t3: { bg: 'bg-cat-t3/15', border: 'border-cat-t3', text: 'text-cat-t3' } };
+---
+<section id="productos" class="py-24 sm:py-32">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-4xl mx-auto text-center mb-20">
+      <div class="mb-6 flex justify-center">
+        <span class="ve-eyebrow" data-c="t2">// 03 // Productos</span>
+      </div>
+      <h2 class="ve-title text-4xl sm:text-5xl lg:text-6xl font-sans font-extrabold leading-[1.1] tracking-tight mb-6" data-c="t2">
+        Tres productos. <span class="font-black italic">Un ecosistema</span> que se alimenta solo.
+      </h2>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {cards.map((c) => {
+        const k = cls[c.cat];
+        return (
+          <div class={`${k.bg} border-2 ${k.border} p-8 flex flex-col`}>
+            <div class="flex items-center justify-between mb-4">
+              <div class={`text-[10px] ${k.text} font-bold uppercase tracking-widest`}>{c.eyebrow}</div>
+              {c.pill && <span class="bg-cat-t1 text-white text-[9px] font-bold uppercase tracking-widest px-2 py-1">RECOMENDADO</span>}
+            </div>
+            <h3 class="text-xl font-sans font-bold text-ve-text mb-4 leading-tight">{c.title}</h3>
+            <p class="text-ve-muted text-sm leading-[1.7] mb-6 flex-grow ve-justified">{c.body}</p>
+            <div class="border-t border-ve-border pt-4 text-[10px] text-ve-muted font-mono uppercase tracking-wider">{c.footer}</div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+</section>
