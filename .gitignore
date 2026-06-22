@@ -8,22 +8,7 @@ build/
 .venv/
 venv/
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Environment
-.env
-*.env.local
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Ruff cache
-.ruff_cache/
-
-# Docker
-docker-compose.override.yml
+# Node
+node_modules/
+.astro/
+test.txt
