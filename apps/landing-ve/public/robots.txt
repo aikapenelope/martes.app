@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /us-version/
+
+Sitemap: https://martes.app/sitemap.xml
