@@ -1,0 +1,158 @@
+---
+import '../styles/global.css';
+export interface Props { title?: string; description?: string; }
+const {
+  title = 'martes // Tu negocio, sin el caos',
+  description = 'Ecosistema operativo con agentes AI para negocios venezolanos. Cobranza, reportes, marketing y atencion al cliente.',
+} = Astro.props;
+---
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{title}</title>
+  <meta name="description" content={description} />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100;300;400;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <script is:inline src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body class="ve-mode-body font-mono text-sm antialiased">
+
+  <canvas id="bg-canvas"></canvas>
+  <div class="scanline-overlay"></div>
+
+  <div class="sticky-cta" id="sticky-cta">
+    <a href="https://wa.me/584120000000?text=Hola%2C%20quiero%20probar%20martes" target="_blank" rel="noopener"
+       class="block w-full bg-ve-purple text-white font-bold uppercase tracking-widest text-center py-3 px-4 text-sm"
+       style="min-height:44px;display:flex;align-items:center;justify-content:center;">
+      Hablar por WhatsApp →
+    </a>
+  </div>
+
+  <nav class="fixed top-0 w-full z-40 border-b border-ve-border bg-ve-bg/85 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <div class="flex items-center gap-3">
+          <div class="pulse-ring w-2 h-2 bg-ve-purple rounded-full"></div>
+          <span class="text-ve-text font-black tracking-widest uppercase text-base font-sans">
+            martes<span class="text-ve-purple">.</span>
+          </span>
+        </div>
+        <div class="hidden md:flex items-center gap-6 text-xs font-mono">
+          <a href="/#servicios"     class="text-ve-muted hover:text-ve-purple transition-colors uppercase tracking-wider">Servicios</a>
+          <a href="/blog"           class="text-ve-muted hover:text-ve-purple transition-colors uppercase tracking-wider">Tecnología</a>
+          <a href="/docs"           class="text-ve-muted hover:text-ve-purple transition-colors uppercase tracking-wider">Docs</a>
+          <a href="/blog"           class="text-ve-muted hover:text-ve-purple transition-colors uppercase tracking-wider">Blog</a>
+          <a href="/#contacto"      class="bg-ve-purple text-white px-4 py-2 font-bold uppercase tracking-wider hover:bg-ve-purple-deep transition-colors">
+            Hablar con nosotros
+          </a>
+          <a href="/us" class="text-ve-muted hover:text-ve-text transition-colors uppercase tracking-wider text-[11px] border-l border-ve-border pl-4 ml-2">
+            US version →
+          </a>
+        </div>
+        <a href="/#contacto" class="md:hidden bg-ve-purple text-white px-3 py-2 font-bold uppercase text-[10px] tracking-wider hover:bg-ve-purple-deep transition-colors">
+          Contacto
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <slot />
+
+  <footer class="border-t border-ve-border py-10 font-mono text-xs mt-24">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8">
+        <div>
+          <div class="flex items-center gap-2 font-black tracking-widest uppercase text-sys-text mb-1 text-sm font-sans">
+            <span class="w-1.5 h-1.5 bg-ve-purple rounded-full"></span>
+            martes<span class="text-ve-purple">.</span>
+          </div>
+          <div class="text-ve-muted text-[11px]">Ecosistema operativo con agentes AI · LATAM</div>
+        </div>
+        <div class="flex gap-8">
+          <div>
+            <div class="text-[9px] text-ve-muted uppercase tracking-widest mb-2">Recursos</div>
+            <div class="space-y-1.5">
+              <a href="/docs"  class="block text-ve-muted hover:text-ve-text transition-colors">Documentación</a>
+              <a href="/blog"  class="block text-ve-muted hover:text-ve-text transition-colors">Blog</a>
+            </div>
+          </div>
+          <div>
+            <div class="text-[9px] text-ve-muted uppercase tracking-widest mb-2">Tecnología</div>
+            <div class="space-y-1.5">
+              <a href="https://github.com/nousresearch/hermes-agent" target="_blank" rel="noopener" class="block text-ve-muted hover:text-ve-text transition-colors">Hermes Agent</a>
+              <a href="https://openrouter.ai" target="_blank" rel="noopener" class="block text-ve-muted hover:text-ve-text transition-colors">OpenRouter</a>
+            </div>
+          </div>
+          <div>
+            <div class="text-[9px] text-ve-muted uppercase tracking-widest mb-2">Idiomas</div>
+            <div class="space-y-1.5">
+              <a href="/" class="block text-ve-text font-bold transition-colors">🇻🇪 Venezuela</a>
+              <a href="/us" class="block text-ve-muted hover:text-ve-text transition-colors">🇺🇸 US version</a>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="border-t border-ve-border pt-6 text-center text-[10px] text-ve-muted">
+        &copy; 2026 martes — Todos los derechos reservados
+      </div>
+    </div>
+  </footer>
+
+  <script is:inline>
+    (function() {
+      try {
+        const canvas = document.getElementById('bg-canvas');
+        if (!canvas || typeof THREE === 'undefined') return;
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 30;
+        const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialiias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        const g = new THREE.BufferGeometry();
+        const p = new Float32Array(1000 * 3);
+        for (let i = 0; i < p.length; i++) p[i] = (Math.random() - 0.5) * 100;
+        g.setAttribute('position', new THREE.BufferAttribute(p, 3));
+        const pm = new THREE.Points(g, new THREE.PointsMaterial({ size: 0.14, color: 0x7c3aed, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending }));
+        scene.add(pm);
+        const sp = new THREE.Mesh(new THREE.IcosahedronGeometry(15, 1), new THREE.MeshBasicMaterial({ color: 0xa78bfa, wireframe: true, transparent: true, opacity: 0.20 }));
+        scene.add(sp);
+        let mx = 0, my = 0;
+        document.addEventListener('mousemove', e => { mx = e.clientX - window.innerWidth / 2; my = e.clientY - window.innerHeight / 2; }, { passive: true });
+        const clock = new THREE.Clock();
+        function animate() {
+          requestAnimationFrame(animate);
+          const t = clock.getElapsedTime();
+          pm.rotation.y = t * 0.05 + 0.05 * (mx * 0.001 - pm.rotation.y);
+          pm.rotation.x = t * 0.02 + 0.05 * (my * 0.001 - pm.rotation.x);
+          sp.rotation.y = t * 0.02;
+          sp.rotation.x = t * 0.01;
+          renderer.render(scene, camera);
+        }
+        animate();
+        window.addEventListener('resize', () => {
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+      } catch (e) { console.warn('Canvas init error', e); }
+
+      const sticky = document.getElementById('sticky-cta');
+      if (sticky) {
+        let shown = false;
+        function check() {
+          if (window.innerWidth > 768) return;
+          if (window.scrollY > 600 && !shown) { sticky.classList.add('visible'); shown = true; }
+          else if (window.scrollY < 400 && shown) { sticky.classList.remove('visible'); shown = false; }
+        }
+        window.addEventListener('scroll', check, { passive: true });
+        window.addEventListener('resize', check);
+        check();
+      }
+    })();
+  </script>
+</body>
+</html>
