@@ -1,49 +1,10 @@
+// This file is no longer used. The US landing is now served from /us/ via nginx.
+// See apps/landing-ve/nginx.conf and apps/landing-ve/Dockerfile.
+export {};
 ---
-// US Version — landing original en modo oscuro, con banner de redireccionamiento a VE.
-import LayoutUS from '../layouts/LayoutUS.astro';
----
-<!-- US Version — landing original en modo oscuro -->
-<div class="fixed top-16 left-0 right-0 z-30 bg-amber-500/10 border-b border-amber-500/30 text-amber-200 text-center text-xs font-mono py-1.5 backdrop-blur">
-  🇺🇸 US Version — this is the original landing in English. <a href="/" class="underline font-bold">Volver a la versión Venezuela →</a>
-</div>
-<main class="relative pt-32 pb-8 sm:pt-40 sm:pb-28 overflow-hidden">
-  <section class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-    <div class="mb-8 flex justify-center">
-      <span class="ve-eyebrow" data-c="t1">// US VERSION // Original landing</span>
-    </div>
-    <h1 class="text-5xl sm:text-6xl lg:text-7xl font-sans font-bold leading-[1.05] tracking-tight mb-8 text-ve-text">
-      Software IA a medida para tu empresa.
-    </h1>
-    <p class="text-lg sm:text-xl text-ve-muted leading-relaxed max-w-2xl mx-auto mb-12 ve-justified">
-      <span class="font-medium text-ve-text">martes.app</span> is a platform for businesses that need AI-driven custom software: agents, automations, integrations. Built for Latin America. Now also for Venezuela.
-    </p>
-    <div class="flex justify-center mt-8">
-      <a href="/" class="group inline-flex items-center justify-center px-10 py-5 bg-ve-purple text-white hover:bg-ve-purple-deep font-semibold uppercase tracking-[0.15em] transition-all text-sm shadow-lg hover:shadow-xl hover:-translate-y-0.5" style="box-shadow: 0 8px 30px -8px rgba(124,58,237,0.5);">
-        Ir a la versión Venezuela →
-        <svg class="ml-3 w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-      </a>
-    </div>
-  </section>
-
-  <section class="py-24 sm:py-32 mt-12">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-      <h2 class="ve-title text-3xl sm:text-4xl font-sans font-extrabold leading-[1.1] tracking-tight mb-12" data-c="t1">
-        We build AI agents that <span class="font-black italic">work for your business</span>.
-      </h2>
-      <p class="ve-lead max-w-3xl mx-auto">
-        Custom AI software, agents, automations, integrations. We don't sell licenses — we build the operational software your business needs to scale.
-      </p>
-    </div>
-  </section>
-
-  <section class="py-24">
-    <div class="max-w-4xl mx-auto px-4 text-center">
-      <h3 class="text-2xl font-sans font-bold text-ve-text mb-4">Other resources</h3>
-      <div class="flex justify-center gap-6 font-mono text-sm">
-        <a href="/blog" class="text-ve-muted hover:text-ve-purple uppercase tracking-wider">Blog</a>
-        <a href="/docs" class="text-ve-muted hover:text-ve-purple uppercase tracking-wider">Docs</a>
-      </div>
-    </div>
-  </section>
-</main>
-</LayoutUS>
+<!--
+  This Astro page has been removed. The US landing is now served at /us/ via nginx.
+  See apps/landing-ve/Dockerfile (multi-stage build that copies landing/dist → /us/)
+  and apps/landing-ve/nginx.conf (location /us).
+-->
+<main></main>
