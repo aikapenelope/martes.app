@@ -1,0 +1,60 @@
+---
+// Docs hub — /docs
+import { getCollection } from 'astro:content';
+import Layout from '../../layouts/Layout.astro';
+
+const allDocs = (await getCollection('docs')).sort((a, b) => a.data.order - b.data.order);
+
+const sections: Record<string, typeof allDocs> = {};
+for (const doc of allDocs) {
+  const s = doc.data.section;
+  if (!sections[s]) sections[s] = [];
+  sections[s].push(doc);
+}
+---
+
+<Layout title="Documentación — martes.app" description="Todo lo que necesitas saber sobre Hermes y martes.app.">
+
+  <header class="fixed top-0 w-full z-40 border-b border-sys-border bg-sys-bg/90 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-6">
+        <a href="/" class="flex items-center gap-2 text-sys-text font-bold tracking-widest uppercase text-sm">
+          <span class="w-2 h-2 bg-sys-accent-1 rounded-full"></span>SYS.HERMES
+        </a>
+        <span class="text-sys-border">/</span>
+        <span class="text-sys-muted text-xs uppercase tracking-widest font-mono">Docs</span>
+      </div>
+      <a href="/" class="text-sys-muted hover:text-sys-accent-1 transition-colors uppercase tracking-wider text-xs">← Landing</a>
+    </div>
+  </header>
+
+  <div class="pt-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+
+    <div class="mb-16 border-b border-sys-border pb-8">
+      <div class="text-xs text-sys-muted font-mono tracking-widest uppercase mb-3">SYS.DOCS // martes.app</div>
+      <h1 class="text-4xl font-bold font-sans text-white mb-4">Documentación</h1>
+      <p class="text-sys-muted text-lg max-w-2xl">Todo lo que necesitas saber sobre Hermes Agent y la plataforma martes.app. Capacidades, integraciones, plataformas y más.</p>
+    </div>
+
+    <div class="space-y-16">
+      {Object.entries(sections).map(([section, docs]) => (
+        <div>
+          <h2 class="text-xs text-sys-muted font-mono tracking-widest uppercase mb-6 border-b border-sys-border pb-2">{section}</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {docs.map(doc => (
+              <a href={`/docs/${doc.slug}`} class="group border border-sys-border bg-sys-surface/30 p-5 hover:border-sys-accent-1 hover:bg-sys-surface transition-all">
+                <h3 class="text-white font-bold mb-2 group-hover:text-sys-accent-1 transition-colors text-sm">{doc.data.title}</h3>
+                {doc.data.description && <p class="text-sys-muted text-xs leading-relaxed">{doc.data.description}</p>}
+                <div class="mt-4 text-sys-accent-1 text-xs font-mono opacity-0 group-hover:opacity-100 transition-opacity">leer doc →</div>
+              </a>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+
+  </div>
+
+  <footer class="border-t border-sys-border py-6 text-center text-xs font-mono text-sys-muted mt-16">&copy; 2026 HERMES AGENT DEPLOYMENT FACILITY</footer>
+
+</Layout>
