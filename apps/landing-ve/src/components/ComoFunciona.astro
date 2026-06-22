@@ -1,0 +1,33 @@
+---
+const pasos = [
+  { n: '01', t: 'Conectamos tu negocio', d: 'Nos cuentas como operas hoy: que apps usas, que te quita el sueno, donde se te va el tiempo. Sin auditoria de 3 meses. En una llamada de 30 minutos tenemos el mapa.' },
+  { n: '02', t: 'Desplegamos tus agentes', d: 'Configuramos los agentes AI para tu operacion especifica: cobranza con tu voz, reportes con tus numeros, marketing con tu marca. Cada uno aprende de tu data, no de templates genericos.' },
+  { n: '03', t: 'Los agentes trabajan solos', d: 'Cobran por ti 24/7, atienden clientes en WhatsApp, generan reportes diarios, publican en tus redes. Tu equipo ve los resultados en un panel simple y aprueba lo importante.' },
+  { n: '04', t: 'Tu data es solo tuya', d: 'Tu informacion vive en tu infraestructura, bajo tu control. No la usamos para entrenar modelos, no la compartimos con terceros, no la vendemos. Si decides irte, te la entregamos completa y en formatos abiertos (CSV, Excel, JSON). Es tuya por derecho y por contrato.' },
+];
+---
+<section id="servicios" class="py-24 sm:py-32">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-4xl mx-auto text-center mb-20">
+      <div class="mb-6 flex justify-center">
+        <span class="ve-eyebrow" data-c="t1">// 02 // Como funciona</span>
+      </div>
+      <h2 class="ve-title text-4xl sm:text-5xl lg:text-6xl font-sans font-extrabold leading-[1.1] tracking-tight mb-6" data-c="t1">
+        De tu operacion actual a <span class="font-black italic">agentes que trabajan solos</span> en cuatro pasos.
+      </h2>
+      <p class="ve-lead">No es magia. Es un proceso claro: conectamos lo que ya tienes, configuramos los agentes para tu caso, y empiezas a ver resultados desde la primera semana.</p>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {pasos.map((p) => (
+        <div class="bg-cat-t1/15 border-2 border-cat-t1 p-8 hover:bg-cat-t1/20 transition-colors">
+          <div class="flex items-start justify-between mb-4">
+            <div class="text-5xl font-sans font-black text-cat-t1 font-extrabold">{p.n}</div>
+            <div class="w-1.5 h-1.5 rounded-full bg-cat-t1 animate-pulse"></div>
+          </div>
+          <h3 class="text-xl font-sans font-bold text-ve-text mb-3">{p.t}</h3>
+          <p class="text-ve-muted text-sm leading-[1.7] ve-justified">{p.d}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
