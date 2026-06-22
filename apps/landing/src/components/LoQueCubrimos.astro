@@ -1,0 +1,38 @@
+---
+const cards = [
+  { t: 'Cobranza', d: 'Pago Movil con referencia de 4 digitos, transferencia, Zelle, efectivo en dolares, Binance.' },
+  { t: 'Reportes',  d: 'Cierres diarios y semanales, ventas por rubro, gastos, ganancia real, tendencias.' },
+  { t: 'Marketing', d: 'Contenido generado por AI, publicacion automatica en redes, respuestas a comentarios.' },
+  { t: 'Atencion',  d: 'WhatsApp 24/7 con agentes que entienden tu negocio, responden clientes, agendan citas.' },
+  { t: 'Clientes',  d: 'Base unica: deuda, compras, contacto, historial. Tu equipo ve todo en un solo lugar.' },
+  { t: 'Alertas',   d: 'Notificaciones de pagos, vencimientos, oportunidades de venta, clientes inactivos.' },
+];
+---
+<section class="py-24 sm:py-32">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-4xl mx-auto text-center mb-16">
+      <div class="mb-6 flex justify-center">
+        <span class="ve-eyebrow" data-c="t2">// 02.b // Lo que cubrimos</span>
+      </div>
+      <h2 class="ve-title text-4xl sm:text-5xl lg:text-6xl font-sans font-extrabold leading-[1.1] tracking-tight mb-6" data-c="t2">
+        Todo lo que tu negocio <span class="font-black italic">necesita</span>.
+      </h2>
+      <p class="ve-lead">Y lo que no. Sin funciones infladas, sin modulos que nunca usas. Solo lo que te ahorra tiempo y dinero.</p>
+    </div>
+    <div class="cubiertas-wrap">
+      <div class="cubiertas-track">
+        {[...cards, ...cards].map((c) => (
+          <div class="cubiertas-card bg-ve-surface border-2 border-cat-t2 p-6">
+            <div class="text-[10px] text-cat-t2 font-bold uppercase tracking-widest mb-3">// {c.t.toUpperCase()} //</div>
+            <p class="text-ve-muted text-sm leading-[1.7] ve-justified">{c.d}</p>
+          </div>
+        ))}
+      </div>
+      <div class="cubiertas-dots">
+        {cards.map((_, i) => (
+          <span class="cubiertas-dot" data-i={i}></span>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>
