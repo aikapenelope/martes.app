@@ -3,32 +3,18 @@ import Layout from '../layouts/Layout.astro';
 
 // Plataformas para el marquee
 const row1 = [
-  { name: 'Telegram',  color: '#2AABEE', icon: '✈' },
-  { name: 'WhatsApp',  color: '#25D366', icon: '💬' },
-  { name: 'Discord',   color: '#5865F2', icon: '🎮' },
-  { name: 'Slack',     color: '#E01E5A', icon: '#' },
-  { name: 'Signal',    color: '#2592E9', icon: '🔒' },
-  { name: 'Gmail',     color: '#EA4335', icon: 'M' },
-  { name: 'Drive',     color: '#FBBC04', icon: '▲' },
-  { name: 'Calendar',  color: '#4285F4', icon: '📅' },
-  { name: 'Sheets',    color: '#34A853', icon: '⊞' },
-  { name: 'Teams',     color: '#6264A7', icon: 'T' },
-  { name: 'Email',     color: '#FF6B35', icon: '✉' },
-  { name: 'LINE',      color: '#00B900', icon: 'L' },
-];
-const row2 = [
-  { name: 'GitHub',    color: '#f0f6fc', icon: '⌥' },
-  { name: 'Notion',    color: '#ffffff', icon: '📓' },
-  { name: 'Linear',    color: '#5E6AD2', icon: '◢' },
-  { name: 'Jira',      color: '#0052CC', icon: '◆' },
-  { name: 'Spotify',   color: '#1DB954', icon: '♫' },
-  { name: 'YouTube',   color: '#FF0000', icon: '▶' },
-  { name: 'Instagram', color: '#E4405F', icon: '◉' },
-  { name: 'TikTok',    color: '#ff0050', icon: '♪' },
-  { name: 'LinkedIn',  color: '#0A66C2', icon: 'in' },
-  { name: 'iMessage',  color: '#34DA50', icon: '💬' },
-  { name: 'Telegram',  color: '#2AABEE', icon: '✈' },
-  { name: 'X (Twitter)', color: '#ffffff', icon: '𝕏' },
+  { name: 'Telegram',  color: '#2AABEE', icon: 'TG' },
+  { name: 'WhatsApp',  color: '#25D366', icon: 'WA' },
+  { name: 'Discord',   color: '#5865F2', icon: 'DS' },
+  { name: 'Slack',     color: '#E01E5A', icon: 'SL' },
+  { name: 'Signal',    color: '#2592E9', icon: 'SG' },
+  { name: 'Gmail',     color: '#EA4335', icon: 'GM' },
+  { name: 'Drive',     color: '#FBBC04', icon: 'GD' },
+  { name: 'Calendar',  color: '#4285F4', icon: 'CA' },
+  { name: 'Sheets',    color: '#34A853', icon: 'GS' },
+  { name: 'Teams',     color: '#6264A7', icon: 'MT' },
+  { name: 'Email',     color: '#FF6B35', icon: 'EM' },
+  { name: 'LINE',      color: '#00B900', icon: 'LN' },
 ];
 ---
 
@@ -40,8 +26,7 @@ const row2 = [
   <canvas id="bg-canvas" class="fixed inset-0 w-full h-full -z-10 opacity-40 pointer-events-none"></canvas>
 
   <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] blur-[120px] opacity-25 animate-pulse-slow pointer-events-none -z-10"
-       style="background: radial-gradient(circle, #7c3aed 0%, #3b82f6 50%, transparent 70%);">
-  </div>
+       style="background: radial-gradient(circle, #7c3aed 0%, #3b82f6 50%, transparent 70%);"></div>
 
   <section class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
     <div class="inline-flex items-center gap-2 mb-6 px-3 py-1 border border-sys-accent-1/30 bg-sys-accent-1/5">
@@ -55,26 +40,11 @@ const row2 = [
       <span class="font-medium text-white">martes.app</span> es una plataforma de agentes AI, automatizaciones e integraciones para empresas que necesitan software operativo. Hecho en LATAM.
     </p>
     <div class="flex justify-center">
-      <a href="https://wa.me/584120000000?text=Hola%2C%20quiero%20un%20agente%20AI" target="_blank" rel="noopener"
-         class="group inline-flex items-center justify-center px-10 py-5 bg-sys-accent-1 text-sys-bg font-bold uppercase tracking-[0.15em] transition-all text-sm hover:scale-105 hover:shadow-[0_0_40px_rgba(0,255,204,0.3)]">
-        Solicita una demo →
+      <a href="https://wa.me/584149189169?text=Hola%2C%20quiero%20un%20agente%20AI" target="_blank" rel="noopener"
+         class="group inline-flex items-center justify-center px-10 py-5 bg-sys-accent-1 text-sys-bg font-bold uppercase tracking-[0.15em] transition-all text-sm hover:scale-105">
+        Solicita una demo
         <svg class="ml-3 w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
       </a>
-    </div>
-  </section>
-
-  <!-- MARQUEE -->
-  <section class="relative mt-16 sm:mt-24 py-6 overflow-hidden border-y border-sys-border bg-sys-surface/30">
-    <div class="text-center mb-4">
-      <span class="text-[10px] font-mono text-sys-muted uppercase tracking-widest">// Compatible con tus plataformas //</span>
-    </div>
-    <div class="space-y-3">
-      {row1.map((p) => (
-        <div class="flex items-center gap-3 marquee-row whitespace-nowrap">
-          <span class="text-xs font-mono" style={`color: ${p.color}`}>{p.icon}</span>
-          <span class="text-sm font-mono" style={`color: ${p.color}`}>{p.name}</span>
-        </div>
-      ))}
     </div>
   </section>
 
@@ -93,7 +63,7 @@ const row2 = [
       <div class="border border-sys-border bg-sys-surface/50 p-6 hover:border-sys-accent-1 transition-colors">
         <div class="text-[10px] text-sys-accent-2 font-mono uppercase tracking-widest mb-2">// 02 // Custom</div>
         <h3 class="text-xl font-bold text-white mb-2">Software a medida</h3>
-        <p class="text-sys-muted text-sm">Desarrollo de agentes, automatizaciones e integraciones adaptadas a tu operación.</p>
+        <p class="text-sys-muted text-sm">Desarrollo de agentes, automatizaciones e integraciones adaptadas a tu operacion.</p>
       </div>
       <div class="border border-sys-border bg-sys-surface/50 p-6 hover:border-sys-accent-1 transition-colors">
         <div class="text-[10px] text-sys-accent-3 font-mono uppercase tracking-widest mb-2">// 03 // Open Source</div>
@@ -107,11 +77,57 @@ const row2 = [
   <section class="relative max-w-4xl mx-auto px-4 py-12">
     <div class="border border-sys-accent-1/30 bg-sys-accent-1/5 p-6 text-center">
       <div class="text-[10px] text-sys-accent-1 font-mono uppercase tracking-widest mb-2">// VERSION VENEZUELA //</div>
-      <h3 class="text-xl font-bold text-white mb-2">¿Tienes un negocio en Venezuela?</h3>
+      <h3 class="text-xl font-bold text-white mb-2">Tienes un negocio en Venezuela?</h3>
       <p class="text-sys-muted text-sm mb-4">Tenemos una landing dedicada con Pago Movil, Zelle, Binance, y todo lo que tu negocio venezolano necesita.</p>
       <a href="/" class="inline-flex items-center gap-2 px-5 py-2.5 border border-sys-accent-1 text-sys-accent-1 hover:bg-sys-accent-1/10 transition-colors text-xs font-mono uppercase tracking-widest">
-        Ir a la versión Venezuela →
+        Ir a la version Venezuela
       </a>
+    </div>
+  </section>
+
+  <!-- CONTACT FORM -> LARK -->
+  <section id="contacto-form" class="py-16 sm:py-24 border-t border-sys-border">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-12">
+        <div class="inline-flex items-center gap-2 mb-4 px-3 py-1 border border-sys-accent-1/30 bg-sys-accent-1/5">
+          <span class="w-1.5 h-1.5 bg-sys-accent-1 rounded-full animate-pulse"></span>
+          <span class="text-[10px] font-mono text-sys-accent-1 uppercase tracking-widest">Contact us</span>
+        </div>
+        <h2 class="text-3xl sm:text-4xl font-sans font-black text-sys-text tracking-tight mb-4">
+          Ready to <span style="background: linear-gradient(120deg,#00ffcc,#a855f7); -webkit-background-clip:text; background-clip:text; color:transparent;">get started?</span>
+        </h2>
+        <p class="text-sys-muted text-sm max-w-xl mx-auto">Send us a message or reach us on WhatsApp. We will respond within hours.</p>
+      </div>
+      <div class="max-w-xl mx-auto">
+        <form id="contact-form-us" class="space-y-4" novalidate>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <input id="cf-name-us" name="name" type="text" required
+              placeholder="Your name"
+              class="w-full bg-sys-surface border border-sys-border text-sys-text placeholder-sys-muted px-4 py-3 text-sm font-mono focus:outline-none focus:border-sys-accent-1 transition-colors" />
+            <input id="cf-company-us" name="company" type="text"
+              placeholder="Company (optional)"
+              class="w-full bg-sys-surface border border-sys-border text-sys-text placeholder-sys-muted px-4 py-3 text-sm font-mono focus:outline-none focus:border-sys-accent-1 transition-colors" />
+          </div>
+          <input id="cf-email-us" name="email" type="email"
+            placeholder="Email or WhatsApp"
+            class="w-full bg-sys-surface border border-sys-border text-sys-text placeholder-sys-muted px-4 py-3 text-sm font-mono focus:outline-none focus:border-sys-accent-1 transition-colors" />
+          <textarea id="cf-msg-us" name="message" rows="3"
+            placeholder="What would you like to automate?"
+            class="w-full bg-sys-surface border border-sys-border text-sys-text placeholder-sys-muted px-4 py-3 text-sm font-mono focus:outline-none focus:border-sys-accent-1 transition-colors resize-none"></textarea>
+          <button type="submit" id="cf-btn-us"
+            class="w-full bg-sys-accent-1 text-black font-bold uppercase tracking-[0.15em] py-4 text-sm hover:bg-white transition-colors">
+            Send message
+          </button>
+          <p id="cf-status-us" class="text-center text-xs font-mono min-h-[1.2em]"></p>
+        </form>
+        <div class="text-center mt-8">
+          <p class="text-sys-muted text-xs font-mono mb-4 uppercase tracking-wider">Or reach us directly:</p>
+          <a href="https://wa.me/584149189169?text=Hi%2C%20I%20want%20to%20learn%20about%20martes.app" target="_blank" rel="noopener"
+             class="inline-flex items-center gap-2 border border-sys-accent-1/40 text-sys-accent-1 px-6 py-3 text-sm font-mono hover:border-sys-accent-1 hover:bg-sys-accent-1/5 transition-colors">
+            WhatsApp
+          </a>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -130,26 +146,69 @@ const row2 = [
         <ul class="space-y-1.5">
           <li><a href="/#plataforma" class="text-sys-muted hover:text-sys-accent-1 transition-colors">Plataforma</a></li>
           <li><a href="/#custom" class="text-sys-muted hover:text-sys-accent-1 transition-colors">Custom</a></li>
-          <li><a href="/us-version" class="text-sys-muted hover:text-sys-accent-1 transition-colors">US Version</a></li>
         </ul>
       </div>
       <div>
         <h4 class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-3">Recursos</h4>
         <ul class="space-y-1.5">
-          <li><a href="/docs" class="text-sys-muted hover:text-sys-accent-1 transition-colors">Documentación</a></li>
+          <li><a href="/docs" class="text-sys-muted hover:text-sys-accent-1 transition-colors">Documentacion</a></li>
           <li><a href="/blog" class="text-sys-muted hover:text-sys-accent-1 transition-colors">Blog</a></li>
-          <li><a href="https://github.com/nousresearch/hermes-agent" target="_blank" rel="noopener" class="text-sys-muted hover:text-sys-accent-1 transition-colors">Hermes (GitHub)</a></li>
         </ul>
       </div>
       <div>
         <h4 class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-3">Contacto</h4>
-        <a href="https://wa.me/584120000000" target="_blank" rel="noopener" class="text-sys-muted hover:text-sys-accent-1 transition-colors text-xs">WhatsApp</a>
-        <p class="text-sys-muted text-[10px] mt-3">&copy; 2026 martes.app</p>
+        <a href="https://wa.me/584149189169" target="_blank" rel="noopener" class="text-sys-muted hover:text-sys-accent-1 transition-colors text-xs">WhatsApp</a>
+        <p class="text-sys-muted text-[10px] mt-3">2026 martes.app</p>
       </div>
     </div>
   </footer>
 
 </main>
+
+<script is:inline>
+(function() {
+  // TODO: replace LARK_WEBHOOK_URL_PLACEHOLDER with your Lark incoming webhook URL
+  // Lark > Group > ... > Add bot > Webhook bot > Copy webhook URL
+  var LARK_WEBHOOK = 'LARK_WEBHOOK_URL_PLACEHOLDER';
+  var form   = document.getElementById('contact-form-us');
+  var btn    = document.getElementById('cf-btn-us');
+  var status = document.getElementById('cf-status-us');
+  if (!form) return;
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var name    = (form.querySelector('[name=name]').value || '').trim();
+    var company = (form.querySelector('[name=company]').value || '').trim();
+    var email   = (form.querySelector('[name=email]').value || '').trim();
+    var message = (form.querySelector('[name=message]').value || '').trim();
+    if (!name || !message) {
+      status.textContent = 'Name and message are required.';
+      status.style.color = '#ec4899';
+      return;
+    }
+    btn.disabled = true; btn.textContent = 'Sending...';
+    var payload = {
+      msg_type: 'post',
+      content: { post: { es_es: { title: 'New contact - martes.app US',
+        content: [
+          [{ tag: 'text', text: 'Name: ' + name }],
+          [{ tag: 'text', text: 'Company: ' + (company || '-') }],
+          [{ tag: 'text', text: 'Email/WA: ' + (email || '-') }],
+          [{ tag: 'text', text: 'Message: ' + message }],
+          [{ tag: 'text', text: 'Origin: martes.app (US)' }]
+        ]
+      }}}
+    };
+    fetch(LARK_WEBHOOK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.code === 0) { status.textContent = 'Message sent! We will reach out soon.'; status.style.color = '#00ffcc'; form.reset(); }
+      else throw new Error(d.msg);
+    })
+    .catch(function() { status.textContent = 'Error sending. Please use WhatsApp.'; status.style.color = '#ec4899'; })
+    .finally(function() { btn.disabled = false; btn.textContent = 'Send message'; });
+  });
+})();
+</script>
 
 <script is:inline>
   (function() {
