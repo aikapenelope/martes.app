@@ -1,5 +1,5 @@
 ---
-import Layout from '../layouts/Layout.astro';
+import Layout from '../layouts/LayoutUS.astro';
 
 // Plataformas para el marquee
 const row1 = [
@@ -18,485 +18,173 @@ const row1 = [
 ];
 const row2 = [
   { name: 'GitHub',    color: '#f0f6fc', icon: '⌥' },
-  { name: 'Linear',    color: '#5E6AD2', icon: '◈' },
-  { name: 'Notion',    color: '#e0e0e0', icon: 'N' },
-  { name: 'Airtable',  color: '#FCB400', icon: '⬡' },
-  { name: 'Figma',     color: '#A259FF', icon: '✦' },
-  { name: 'Stripe',    color: '#635BFF', icon: '⚡' },
-  { name: 'Sentry',    color: '#F55B48', icon: '⊗' },
-  { name: 'Shopify',   color: '#96BF48', icon: '🛍' },
-  { name: 'Jira',      color: '#0052CC', icon: 'J' },
-  { name: 'Asana',     color: '#F06A6A', icon: 'A' },
-  { name: 'Tavily',    color: '#00C4B0', icon: '🔍' },
-  { name: 'Firecrawl', color: '#FF6B35', icon: '🔥' },
+  { name: 'Notion',    color: '#ffffff', icon: '📓' },
+  { name: 'Linear',    color: '#5E6AD2', icon: '◢' },
+  { name: 'Jira',      color: '#0052CC', icon: '◆' },
+  { name: 'Spotify',   color: '#1DB954', icon: '♫' },
+  { name: 'YouTube',   color: '#FF0000', icon: '▶' },
+  { name: 'Instagram', color: '#E4405F', icon: '◉' },
+  { name: 'TikTok',    color: '#ff0050', icon: '♪' },
+  { name: 'LinkedIn',  color: '#0A66C2', icon: 'in' },
+  { name: 'iMessage',  color: '#34DA50', icon: '💬' },
+  { name: 'Telegram',  color: '#2AABEE', icon: '✈' },
+  { name: 'X (Twitter)', color: '#ffffff', icon: '𝕏' },
 ];
 ---
 
-<Layout
-  title="martes.app — Software IA a medida para tu empresa"
-  description="Construimos agentes IA personalizados, CRM con IA integrada e integraciones para empresas en LATAM."
->
-<canvas id="bg-canvas"></canvas>
-<div class="scanline-overlay"></div>
+<Layout title="martes.app — Software IA a medida para tu empresa" description="Plataforma de agentes AI, automatizaciones e integraciones para empresas. Hecho en LATAM.">
 
-<!-- NAV -->
-<nav class="fixed top-0 w-full z-40 border-b border-sys-border bg-sys-bg/85 backdrop-blur-md">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="flex items-center justify-between h-16">
-      <div class="flex items-center gap-3">
-        <div class="pulse-ring w-2 h-2 bg-sys-accent-1 rounded-full"></div>
-        <span class="text-sys-text font-bold tracking-widest uppercase text-sm font-mono">
-          martes<span class="text-sys-accent-1">.</span>app
-        </span>
-      </div>
-      <div class="hidden md:flex items-center gap-6 text-xs font-mono">
-        <a href="#servicios"  class="text-sys-muted hover:text-sys-accent-1 transition-colors uppercase tracking-wider">Servicios</a>
-        <a href="#tecnologia" class="text-sys-muted hover:text-sys-accent-1 transition-colors uppercase tracking-wider">Tecnología</a>
-        <a href="/docs"       class="text-sys-muted hover:text-sys-accent-1 transition-colors uppercase tracking-wider">Docs</a>
-        <a href="/blog"       class="text-sys-muted hover:text-sys-accent-1 transition-colors uppercase tracking-wider">Blog</a>
-        <a href="#contacto"   class="bg-sys-accent-1 text-black px-4 py-2 font-bold uppercase tracking-wider hover:bg-white transition-colors">
-          Hablar con nosotros
-        </a>
-      </div>
-      <!-- Mobile CTA -->
-      <a href="#contacto" class="md:hidden bg-sys-accent-1 text-black px-3 py-2 font-bold uppercase text-[10px] tracking-wider hover:bg-white transition-colors">
-        Contacto
-      </a>
-    </div>
+<!-- HERO -->
+<main class="relative pt-32 pb-8 sm:pt-40 sm:pb-28 overflow-hidden">
+
+  <canvas id="bg-canvas" class="fixed inset-0 w-full h-full -z-10 opacity-40 pointer-events-none"></canvas>
+
+  <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] blur-[120px] opacity-25 animate-pulse-slow pointer-events-none -z-10"
+       style="background: radial-gradient(circle, #7c3aed 0%, #3b82f6 50%, transparent 70%);">
   </div>
-</nav>
 
-<!-- HERO ──────────────────────────────────────────────────────────────── -->
-<main class="relative pt-32 pb-8 sm:pt-44 overflow-hidden">
-  <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-hero-glow rounded-full blur-[120px] opacity-15 animate-pulse-slow pointer-events-none"></div>
-
-  <div class="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-
-    <div class="mb-5 inline-flex items-center gap-2 border border-sys-border/60 px-4 py-1.5 rounded-full text-xs text-sys-muted font-mono">
-      <span class="w-1.5 h-1.5 rounded-full bg-sys-accent-2 animate-pulse"></span>
-      POWERED BY HERMES AGENT · NousResearch · 165K ⭐
+  <section class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+    <div class="inline-flex items-center gap-2 mb-6 px-3 py-1 border border-sys-accent-1/30 bg-sys-accent-1/5">
+      <span class="w-1.5 h-1.5 bg-sys-accent-1 rounded-full animate-pulse"></span>
+      <span class="text-[10px] font-mono text-sys-accent-1 uppercase tracking-widest">Sys.Agents v0.14 // Online</span>
     </div>
-
-    <h1 class="text-5xl sm:text-7xl lg:text-[88px] font-black tracking-tighter mb-6 font-sans leading-none">
-      <span class="text-transparent bg-clip-text bg-gradient-to-br from-white via-gray-200 to-gray-500">
-        SOFTWARE IA
-      </span><br>
-      <span class="font-mono text-white glitch-hover">A MEDIDA</span>
+    <h1 class="text-5xl sm:text-6xl lg:text-7xl font-sans font-bold leading-[1.05] tracking-tight mb-6 text-white">
+      Software IA a medida para tu empresa.
     </h1>
-
-    <p class="mt-2 max-w-2xl mx-auto text-lg sm:text-xl text-sys-muted font-light leading-relaxed mb-4">
-      Construimos agentes IA personalizados para tu empresa — CRM con IA integrada,
-      automatizaciones a medida, integraciones con Google Workspace, WhatsApp y 20+ herramientas.
-      Todo sobre Hermes Agent, el agente IA de código abierto más avanzado.
+    <p class="text-lg sm:text-xl text-sys-muted leading-relaxed max-w-2xl mx-auto mb-8">
+      <span class="font-medium text-white">martes.app</span> es una plataforma de agentes AI, automatizaciones e integraciones para empresas que necesitan software operativo. Hecho en LATAM.
     </p>
-
-    <div class="flex flex-col sm:flex-row justify-center gap-3 mb-16">
-      <a href="#contacto" class="tech-border inline-flex items-center justify-center px-8 py-4 border border-sys-accent-1 text-sys-accent-1 hover:bg-sys-accent-1 hover:text-black font-bold uppercase tracking-widest transition-all text-sm">
-        Iniciar proyecto
-        <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-      </a>
-      <a href="/docs" class="inline-flex items-center justify-center px-8 py-4 border border-sys-border text-sys-muted hover:border-sys-text hover:text-sys-text font-bold uppercase tracking-widest transition-all text-sm">
-        Ver documentación
+    <div class="flex justify-center">
+      <a href="https://wa.me/584120000000?text=Hola%2C%20quiero%20un%20agente%20AI" target="_blank" rel="noopener"
+         class="group inline-flex items-center justify-center px-10 py-5 bg-sys-accent-1 text-sys-bg font-bold uppercase tracking-[0.15em] transition-all text-sm hover:scale-105 hover:shadow-[0_0_40px_rgba(0,255,204,0.3)]">
+        Solicita una demo →
+        <svg class="ml-3 w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
       </a>
     </div>
+  </section>
 
-    <!-- Terminal -->
-    <div class="relative mx-auto max-w-3xl">
-      <div class="absolute inset-0 bg-gradient-to-t from-sys-bg via-transparent to-transparent z-10 pointer-events-none h-16 bottom-0 top-auto"></div>
-      <div class="border border-sys-border bg-sys-surface/30 overflow-hidden shadow-2xl">
-        <div class="border-b border-sys-border bg-sys-surface px-4 py-2 flex items-center justify-between text-[10px] font-mono text-sys-muted">
-          <div class="flex gap-2 items-center">
-            <span class="w-2.5 h-2.5 rounded-full bg-sys-accent-3/60"></span>
-            <span class="w-2.5 h-2.5 rounded-full bg-yellow-500/60"></span>
-            <span class="w-2.5 h-2.5 rounded-full bg-green-500/60"></span>
-          </div>
-          <span>martes.app // HERMES_DEPLOYMENT_LOG</span>
-          <span class="text-green-500">● ONLINE</span>
+  <!-- MARQUEE -->
+  <section class="relative mt-16 sm:mt-24 py-6 overflow-hidden border-y border-sys-border bg-sys-surface/30">
+    <div class="text-center mb-4">
+      <span class="text-[10px] font-mono text-sys-muted uppercase tracking-widest">// Compatible con tus plataformas //</span>
+    </div>
+    <div class="space-y-3">
+      {row1.map((p) => (
+        <div class="flex items-center gap-3 marquee-row whitespace-nowrap">
+          <span class="text-xs font-mono" style={`color: ${p.color}`}>{p.icon}</span>
+          <span class="text-sm font-mono" style={`color: ${p.color}`}>{p.name}</span>
         </div>
-        <div class="p-5 font-mono text-xs h-44 overflow-hidden" id="terminal-output">
-          <div class="text-sys-muted">&gt; Initializing Hermes v0.14.0...</div>
-          <div class="text-sys-muted">&gt; Loading custom CRM schema...</div>
-          <div class="text-sys-muted">&gt; Connecting Google Workspace...</div>
-        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- COMO FUNCIONA -->
+  <section class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
+    <div class="max-w-4xl mx-auto text-center mb-16">
+      <h2 class="text-3xl sm:text-4xl font-bold font-sans text-white mb-4">Tres formas en que <span class="text-sys-accent-1">martes.app</span> opera por ti.</h2>
+      <p class="text-sys-muted text-lg">No vendemos licencias. Construimos el software operativo que tu empresa necesita para escalar.</p>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="border border-sys-border bg-sys-surface/50 p-6 hover:border-sys-accent-1 transition-colors">
+        <div class="text-[10px] text-sys-accent-1 font-mono uppercase tracking-widest mb-2">// 01 // Plataforma</div>
+        <h3 class="text-xl font-bold text-white mb-2">martes.app</h3>
+        <p class="text-sys-muted text-sm">Plataforma SaaS de agentes AI con panel de control, integraciones listas y API.</p>
+      </div>
+      <div class="border border-sys-border bg-sys-surface/50 p-6 hover:border-sys-accent-1 transition-colors">
+        <div class="text-[10px] text-sys-accent-2 font-mono uppercase tracking-widest mb-2">// 02 // Custom</div>
+        <h3 class="text-xl font-bold text-white mb-2">Software a medida</h3>
+        <p class="text-sys-muted text-sm">Desarrollo de agentes, automatizaciones e integraciones adaptadas a tu operación.</p>
+      </div>
+      <div class="border border-sys-border bg-sys-surface/50 p-6 hover:border-sys-accent-1 transition-colors">
+        <div class="text-[10px] text-sys-accent-3 font-mono uppercase tracking-widest mb-2">// 03 // Open Source</div>
+        <h3 class="text-xl font-bold text-white mb-2">Hermes Agent</h3>
+        <p class="text-sys-muted text-sm">Motor open source en Rust/Python. Self-hosted, auditable, extensible.</p>
       </div>
     </div>
-  </div>
+  </section>
+
+  <!-- BANNER VE -->
+  <section class="relative max-w-4xl mx-auto px-4 py-12">
+    <div class="border border-sys-accent-1/30 bg-sys-accent-1/5 p-6 text-center">
+      <div class="text-[10px] text-sys-accent-1 font-mono uppercase tracking-widest mb-2">// VERSION VENEZUELA //</div>
+      <h3 class="text-xl font-bold text-white mb-2">¿Tienes un negocio en Venezuela?</h3>
+      <p class="text-sys-muted text-sm mb-4">Tenemos una landing dedicada con Pago Movil, Zelle, Binance, y todo lo que tu negocio venezolano necesita.</p>
+      <a href="/" class="inline-flex items-center gap-2 px-5 py-2.5 border border-sys-accent-1 text-sys-accent-1 hover:bg-sys-accent-1/10 transition-colors text-xs font-mono uppercase tracking-widest">
+        Ir a la versión Venezuela →
+      </a>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer id="contacto" class="border-t border-sys-border py-12 px-4 sm:px-6 lg:px-8 mt-12">
+    <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 text-sm">
+      <div>
+        <div class="flex items-center gap-2 mb-3">
+          <span class="w-2 h-2 bg-sys-accent-1 rounded-full"></span>
+          <span class="font-bold tracking-widest uppercase text-white text-sm">martes<span class="text-sys-accent-1">.app</span></span>
+        </div>
+        <p class="text-sys-muted text-xs">Plataforma de agentes AI, automatizaciones e integraciones para empresas.</p>
+      </div>
+      <div>
+        <h4 class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-3">Producto</h4>
+        <ul class="space-y-1.5">
+          <li><a href="/#plataforma" class="text-sys-muted hover:text-sys-accent-1 transition-colors">Plataforma</a></li>
+          <li><a href="/#custom" class="text-sys-muted hover:text-sys-accent-1 transition-colors">Custom</a></li>
+          <li><a href="/us-version" class="text-sys-muted hover:text-sys-accent-1 transition-colors">US Version</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-3">Recursos</h4>
+        <ul class="space-y-1.5">
+          <li><a href="/docs" class="text-sys-muted hover:text-sys-accent-1 transition-colors">Documentación</a></li>
+          <li><a href="/blog" class="text-sys-muted hover:text-sys-accent-1 transition-colors">Blog</a></li>
+          <li><a href="https://github.com/nousresearch/hermes-agent" target="_blank" rel="noopener" class="text-sys-muted hover:text-sys-accent-1 transition-colors">Hermes (GitHub)</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-3">Contacto</h4>
+        <a href="https://wa.me/584120000000" target="_blank" rel="noopener" class="text-sys-muted hover:text-sys-accent-1 transition-colors text-xs">WhatsApp</a>
+        <p class="text-sys-muted text-[10px] mt-3">&copy; 2026 martes.app</p>
+      </div>
+    </div>
+  </footer>
+
 </main>
 
-<!-- MARQUEE: Plataformas con iconos animados ──────────────────────────── -->
-<section class="py-16 border-y border-sys-border/40 overflow-hidden">
-  <div class="max-w-7xl mx-auto px-4 mb-4 text-center">
-    <p class="text-[10px] font-mono text-sys-muted uppercase tracking-widest">
-      Integraciones nativas · 22+ plataformas · OAuth 2.1 · MCP
-    </p>
-  </div>
-
-  <!-- Row 1 -->
-  <div class="marquee-wrapper mb-3">
-    <div class="marquee-track">
-      {[...row1, ...row1].map((p, i) => (
-        <div
-          class={`flex items-center gap-2 px-4 py-2 border border-sys-border/60 bg-sys-surface/40 shrink-0 whitespace-nowrap icon-float icon-float-delay-${(i % 6) + 1} hover:border-sys-accent-1/60 transition-colors cursor-default`}
-          style={`border-color: ${p.color}22;`}
-        >
-          <span class="text-sm" style={`color: ${p.color};`}>{p.icon}</span>
-          <span class="text-[11px] font-mono" style={`color: ${p.color};`}>{p.name}</span>
-        </div>
-      ))}
-    </div>
-  </div>
-
-  <!-- Row 2 (reverse) -->
-  <div class="marquee-wrapper">
-    <div class="marquee-track-rev">
-      {[...row2, ...row2].map((p, i) => (
-        <div
-          class={`flex items-center gap-2 px-4 py-2 border border-sys-border/60 bg-sys-surface/40 shrink-0 whitespace-nowrap icon-float icon-float-delay-${(i % 6) + 1} hover:border-sys-accent-1/60 transition-colors cursor-default`}
-          style={`border-color: ${p.color}22;`}
-        >
-          <span class="text-sm" style={`color: ${p.color};`}>{p.icon}</span>
-          <span class="text-[11px] font-mono" style={`color: ${p.color};`}>{p.name}</span>
-        </div>
-      ))}
-    </div>
-  </div>
-</section>
-
-<!-- SERVICIOS ──────────────────────────────────────────────────────────── -->
-<section id="servicios" class="py-24">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="mb-14 text-center">
-      <div class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-3">01 // Lo que construimos</div>
-      <h2 class="text-4xl font-black font-sans text-white">SOFTWARE A MEDIDA,<br>NO PLANTILLAS</h2>
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-      <!-- CRM Custom -->
-      <div class="border border-sys-border bg-sys-surface/20 p-7 hover:border-sys-accent-1/50 transition-all group relative overflow-hidden">
-        <div class="absolute inset-0 bg-gradient-to-br from-sys-accent-1/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-        <div class="relative z-10">
-          <div class="w-10 h-10 bg-sys-accent-1/10 border border-sys-accent-1/30 flex items-center justify-center mb-5 icon-float">
-            <span class="text-sys-accent-1 text-lg">⊡</span>
-          </div>
-          <h3 class="text-xl font-bold text-white mb-3 font-sans">CRM con IA Integrada</h3>
-          <p class="text-sys-muted text-sm leading-relaxed mb-4">
-            Diseñamos tu CRM desde cero con Hermes como núcleo. El agente responde a clientes,
-            actualiza registros, genera reportes y escala contigo. Sin licencias, tuyo completamente.
-          </p>
-          <div class="flex flex-wrap gap-1.5 text-[10px] font-mono">
-            {['Pipeline de ventas', 'Seguimiento automático', 'Reportes IA', 'WhatsApp nativo'].map(t => (
-              <span class="px-2 py-0.5 bg-sys-accent-1/10 text-sys-accent-1 border border-sys-accent-1/20">{t}</span>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <!-- Agente de atención -->
-      <div class="border border-sys-border bg-sys-surface/20 p-7 hover:border-sys-accent-2/50 transition-all group relative overflow-hidden">
-        <div class="absolute inset-0 bg-gradient-to-br from-sys-accent-2/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-        <div class="relative z-10">
-          <div class="w-10 h-10 bg-sys-accent-2/10 border border-sys-accent-2/30 flex items-center justify-center mb-5 icon-float icon-float-delay-2">
-            <span class="text-sys-accent-2 text-lg">💬</span>
-          </div>
-          <h3 class="text-xl font-bold text-white mb-3 font-sans">Agente de Atención al Cliente</h3>
-          <p class="text-sys-muted text-sm leading-relaxed mb-4">
-            Hermes responde en Telegram y WhatsApp 24/7 con el conocimiento exacto de tu empresa.
-            Memoria persistente: recuerda cada cliente, pedido e historial.
-          </p>
-          <div class="flex flex-wrap gap-1.5 text-[10px] font-mono">
-            {['Telegram', 'WhatsApp', 'Memoria 24/7', 'Escalado a humano'].map(t => (
-              <span class="px-2 py-0.5 bg-sys-accent-2/10 text-sys-accent-2 border border-sys-accent-2/20">{t}</span>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <!-- Integraciones Google -->
-      <div class="border border-sys-border bg-sys-surface/20 p-7 hover:border-[#4285F4]/50 transition-all group relative overflow-hidden">
-        <div class="absolute inset-0 bg-gradient-to-br from-[#4285F4]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-        <div class="relative z-10">
-          <div class="flex items-center gap-2 mb-5">
-            {[
-              { letter: 'G', color: '#4285F4' },
-              { letter: 'M', color: '#EA4335' },
-              { letter: '▲', color: '#FBBC04' },
-              { letter: '⊞', color: '#34A853' },
-            ].map((g, idx) => (
-              <div
-                class={`w-8 h-8 flex items-center justify-center border text-xs font-bold icon-float icon-float-delay-${idx+1}`}
-                style={`color: ${g.color}; border-color: ${g.color}33; background: ${g.color}11;`}
-              >
-                {g.letter}
-              </div>
-            ))}
-          </div>
-          <h3 class="text-xl font-bold text-white mb-3 font-sans">Google Workspace + IA</h3>
-          <p class="text-sys-muted text-sm leading-relaxed mb-4">
-            El agente lee y escribe en Gmail, Calendar, Drive, Docs y Sheets. Automatiza flujos
-            completos: "cuando llegue un email de proveedor, créame una fila en Sheets y una tarea en Calendar".
-          </p>
-          <div class="flex flex-wrap gap-1.5 text-[10px] font-mono">
-            {['Gmail', 'Google Sheets', 'Google Drive', 'Google Calendar'].map(t => (
-              <span class="px-2 py-0.5 bg-[#4285F4]/10 text-[#4285F4] border border-[#4285F4]/20">{t}</span>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <!-- Automatizaciones -->
-      <div class="border border-sys-border bg-sys-surface/20 p-7 hover:border-sys-accent-3/50 transition-all group relative overflow-hidden">
-        <div class="absolute inset-0 bg-gradient-to-br from-sys-accent-3/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-        <div class="relative z-10">
-          <div class="w-10 h-10 bg-sys-accent-3/10 border border-sys-accent-3/30 flex items-center justify-center mb-5 icon-float icon-float-delay-3">
-            <span class="text-sys-accent-3 text-lg">⚡</span>
-          </div>
-          <h3 class="text-xl font-bold text-white mb-3 font-sans">Automatizaciones a Medida</h3>
-          <p class="text-sys-muted text-sm leading-relaxed mb-4">
-            Flujos de trabajo diseñados para tu empresa específica. Reportes automáticos, alertas,
-            sincronización de datos, web scraping, generación de documentos.
-          </p>
-          <div class="flex flex-wrap gap-1.5 text-[10px] font-mono">
-            {['Cron scheduler', 'Web scraping', 'Docs automáticos', 'Alertas Telegram'].map(t => (
-              <span class="px-2 py-0.5 bg-sys-accent-3/10 text-sys-accent-3 border border-sys-accent-3/20">{t}</span>
-            ))}
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </div>
-</section>
-
-<!-- TECNOLOGÍA ────────────────────────────────────────────────────────── -->
-<section id="tecnologia" class="py-24 border-y border-sys-border/50">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-
-      <div>
-        <div class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-3">02 // Motor tecnológico</div>
-        <h2 class="text-4xl font-black font-sans text-white mb-6">HERMES AGENT<br><span class="text-sys-accent-1">v0.14.0</span></h2>
-        <p class="text-sys-muted leading-relaxed mb-8 text-sm">
-          Construimos sobre <strong class="text-white">Hermes Agent</strong> de NousResearch —
-          el agente IA de código abierto con más estrellas en GitHub (165K+).
-          Bucle de aprendizaje cerrado, 200+ modelos, 22 plataformas, MCP, browser automation.
-        </p>
-        <div class="grid grid-cols-2 gap-3 text-xs font-mono">
-          {[
-            ['200+ Modelos', 'OpenRouter API'],
-            ['22 Plataformas', 'Telegram a Teams'],
-            ['Memory Stack', 'pgvector + FTS5'],
-            ['MCP OAuth 2.1', 'GitHub, Linear...'],
-            ['Browser 180x', 'Playwright CDP'],
-            ['Cron nativo', 'Lenguaje natural'],
-          ].map(([k, v]) => (
-            <div class="border border-sys-border p-3 bg-sys-surface/30 hover:border-sys-accent-1/40 transition-colors">
-              <div class="text-white font-bold mb-0.5">{k}</div>
-              <div class="text-sys-muted text-[10px]">{v}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <!-- Pipeline visual -->
-      <div class="relative h-[360px] border border-sys-border bg-sys-bg/50 overflow-hidden">
-        <div class="absolute inset-0 flex items-center justify-center">
-          <!-- Rings animados -->
-          <div class="absolute w-64 h-64 border border-sys-accent-1/10 rounded-full animate-[spin_20s_linear_infinite]"></div>
-          <div class="absolute w-44 h-44 border border-sys-accent-2/15 rounded-full animate-[spin_12s_linear_infinite_reverse]"></div>
-          <div class="absolute w-28 h-28 border border-sys-accent-3/20 rounded-full animate-[spin_8s_linear_infinite]"></div>
-          <!-- Centro -->
-          <div class="relative z-10 w-20 h-20 rounded-full bg-sys-bg border border-sys-accent-2 flex items-center justify-center shadow-[0_0_30px_rgba(176,38,255,0.3)] animate-pulse-slow">
-            <span class="text-white text-xs font-bold font-mono">HERMES</span>
-          </div>
-          <!-- Satélites -->
-          {[
-            { label: 'WhatsApp', color: '#25D366', angle: 0 },
-            { label: 'Google',   color: '#4285F4', angle: 72 },
-            { label: 'GitHub',   color: '#e0e0e0', angle: 144 },
-            { label: 'Airtable', color: '#FCB400', angle: 216 },
-            { label: 'Telegram', color: '#2AABEE', angle: 288 },
-          ].map(({ label, color, angle }) => {
-            const rad = (angle - 90) * Math.PI / 180;
-            const r = 120;
-            const x = 50 + (r / 1.8 * Math.cos(rad));
-            const y = 50 + (r / 1.8 * Math.sin(rad));
-            return (
-              <div
-                class="absolute text-[9px] font-mono font-bold flex items-center justify-center w-14 h-6 border"
-                style={`left: ${x}%; top: ${y}%; transform: translate(-50%, -50%); color: ${color}; border-color: ${color}44; background: ${color}11;`}
-              >
-                {label}
-              </div>
-            );
-          })}
-        </div>
-        <div class="absolute bottom-3 right-4 text-[9px] text-sys-muted font-mono">
-          AGENT_CORE // CONNECTED
-        </div>
-      </div>
-
-    </div>
-  </div>
-</section>
-
-<!-- CONTACTO ──────────────────────────────────────────────────────────── -->
-<section id="contacto" class="py-24">
-  <div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="text-center mb-10">
-      <div class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-3">03 // Habla con nosotros</div>
-      <h2 class="text-3xl font-black font-sans text-white mb-3">¿TIENES UN PROYECTO?</h2>
-      <p class="text-sys-muted text-sm">Cuéntanos qué necesita tu empresa. Te respondemos por Telegram.</p>
-    </div>
-
-    <div class="border border-sys-border bg-sys-surface/30 overflow-hidden">
-      <div class="border-b border-sys-border p-3 flex justify-between items-center bg-sys-surface text-[10px] font-mono text-sys-muted">
-        <span>root@martes.app:~#</span>
-        <div class="flex gap-1.5">
-          <div class="w-2 h-2 rounded-full bg-sys-accent-3/60"></div>
-          <div class="w-2 h-2 rounded-full bg-yellow-500/60"></div>
-          <div class="w-2 h-2 rounded-full bg-green-500/60"></div>
-        </div>
-      </div>
-      <form class="p-6 space-y-4 font-mono">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-[10px] text-sys-muted uppercase tracking-wider mb-1.5">Empresa</label>
-            <input type="text" class="w-full bg-sys-bg border border-sys-border focus:border-sys-accent-1 text-white text-sm px-3 py-2.5 outline-none transition-colors font-mono" placeholder="Acme Corp">
-          </div>
-          <div>
-            <label class="block text-[10px] text-sys-muted uppercase tracking-wider mb-1.5">Telegram o Email</label>
-            <input type="text" class="w-full bg-sys-bg border border-sys-border focus:border-sys-accent-1 text-white text-sm px-3 py-2.5 outline-none transition-colors font-mono" placeholder="@usuario o email">
-          </div>
-        </div>
-        <div>
-          <label class="block text-[10px] text-sys-muted uppercase tracking-wider mb-1.5">¿Qué necesitas?</label>
-          <select class="w-full bg-sys-bg border border-sys-border focus:border-sys-accent-1 text-white text-sm px-3 py-2.5 outline-none transition-colors appearance-none font-mono">
-            <option>CRM con IA integrada</option>
-            <option>Agente de atención al cliente (WhatsApp/Telegram)</option>
-            <option>Integraciones Google Workspace + IA</option>
-            <option>Automatización de procesos internos</option>
-            <option>Otro proyecto de software IA</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-[10px] text-sys-muted uppercase tracking-wider mb-1.5">Describe tu proyecto</label>
-          <textarea rows="4" class="w-full bg-sys-bg border border-sys-border focus:border-sys-accent-1 text-white text-sm px-3 py-2.5 outline-none transition-colors resize-none font-mono" placeholder="Qué hace tu empresa, qué quieres automatizar o mejorar..."></textarea>
-        </div>
-        <button type="button" class="w-full tech-border bg-sys-accent-1 text-black font-bold uppercase tracking-widest py-3 hover:bg-white transition-colors text-sm">
-          ENVIAR PROYECTO →
-        </button>
-      </form>
-    </div>
-  </div>
-</section>
-
-<!-- FOOTER ────────────────────────────────────────────────────────────── -->
-<footer class="border-t border-sys-border py-10 font-mono text-xs">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8">
-      <div>
-        <div class="flex items-center gap-2 font-bold tracking-widest uppercase text-sys-text mb-1">
-          <span class="w-1.5 h-1.5 bg-sys-accent-1 rounded-full"></span>
-          martes<span class="text-sys-accent-1">.</span>app
-        </div>
-        <div class="text-sys-muted text-[10px]">Software IA a medida · LATAM</div>
-      </div>
-      <div class="flex gap-8">
-        <div>
-          <div class="text-[9px] text-sys-muted uppercase tracking-widest mb-2">Recursos</div>
-          <div class="space-y-1.5">
-            <a href="/docs"  class="block text-sys-muted hover:text-white transition-colors">Documentación</a>
-            <a href="/blog"  class="block text-sys-muted hover:text-white transition-colors">Blog</a>
-          </div>
-        </div>
-        <div>
-          <div class="text-[9px] text-sys-muted uppercase tracking-widest mb-2">Tecnología</div>
-          <div class="space-y-1.5">
-            <a href="https://github.com/nousresearch/hermes-agent" target="_blank" rel="noopener" class="block text-sys-muted hover:text-white transition-colors">Hermes Agent</a>
-            <a href="https://openrouter.ai" target="_blank" rel="noopener" class="block text-sys-muted hover:text-white transition-colors">OpenRouter</a>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="border-t border-sys-border pt-6 text-center text-[10px] text-sys-muted">
-      &copy; 2026 martes.app — Todos los derechos reservados
-    </div>
-  </div>
-</footer>
-
-</Layout>
-
 <script is:inline>
-(function() {
-  // Terminal
-  var out = document.getElementById('terminal-output');
-  if (!out) return;
-  var lines = [
-    '> [init] Hermes v0.14.0 — loading config...',
-    '> [crm]  Custom CRM schema: 12 entidades cargadas',
-    '> [int]  Google Workspace: OAuth 2.1 connected',
-    '> [int]  WhatsApp Business API: ready',
-    '> [mcp]  GitHub, Linear, Airtable: connected',
-    '> [mem]  pgvector store: 4,218 embeddings',
-    '> [cron] 8 automatizaciones activas',
-    '> [sys]  Agent EMPRESA_01 — operativo',
-  ];
-  var i = 0;
-  function next() {
-    if (i >= lines.length) {
-      var c = document.createElement('div');
-      c.className = 'text-sys-accent-1 mt-1';
-      c.innerHTML = '<span class="animate-pulse">\u2588</span>';
-      out.appendChild(c);
-      out.scrollTop = out.scrollHeight;
-      return;
-    }
-    var d = document.createElement('div');
-    var isLast = i === lines.length - 1;
-    d.className = isLast ? 'text-sys-accent-1 mt-1' : (lines[i].includes('[int]') || lines[i].includes('[mcp]') ? 'text-sys-accent-2' : 'text-sys-muted');
-    d.innerHTML = lines[i] + '<span class="animate-pulse">_</span>';
-    out.appendChild(d);
-    out.scrollTop = out.scrollHeight;
-    setTimeout(function() { d.textContent = lines[i]; i++; next(); }, Math.random() * 350 + 150);
-  }
-  setTimeout(next, 800);
-})();
-
-// Three.js
-window.onload = function() {
-  var canvas = document.getElementById('bg-canvas');
-  if (!canvas || typeof THREE === 'undefined') return;
-  var scene = new THREE.Scene();
-  var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-  camera.position.z = 30;
-  var renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  var pos = new Float32Array(3000);
-  for (var j = 0; j < pos.length; j++) pos[j] = (Math.random() - 0.5) * 100;
-  var geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  var pts = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.08, color: '#00ffcc', transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending }));
-  scene.add(pts);
-  var sph = new THREE.Mesh(new THREE.IcosahedronGeometry(18, 2), new THREE.MeshBasicMaterial({ color: '#1a1a1a', wireframe: true, transparent: true, opacity: 0.2 }));
-  scene.add(sph);
-  var mx = 0, my = 0;
-  document.addEventListener('mousemove', function(e) { mx = e.clientX - window.innerWidth/2; my = e.clientY - window.innerHeight/2; });
-  var clock = new THREE.Clock();
-  (function animate() {
-    requestAnimationFrame(animate);
-    var t = clock.getElapsedTime();
-    pts.rotation.y = t * 0.04; pts.rotation.x = t * 0.015;
-    sph.rotation.y = t * 0.015; sph.rotation.x = t * 0.008;
-    pts.rotation.y += 0.04 * (mx * 0.0008 - pts.rotation.y);
-    pts.rotation.x += 0.04 * (my * 0.0008 - pts.rotation.x);
-    renderer.render(scene, camera);
+  (function() {
+    try {
+      const canvas = document.getElementById('bg-canvas');
+      if (!canvas || typeof THREE === 'undefined') return;
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.z = 30;
+      const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      const g = new THREE.BufferGeometry();
+      const p = new Float32Array(800 * 3);
+      for (let i = 0; i < p.length; i++) p[i] = (Math.random() - 0.5) * 100;
+      g.setAttribute('position', new THREE.BufferAttribute(p, 3));
+      const pm = new THREE.Points(g, new THREE.PointsMaterial({ size: 0.18, color: 0x7c3aed, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending }));
+      scene.add(pm);
+      let mx = 0, my = 0;
+      document.addEventListener('mousemove', function(e) { mx = e.clientX - window.innerWidth / 2; my = e.clientY - window.innerHeight / 2; }, { passive: true });
+      const clock = new THREE.Clock();
+      function animate() {
+        requestAnimationFrame(animate);
+        const t = clock.getElapsedTime();
+        pm.rotation.y = t * 0.05 + 0.05 * (mx * 0.001 - pm.rotation.y);
+        pm.rotation.x = t * 0.02 + 0.05 * (my * 0.001 - pm.rotation.x);
+        renderer.render(scene, camera);
+      }
+      animate();
+      window.addEventListener('resize', function() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    } catch (e) { console.warn('Canvas init error', e); }
   })();
-  window.addEventListener('resize', function() {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  });
-};
 </script>
+</Layout>
