@@ -1,0 +1,44 @@
+---
+import Layout from './Layout.astro';
+import { getCollection } from 'astro:content';
+
+export interface Props {
+  title:        string;
+  description?: string;
+  currentSlug?: string;
+}
+
+const { title, description, currentSlug } = Astro.props;
+
+const allDocs = (await getCollection('docs')).sort((a, b) => a.data.order - b.data.order);
+const sections: Record<string, typeof allDocs> = {};
+for (const doc of allDocs) {
+  const s = doc.data.section;
+  if (!sections[s]) sections[s] = [];
+  sections[s].push(doc);
+}
+---
+
+<Layout title={title} description={description}>
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+    <div class="mb-12">
+      <h1 class="text-3xl sm:text-4xl font-bold font-sans text-white mb-4">{title}</h1>
+      {description && <p class="text-sys-muted text-lg">{description}</p>}
+    </div>
+    <div class="space-y-12">
+      {Object.entries(sections).map(([section, docs]) => (
+        <div>
+          <h2 class="text-xs text-sys-muted font-mono tracking-widest uppercase mb-4 border-b border-sys-border pb-2">{section}</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {docs.map(doc => (
+              <a href={`/docs/${doc.slug}`} class={`group block border bg-sys-surface/30 p-5 hover:border-sys-accent-1 hover:bg-sys-surface transition-all ${currentSlug === doc.slug ? 'border-sys-accent-1' : 'border-sys-border'}`}>
+                <h3 class={`font-bold mb-2 group-hover:text-sys-accent-1 transition-colors text-sm ${currentSlug === doc.slug ? 'text-sys-accent-1' : 'text-white'}`}>{doc.data.title}</h3>
+                {doc.data.description && <p class="text-sys-muted text-xs leading-relaxed">{doc.data.description}</p>}
+              </a>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</Layout>
