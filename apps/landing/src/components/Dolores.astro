@@ -1,0 +1,41 @@
+---
+interface Dolor { cat: 't1' | 't2' | 't3' | 't4' | 't5'; t: string; d: string; }
+const dolores: Dolor[] = [
+  { cat: 't1', t: 'Cobrar y no recibir', d: 'El 40% de las facturas en Venezuela se cobran tarde o se pierden. Persiguen clientes, mandan recordatorios a mano, y el dinero no llega cuando debe. Tu equipo invierte horas en algo que deberia ser automatico.' },
+  { cat: 't2', t: 'Reportes a mano',     d: 'Cierran la semana cruzando datos de 4 hojas de Excel, preguntando a cada vendedor, y armando un PDF que el jefe quiere para el lunes. Cada cierre es un dolor de cabeza.' },
+  { cat: 't3', t: 'Marketing que no pasa', d: 'Saben que deberian publicar, pero nadie tiene tiempo, no saben que decir, y cuando publican no pasa nada. La marca se duerme.' },
+  { cat: 't4', t: 'Clientes que se van', d: 'Un cliente escribe a las 11pm con una duda. Nadie responde hasta el lunes. Para ese momento, ya se fue con la competencia.' },
+  { cat: 't5', t: 'Software pensado para otros paises', d: 'Pagan herramientas que no entienden Pago Movil, no manejan 4 digitos, no contemplan el bolivar como unidad de cambio, y estan pensadas para Silicon Valley, no para una bodega en Caracas.' },
+];
+const cls: Record<Dolor['cat'], { bg: string; border: string; text: string; }> = {
+  t1: { bg: 'bg-cat-t1/15', border: 'border-cat-t1', text: 'text-cat-t1' },
+  t2: { bg: 'bg-cat-t2/15', border: 'border-cat-t2', text: 'text-cat-t2' },
+  t3: { bg: 'bg-cat-t3/15', border: 'border-cat-t3', text: 'text-cat-t3' },
+  t4: { bg: 'bg-cat-t4/15', border: 'border-cat-t4', text: 'text-cat-t4' },
+  t5: { bg: 'bg-cat-t5/15', border: 'border-cat-t5', text: 'text-cat-t5' },
+};
+---
+<section class="py-24 sm:py-32">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-4xl mx-auto text-center mb-20">
+      <div class="mb-6 flex justify-center">
+        <span class="ve-eyebrow" data-c="t4">// 04 // Obstaculos reales</span>
+      </div>
+      <h2 class="ve-title text-4xl sm:text-5xl lg:text-6xl font-sans font-extrabold leading-[1.1] tracking-tight mb-6" data-c="t4">
+        Los obstaculos que te quitan el sueno cada <span class="font-black italic">semana</span> en tu negocio en Venezuela.
+      </h2>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {dolores.map((d) => {
+        const k = cls[d.cat];
+        return (
+          <div class={`${k.bg} border-2 ${k.border} p-6`}>
+            <div class={`text-[10px] ${k.text} font-bold uppercase tracking-widest mb-3`}>// {d.cat.toUpperCase()} //</div>
+            <h3 class="text-lg font-sans font-bold text-ve-text mb-3 leading-tight">{d.t}</h3>
+            <p class="text-ve-muted text-sm leading-[1.7] ve-justified">{d.d}</p>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+</section>
