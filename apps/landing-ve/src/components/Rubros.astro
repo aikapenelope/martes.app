@@ -1,0 +1,40 @@
+---
+const categorias = [
+  { cat: 't1', n: 25, t: 'Alimentos y bebidas', d: 'Bodegas, abastos, restaurantes, panaderias, fruterias, carnicerias.' },
+  { cat: 't2', n: 21, t: 'Comercio',            d: 'Licorerias, farmacias, ferreterias, zapaterias, boutiques, librerias.' },
+  { cat: 't3', n: 6,  t: 'Servicios',           d: 'Talleres mecanicos, lavanderias, salones de belleza, consultorios.' },
+  { cat: 't4', n: 5,  t: 'Profesionales',       d: 'Abogados, contadores, diseno, marketing, fotografia.' },
+  { cat: 't5', n: 3,  t: 'Mayoristas',          d: 'Distribuidoras, importadores, mayoristas de productos.' },
+];
+const cls: Record<string, { bg: string; border: string; text: string; }> = {
+  t1: { bg: 'bg-cat-t1/10', border: 'border-cat-t1', text: 'text-cat-t1' },
+  t2: { bg: 'bg-cat-t2/10', border: 'border-cat-t2', text: 'text-cat-t2' },
+  t3: { bg: 'bg-cat-t3/10', border: 'border-cat-t3', text: 'text-cat-t3' },
+  t4: { bg: 'bg-cat-t4/10', border: 'border-cat-t4', text: 'text-cat-t4' },
+  t5: { bg: 'bg-cat-t5/10', border: 'border-cat-t5', text: 'text-cat-t5' },
+};
+---
+<section class="py-24 sm:py-32">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-4xl mx-auto text-center mb-20">
+      <div class="mb-6 flex justify-center">
+        <span class="ve-eyebrow" data-c="t1">// 07 // 60 rubros, un solo ecosistema</span>
+      </div>
+      <h2 class="ve-title text-4xl sm:text-5xl lg:text-6xl font-sans font-extrabold leading-[1.1] tracking-tight mb-6" data-c="t1">
+        Funciona para <span class="font-black italic">tu negocio</span>, sea cual sea.
+      </h2>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      {categorias.map((c) => {
+        const k = cls[c.cat];
+        return (
+          <div class={`${k.bg} border-2 ${k.border} p-6`}>
+            <div class={`text-5xl font-sans font-black ${k.text} mb-3`}>{c.n}</div>
+            <div class="text-base font-sans font-bold text-ve-text mb-2">{c.t}</div>
+            <div class="text-xs text-ve-muted leading-[1.6]">{c.d}</div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+</section>
