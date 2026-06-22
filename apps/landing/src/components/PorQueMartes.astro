@@ -1,0 +1,29 @@
+---
+const items = [
+  { t: 'No vendemos licencias, te acompanamos', d: 'Cada cliente tiene un equipo dedicado que conoce su operacion. No eres un ticket de soporte. Eres un negocio que estamos haciendo crecer junto a ti.' },
+  { t: 'Pensado para Venezuela, no para afuera', d: 'Pago Movil de 4 digitos, transferencia, Zelle, Binance, bolivar, dolar paralelo. Esto no es un SaaS gringo traducido, es software que entiende tu pais.' },
+  { t: 'Sin contratos leoninos', d: 'Mensual. Sin permanencia minima. Si no te funciona, te quedas con tu data completa y te vas. Sin clausulas abusivas, sin lock-in.' },
+  { t: 'Hecho por gente que opera negocios', d: 'El equipo de martes viene de operar negocios en LATAM. Conocemos los obstaculos reales: la falla electrica, el internet, el tipo de cambio. No teorizamos, lo vivimos.' },
+];
+---
+<section class="py-24 sm:py-32">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-4xl mx-auto text-center mb-20">
+      <div class="mb-6 flex justify-center">
+        <span class="ve-eyebrow" data-c="t5">// 05 // Por que martes</span>
+      </div>
+      <h2 class="ve-title text-4xl sm:text-5xl lg:text-6xl font-sans font-extrabold leading-[1.1] tracking-tight mb-6" data-c="t5">
+        Estamos contigo, <span class="font-black italic">no solo para venderte</span>.
+      </h2>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {items.map((it) => (
+        <div class="bg-ve-surface border-2 border-ve-border p-8">
+          <div class="w-1.5 h-1.5 rounded-full bg-cat-t5 mb-4 animate-pulse"></div>
+          <h3 class="text-xl font-sans font-bold text-ve-text mb-3">{it.t}</h3>
+          <p class="text-ve-muted text-sm leading-[1.7] ve-justified">{it.d}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
