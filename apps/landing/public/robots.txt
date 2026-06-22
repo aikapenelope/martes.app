@@ -1,10 +1,7 @@
 User-agent: *
 Allow: /
-Disallow: /admin/
-Disallow: /private/
+Disallow: /us/
+Disallow: /blog/
+Disallow: /docs/
 
-# Crawl delay for respectful indexing
-Crawl-delay: 1
-
-# Sitemap location
 Sitemap: https://martes.app/sitemap.xml
