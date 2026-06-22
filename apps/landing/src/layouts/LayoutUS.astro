@@ -1,0 +1,16 @@
+---
+export interface Props { title?: string; description?: string; }
+const { title = 'martes // US Version', description = 'martes.app' } = Astro.props;
+---
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{title}</title>
+  <meta name="description" content={description} />
+</head>
+<body class="font-sans bg-black text-white antialiased">
+  <slot />
+</body>
+</html>
