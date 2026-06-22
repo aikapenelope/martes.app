@@ -1,0 +1,190 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+// Plataformas para el marquee
+const row1 = [
+  { name: 'Telegram',  color: '#2AABEE', icon: '✈' },
+  { name: 'WhatsApp',  color: '#25D366', icon: '💬' },
+  { name: 'Discord',   color: '#5865F2', icon: '🎮' },
+  { name: 'Slack',     color: '#E01E5A', icon: '#' },
+  { name: 'Signal',    color: '#2592E9', icon: '🔒' },
+  { name: 'Gmail',     color: '#EA4335', icon: 'M' },
+  { name: 'Drive',     color: '#FBBC04', icon: '▲' },
+  { name: 'Calendar',  color: '#4285F4', icon: '📅' },
+  { name: 'Sheets',    color: '#34A853', icon: '⊞' },
+  { name: 'Teams',     color: '#6264A7', icon: 'T' },
+  { name: 'Email',     color: '#FF6B35', icon: '✉' },
+  { name: 'LINE',      color: '#00B900', icon: 'L' },
+];
+const row2 = [
+  { name: 'GitHub',    color: '#f0f6fc', icon: '⌥' },
+  { name: 'Notion',    color: '#ffffff', icon: '📓' },
+  { name: 'Linear',    color: '#5E6AD2', icon: '◢' },
+  { name: 'Jira',      color: '#0052CC', icon: '◆' },
+  { name: 'Spotify',   color: '#1DB954', icon: '♫' },
+  { name: 'YouTube',   color: '#FF0000', icon: '▶' },
+  { name: 'Instagram', color: '#E4405F', icon: '◉' },
+  { name: 'TikTok',    color: '#ff0050', icon: '♪' },
+  { name: 'LinkedIn',  color: '#0A66C2', icon: 'in' },
+  { name: 'iMessage',  color: '#34DA50', icon: '💬' },
+  { name: 'Telegram',  color: '#2AABEE', icon: '✈' },
+  { name: 'X (Twitter)', color: '#ffffff', icon: '𝕏' },
+];
+---
+
+<Layout title="martes.app — Software IA a medida para tu empresa" description="Plataforma de agentes AI, automatizaciones e integraciones para empresas. Hecho en LATAM.">
+
+<!-- HERO -->
+<main class="relative pt-32 pb-8 sm:pt-40 sm:pb-28 overflow-hidden">
+
+  <canvas id="bg-canvas" class="fixed inset-0 w-full h-full -z-10 opacity-40 pointer-events-none"></canvas>
+
+  <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] blur-[120px] opacity-25 animate-pulse-slow pointer-events-none -z-10"
+       style="background: radial-gradient(circle, #7c3aed 0%, #3b82f6 50%, transparent 70%);">
+  </div>
+
+  <section class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+    <div class="inline-flex items-center gap-2 mb-6 px-3 py-1 border border-sys-accent-1/30 bg-sys-accent-1/5">
+      <span class="w-1.5 h-1.5 bg-sys-accent-1 rounded-full animate-pulse"></span>
+      <span class="text-[10px] font-mono text-sys-accent-1 uppercase tracking-widest">Sys.Agents v0.14 // Online</span>
+    </div>
+    <h1 class="text-5xl sm:text-6xl lg:text-7xl font-sans font-bold leading-[1.05] tracking-tight mb-6 text-white">
+      Software IA a medida para tu empresa.
+    </h1>
+    <p class="text-lg sm:text-xl text-sys-muted leading-relaxed max-w-2xl mx-auto mb-8">
+      <span class="font-medium text-white">martes.app</span> es una plataforma de agentes AI, automatizaciones e integraciones para empresas que necesitan software operativo. Hecho en LATAM.
+    </p>
+    <div class="flex justify-center">
+      <a href="https://wa.me/584120000000?text=Hola%2C%20quiero%20un%20agente%20AI" target="_blank" rel="noopener"
+         class="group inline-flex items-center justify-center px-10 py-5 bg-sys-accent-1 text-sys-bg font-bold uppercase tracking-[0.15em] transition-all text-sm hover:scale-105 hover:shadow-[0_0_40px_rgba(0,255,204,0.3)]">
+        Solicita una demo →
+        <svg class="ml-3 w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+      </a>
+    </div>
+  </section>
+
+  <!-- MARQUEE -->
+  <section class="relative mt-16 sm:mt-24 py-6 overflow-hidden border-y border-sys-border bg-sys-surface/30">
+    <div class="text-center mb-4">
+      <span class="text-[10px] font-mono text-sys-muted uppercase tracking-widest">// Compatible con tus plataformas //</span>
+    </div>
+    <div class="space-y-3">
+      {row1.map((p) => (
+        <div class="flex items-center gap-3 marquee-row whitespace-nowrap">
+          <span class="text-xs font-mono" style={`color: ${p.color}`}>{p.icon}</span>
+          <span class="text-sm font-mono" style={`color: ${p.color}`}>{p.name}</span>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- COMO FUNCIONA -->
+  <section class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
+    <div class="max-w-4xl mx-auto text-center mb-16">
+      <h2 class="text-3xl sm:text-4xl font-bold font-sans text-white mb-4">Tres formas en que <span class="text-sys-accent-1">martes.app</span> opera por ti.</h2>
+      <p class="text-sys-muted text-lg">No vendemos licencias. Construimos el software operativo que tu empresa necesita para escalar.</p>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="border border-sys-border bg-sys-surface/50 p-6 hover:border-sys-accent-1 transition-colors">
+        <div class="text-[10px] text-sys-accent-1 font-mono uppercase tracking-widest mb-2">// 01 // Plataforma</div>
+        <h3 class="text-xl font-bold text-white mb-2">martes.app</h3>
+        <p class="text-sys-muted text-sm">Plataforma SaaS de agentes AI con panel de control, integraciones listas y API.</p>
+      </div>
+      <div class="border border-sys-border bg-sys-surface/50 p-6 hover:border-sys-accent-1 transition-colors">
+        <div class="text-[10px] text-sys-accent-2 font-mono uppercase tracking-widest mb-2">// 02 // Custom</div>
+        <h3 class="text-xl font-bold text-white mb-2">Software a medida</h3>
+        <p class="text-sys-muted text-sm">Desarrollo de agentes, automatizaciones e integraciones adaptadas a tu operación.</p>
+      </div>
+      <div class="border border-sys-border bg-sys-surface/50 p-6 hover:border-sys-accent-1 transition-colors">
+        <div class="text-[10px] text-sys-accent-3 font-mono uppercase tracking-widest mb-2">// 03 // Open Source</div>
+        <h3 class="text-xl font-bold text-white mb-2">Hermes Agent</h3>
+        <p class="text-sys-muted text-sm">Motor open source en Rust/Python. Self-hosted, auditable, extensible.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- BANNER VE -->
+  <section class="relative max-w-4xl mx-auto px-4 py-12">
+    <div class="border border-sys-accent-1/30 bg-sys-accent-1/5 p-6 text-center">
+      <div class="text-[10px] text-sys-accent-1 font-mono uppercase tracking-widest mb-2">// VERSION VENEZUELA //</div>
+      <h3 class="text-xl font-bold text-white mb-2">¿Tienes un negocio en Venezuela?</h3>
+      <p class="text-sys-muted text-sm mb-4">Tenemos una landing dedicada con Pago Movil, Zelle, Binance, y todo lo que tu negocio venezolano necesita.</p>
+      <a href="/" class="inline-flex items-center gap-2 px-5 py-2.5 border border-sys-accent-1 text-sys-accent-1 hover:bg-sys-accent-1/10 transition-colors text-xs font-mono uppercase tracking-widest">
+        Ir a la versión Venezuela →
+      </a>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer id="contacto" class="border-t border-sys-border py-12 px-4 sm:px-6 lg:px-8 mt-12">
+    <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 text-sm">
+      <div>
+        <div class="flex items-center gap-2 mb-3">
+          <span class="w-2 h-2 bg-sys-accent-1 rounded-full"></span>
+          <span class="font-bold tracking-widest uppercase text-white text-sm">martes<span class="text-sys-accent-1">.app</span></span>
+        </div>
+        <p class="text-sys-muted text-xs">Plataforma de agentes AI, automatizaciones e integraciones para empresas.</p>
+      </div>
+      <div>
+        <h4 class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-3">Producto</h4>
+        <ul class="space-y-1.5">
+          <li><a href="/#plataforma" class="text-sys-muted hover:text-sys-accent-1 transition-colors">Plataforma</a></li>
+          <li><a href="/#custom" class="text-sys-muted hover:text-sys-accent-1 transition-colors">Custom</a></li>
+          <li><a href="/us-version" class="text-sys-muted hover:text-sys-accent-1 transition-colors">US Version</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-3">Recursos</h4>
+        <ul class="space-y-1.5">
+          <li><a href="/docs" class="text-sys-muted hover:text-sys-accent-1 transition-colors">Documentación</a></li>
+          <li><a href="/blog" class="text-sys-muted hover:text-sys-accent-1 transition-colors">Blog</a></li>
+          <li><a href="https://github.com/nousresearch/hermes-agent" target="_blank" rel="noopener" class="text-sys-muted hover:text-sys-accent-1 transition-colors">Hermes (GitHub)</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-3">Contacto</h4>
+        <a href="https://wa.me/584120000000" target="_blank" rel="noopener" class="text-sys-muted hover:text-sys-accent-1 transition-colors text-xs">WhatsApp</a>
+        <p class="text-sys-muted text-[10px] mt-3">&copy; 2026 martes.app</p>
+      </div>
+    </div>
+  </footer>
+
+</main>
+
+<script is:inline>
+  (function() {
+    try {
+      const canvas = document.getElementById('bg-canvas');
+      if (!canvas || typeof THREE === 'undefined') return;
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.z = 30;
+      const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      const g = new THREE.BufferGeometry();
+      const p = new Float32Array(800 * 3);
+      for (let i = 0; i < p.length; i++) p[i] = (Math.random() - 0.5) * 100;
+      g.setAttribute('position', new THREE.BufferAttribute(p, 3));
+      const pm = new THREE.Points(g, new THREE.PointsMaterial({ size: 0.18, color: 0x7c3aed, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending }));
+      scene.add(pm);
+      let mx = 0, my = 0;
+      document.addEventListener('mousemove', function(e) { mx = e.clientX - window.innerWidth / 2; my = e.clientY - window.innerHeight / 2; }, { passive: true });
+      const clock = new THREE.Clock();
+      function animate() {
+        requestAnimationFrame(animate);
+        const t = clock.getElapsedTime();
+        pm.rotation.y = t * 0.05 + 0.05 * (mx * 0.001 - pm.rotation.y);
+        pm.rotation.x = t * 0.02 + 0.05 * (my * 0.001 - pm.rotation.x);
+        renderer.render(scene, camera);
+      }
+      animate();
+      window.addEventListener('resize', function() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    } catch (e) { console.warn('Canvas init error', e); }
+  })();
+</script>
+</Layout>
