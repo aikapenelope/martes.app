@@ -1,0 +1,46 @@
+---
+const rows = [
+  { f: 'Cobranza automatica por WhatsApp',     flow: 'Si',    agentes: 'No',     gpt: 'No' },
+  { f: 'Reportes diarios automaticos',         flow: 'Si',    agentes: 'Si',     gpt: 'No' },
+  { f: 'Marketing en redes (auto)',            flow: 'Si',    agentes: 'Si',     gpt: 'No' },
+  { f: 'Atencion al cliente 24/7',             flow: 'Si',    agentes: 'Si',     gpt: 'No' },
+  { f: 'Pensado para Venezuela',               flow: 'Si',    agentes: 'Parcial', gpt: 'No' },
+  { f: 'Multi-usuario',                        flow: 'Hasta 4', agentes: 'Ilimitado', gpt: 'Ilimitado' },
+  { f: 'Contabilidad basica',                  flow: 'Add-on', agentes: 'Add-on', gpt: 'Add-on' },
+  { f: 'Costo mensual',                        flow: '$ 80',  agentes: '$ 150',  gpt: '$ 200' },
+];
+---
+<section class="py-24 sm:py-32">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-4xl mx-auto text-center mb-20">
+      <div class="mb-6 flex justify-center">
+        <span class="ve-eyebrow" data-c="t3">// 09 // Comparativa</span>
+      </div>
+      <h2 class="ve-title text-4xl sm:text-5xl lg:text-6xl font-sans font-extrabold leading-[1.1] tracking-tight mb-6" data-c="t3">
+        Por que <span class="font-black italic">martes</span> y no la competencia.
+      </h2>
+    </div>
+    <div class="overflow-x-auto">
+      <table id="comp-table" class="w-full border-collapse font-mono text-sm">
+        <thead>
+          <tr>
+            <th class="text-left p-4 border-b-2 border-ve-border text-ve-muted text-xs uppercase tracking-widest">Caracteristica</th>
+            <th class="p-4 border-b-2 border-ve-border text-center cc-text" data-col="flow"    >FLOW (gringo)</th>
+            <th class="p-4 border-b-2 border-ve-border text-center cc-text" data-col="agentes" >AGENTES</th>
+            <th class="p-4 border-b-2 border-ve-border text-center cc-text" data-col="gpt"     >GPT-4 SOLO</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr class="hover:bg-ve-surface transition-colors">
+              <td class="p-4 border-b border-ve-border text-ve-text">{r.f}</td>
+              <td class="p-4 border-b border-ve-border text-center cc-text" data-col="flow">{r.flow}</td>
+              <td class="p-4 border-b border-ve-border text-center cc-text" data-col="agentes">{r.agentes}</td>
+              <td class="p-4 border-b border-ve-border text-center cc-text" data-col="gpt">{r.gpt}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
