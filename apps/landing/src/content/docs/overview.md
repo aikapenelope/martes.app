@@ -1,63 +1,63 @@
 ---
-title: "¿Qué es martes.app?"
-description: "Plataforma SaaS que despliega agentes Hermes personales para empresas."
+title: "What is martes.app?"
+description: "SaaS platform that deploys personal Hermes agents for companies."
 order: 1
-section: "Inicio"
+section: "Introduction"
 ---
 
-## martes.app — Hermes como servicio
+## martes.app — Hermes as a service
 
-**martes.app** es una plataforma que le da a cada cliente de empresa un agente IA completo basado en [Hermes Agent](https://github.com/nousresearch/hermes-agent) (NousResearch, +165K ⭐ en GitHub), corriendo 24/7 en infraestructura propia.
+**martes.app** is a platform that gives each enterprise client a complete AI agent based on [Hermes Agent](https://github.com/nousresearch/hermes-agent) (NousResearch, +165K ⭐ on GitHub), running 24/7 on its own infrastructure.
 
-No es un chatbot. Es un agente autónomo que aprende, recuerda y actúa.
+It is not a chatbot. It is an autonomous agent that learns, remembers and acts.
 
-## Cómo funciona
+## How it works
 
-Cada cliente recibe:
+Each client receives:
 
-- **Un bot de Telegram** (o WhatsApp, Discord, Slack — 22 plataformas disponibles)
-- **Hermes completo y sin restricciones** — el agente puede instalar skills, conectar integraciones, programar tareas, ejecutar código, navegar la web
-- **Memoria persistente** — recuerda todo entre sesiones: quién eres, tu empresa, tus proyectos
-- **Modelos de IA intercambiables** — 200+ modelos via OpenRouter con un solo `/model`
+- **A Telegram bot** (or WhatsApp, Discord, Slack — 22 platforms available)
+- **Full and unrestricted Hermes** — the agent can install skills, connect integrations, schedule tasks, execute code, browse the web
+- **Persistent memory** — remembers everything between sessions: who you are, your company, your projects
+- **Interchangeable AI models** — 200+ models via OpenRouter with a single `/model`
 
-El límite del cliente es su presupuesto de tokens en OpenRouter, no las features.
+The client's limit is their OpenRouter token budget, not features.
 
-## Arquitectura
+## Architecture
 
 ```
-Cliente (Telegram/WhatsApp/etc.)
+Client (Telegram/WhatsApp/etc.)
     ↓
-Container Docker — Hermes Agent v0.14.0
-    ↓ usa
-OpenRouter API (200+ modelos)
-    ↓ conecta con
-MCPs, Skills, APIs del cliente
+Docker Container — Hermes Agent v0.14.0
+    ↓ uses
+OpenRouter API (200+ models)
+    ↓ connects to
+MCPs, Skills, Client APIs
 ```
 
-Cada tenant es un container Docker aislado con:
-- Su propio volumen de datos (`/opt/data`)
-- Su propio bot token de Telegram
-- Su propia API key de OpenRouter
-- Su propia red Docker bridge
+Each tenant is an isolated Docker container with:
+- Its own data volume (`/opt/data`)
+- Its own Telegram bot token
+- Its own OpenRouter API key
+- Its own Docker bridge network
 
-## Precio
+## Pricing
 
-**$30 / mes** — Hermes completo, sin restricciones de features.
+**$30 / month** — Full Hermes, no feature restrictions.
 
-Incluye:
-- 30 días de trial con platform key (el cliente configura su propia key antes del vencimiento)
-- Backup diario automático a SeaweedFS
-- Health monitoring cada 5 minutos
-- Soporte vía el mismo bot de Telegram del admin
+Includes:
+- 30 days of trial with platform key (client configures their own key before expiration)
+- Automatic daily backup to SeaweedFS
+- Health monitoring every 5 minutes
+- Support via the admin's same Telegram bot
 
-## Primer cliente
+## First client
 
 ```bash
-# Desde Telegram al meta-agente:
-"crea tenant Acme Corp, token 123456:ABC, telegram_id 987654"
+# From Telegram to the meta-agent:
+"create tenant Acme Corp, token 123456:ABC, telegram_id 987654"
 
-→ En ~30 segundos:
-  - Container Hermes corriendo
-  - Bot activo en Telegram
-  - Trial 30 días iniciado
+→ In ~30 seconds:
+  - Hermes container running
+  - Bot active on Telegram
+  - 30-day trial started
 ```
