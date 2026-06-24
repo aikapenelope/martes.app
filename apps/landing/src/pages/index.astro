@@ -30,6 +30,62 @@ const row2 = [
   { name: 'Tavily',    color: '#00C4B0', icon: '🔍' },
   { name: 'Firecrawl', color: '#FF6B35', icon: '🔥' },
 ];
+
+const integrationCategories = [
+  { name: 'Communication', items: [
+    { name: 'Telegram', color: '#2AABEE' }, { name: 'WhatsApp', color: '#25D366' },
+    { name: 'Slack', color: '#E01E5A' }, { name: 'Discord', color: '#5865F2' },
+    { name: 'Teams', color: '#6264A7' }, { name: 'Email', color: '#FF6B35' },
+    { name: 'SMS', color: '#34A853' }, { name: 'Signal', color: '#2592E9' },
+    { name: 'Matrix', color: '#000000' }, { name: 'Mattermost', color: '#1E325C' },
+    { name: 'LINE', color: '#00B900' }, { name: 'iMessage', color: '#34DA50' },
+  ]},
+  { name: 'Productivity', items: [
+    { name: 'Notion', color: '#e0e0e0' }, { name: 'Airtable', color: '#FCB400' },
+    { name: 'Gmail', color: '#EA4335' }, { name: 'Calendar', color: '#4285F4' },
+    { name: 'Drive', color: '#FBBC04' }, { name: 'Sheets', color: '#34A853' },
+    { name: 'Linear', color: '#5E6AD2' }, { name: 'Asana', color: '#F06A6A' },
+    { name: 'Jira', color: '#0052CC' }, { name: 'Monday', color: '#FF3D57' },
+    { name: 'ClickUp', color: '#7B68EE' }, { name: 'Trello', color: '#0079BF' },
+  ]},
+  { name: 'Engineering', items: [
+    { name: 'GitHub', color: '#f0f6fc' }, { name: 'GitLab', color: '#FC6D26' },
+    { name: 'Sentry', color: '#F55B48' }, { name: 'Datadog', color: '#632CA6' },
+    { name: 'PagerDuty', color: '#06AC38' }, { name: 'Stripe', color: '#635BFF' },
+    { name: 'Figma', color: '#A259FF' }, { name: 'Vercel', color: '#000000' },
+  ]},
+  { name: 'Data', items: [
+    { name: 'PostgreSQL', color: '#336791' }, { name: 'MySQL', color: '#4479A1' },
+    { name: 'MongoDB', color: '#47A248' }, { name: 'BigQuery', color: '#4285F4' },
+    { name: 'Snowflake', color: '#29B5E8' }, { name: 'Supabase', color: '#3ECF8E' },
+  ]},
+  { name: 'CRM / Sales', items: [
+    { name: 'HubSpot', color: '#FF7A59' }, { name: 'Salesforce', color: '#00A1E0' },
+    { name: 'Pipedrive', color: '#26292C' }, { name: 'Close', color: '#5C5CFF' },
+    { name: 'Attio', color: '#000000' },
+  ]},
+  { name: 'Marketing', items: [
+    { name: 'Mailchimp', color: '#FFE01B' }, { name: 'Klaviyo', color: '#000000' },
+    { name: 'Sendgrid', color: '#1A82E2' }, { name: 'Postmark', color: '#FFDE00' },
+    { name: 'Customer.io', color: '#7C3AED' }, { name: 'ConvertKit', color: '#FB6970' },
+  ]},
+  { name: 'Finance', items: [
+    { name: 'Stripe', color: '#635BFF' }, { name: 'Quickbooks', color: '#2CA01C' },
+    { name: 'Xero', color: '#13B5EA' }, { name: 'Mercury', color: '#11304D' },
+    { name: 'Plaid', color: '#000000' },
+  ]},
+];
+
+const useCases = [
+  { industry: 'E-commerce',  icon: '🛍', text: 'Returns, abandoned cart, shipping, reviews' },
+  { industry: 'SaaS',        icon: '⌥', text: 'Onboarding, churn, ticket triage, billing' },
+  { industry: 'Real Estate', icon: '🏠', text: 'Lead qualification, showings, document collection' },
+  { industry: 'Healthcare',  icon: '✚', text: 'Appointments, intake forms, prescription refills' },
+  { industry: 'Legal',       icon: '⚖', text: 'Document review, client intake, deadlines' },
+  { industry: 'Finance',     icon: '$',  text: 'Invoices, expenses, reports, reconciliation' },
+  { industry: 'Marketing',   icon: '◉',  text: 'Campaign optimization, content briefs, social' },
+  { industry: 'Operations',  icon: '⚙', text: 'Internal helpdesk, vendor mgmt, compliance' },
+];
 ---
 
 <Layout
@@ -39,68 +95,51 @@ const row2 = [
 <canvas id="bg-canvas"></canvas>
 <div class="scanline-overlay"></div>
 
-<!-- NAV -->
 <nav class="fixed top-0 w-full z-40 border-b border-sys-border bg-sys-bg/85 backdrop-blur-md">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between h-16">
       <div class="flex items-center gap-3">
         <div class="pulse-ring w-2 h-2 bg-sys-accent-1 rounded-full"></div>
-        <span class="text-sys-text font-bold tracking-widest uppercase text-sm font-mono">
-          martes<span class="text-sys-accent-1">.</span>app
-        </span>
+        <span class="text-sys-text font-bold tracking-widest uppercase text-sm font-mono">martes<span class="text-sys-accent-1">.</span>app</span>
       </div>
       <div class="hidden md:flex items-center gap-6 text-xs font-mono">
-        <a href="#servicios"  class="text-sys-muted hover:text-sys-accent-1 transition-colors uppercase tracking-wider">Services</a>
-        <a href="#tecnologia" class="text-sys-muted hover:text-sys-accent-1 transition-colors uppercase tracking-wider">Technology</a>
-        <a href="/docs"       class="text-sys-muted hover:text-sys-accent-1 transition-colors uppercase tracking-wider">Docs</a>
-        <a href="/blog"       class="text-sys-muted hover:text-sys-accent-1 transition-colors uppercase tracking-wider">Blog</a>
-        <a href="#contacto"   class="bg-sys-accent-1 text-black px-4 py-2 font-bold uppercase tracking-wider hover:bg-white transition-colors">
-          Talk to us
-        </a>
+        <a href="#servicios"     class="text-sys-muted hover:text-sys-accent-1 transition-colors uppercase tracking-wider">Services</a>
+        <a href="#roi"           class="text-sys-muted hover:text-sys-accent-1 transition-colors uppercase tracking-wider">ROI</a>
+        <a href="#integrations" class="text-sys-muted hover:text-sys-accent-1 transition-colors uppercase tracking-wider">Integrations</a>
+        <a href="#use-cases"    class="text-sys-muted hover:text-sys-accent-1 transition-colors uppercase tracking-wider">Use Cases</a>
+        <a href="#tecnologia"    class="text-sys-muted hover:text-sys-accent-1 transition-colors uppercase tracking-wider">Tech</a>
+        <a href="/docs"          class="text-sys-muted hover:text-sys-accent-1 transition-colors uppercase tracking-wider">Docs</a>
+        <a href="/blog"          class="text-sys-muted hover:text-sys-accent-1 transition-colors uppercase tracking-wider">Blog</a>
+        <a href="#contacto"      class="bg-sys-accent-1 text-black px-4 py-2 font-bold uppercase tracking-wider hover:bg-white transition-colors">Talk to us</a>
       </div>
-      <!-- Mobile CTA -->
-      <a href="#contacto" class="md:hidden bg-sys-accent-1 text-black px-3 py-2 font-bold uppercase text-[10px] tracking-wider hover:bg-white transition-colors">
-        Contact
-      </a>
+      <a href="#contacto" class="md:hidden bg-sys-accent-1 text-black px-3 py-2 font-bold uppercase text-[10px] tracking-wider hover:bg-white transition-colors">Contact</a>
     </div>
   </div>
 </nav>
 
-<!-- HERO ──────────────────────────────────────────────────────────────── -->
 <main class="relative pt-32 pb-8 sm:pt-44 overflow-hidden">
   <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-hero-glow rounded-full blur-[120px] opacity-15 animate-pulse-slow pointer-events-none"></div>
-
   <div class="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-
     <div class="mb-5 inline-flex items-center gap-2 border border-sys-border/60 px-4 py-1.5 rounded-full text-xs text-sys-muted font-mono">
       <span class="w-1.5 h-1.5 rounded-full bg-sys-accent-2 animate-pulse"></span>
       POWERED BY HERMES AGENT · NousResearch · 165K ⭐
     </div>
-
     <h1 class="text-5xl sm:text-7xl lg:text-[88px] font-black tracking-tighter mb-6 font-sans leading-none">
-      <span class="text-transparent bg-clip-text bg-gradient-to-br from-white via-gray-200 to-gray-500">
-        CUSTOM AI
-      </span><br>
+      <span class="text-transparent bg-clip-text bg-gradient-to-br from-white via-gray-200 to-gray-500">CUSTOM AI</span><br>
       <span class="font-mono text-white glitch-hover">SOFTWARE</span>
     </h1>
-
     <p class="mt-2 max-w-2xl mx-auto text-lg sm:text-xl text-sys-muted font-light leading-relaxed mb-4">
       We build custom AI agents for your company — AI-powered CRM,
       tailored automations, integrations with Google Workspace, WhatsApp and 20+ tools.
       All powered by Hermes Agent, the most advanced open-source AI agent.
     </p>
-
     <div class="flex flex-col sm:flex-row justify-center gap-3 mb-16">
       <a href="#contacto" class="tech-border inline-flex items-center justify-center px-8 py-4 border border-sys-accent-1 text-sys-accent-1 hover:bg-sys-accent-1 hover:text-black font-bold uppercase tracking-widest transition-all text-sm">
-        Start a project
+        Get a 30-min scoping call
         <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
       </a>
-      <a href="/docs" class="inline-flex items-center justify-center px-8 py-4 border border-sys-border text-sys-muted hover:border-sys-text hover:text-sys-text font-bold uppercase tracking-widest transition-all text-sm">
-        View documentation
-      </a>
+      <a href="/docs" class="inline-flex items-center justify-center px-8 py-4 border border-sys-border text-sys-muted hover:border-sys-text hover:text-sys-text font-bold uppercase tracking-widest transition-all text-sm">See the docs</a>
     </div>
-
-    <!-- Terminal -->
     <div class="relative mx-auto max-w-3xl">
       <div class="absolute inset-0 bg-gradient-to-t from-sys-bg via-transparent to-transparent z-10 pointer-events-none h-16 bottom-0 top-auto"></div>
       <div class="border border-sys-border bg-sys-surface/30 overflow-hidden shadow-2xl">
@@ -123,37 +162,24 @@ const row2 = [
   </div>
 </main>
 
-<!-- MARQUEE: Platforms with animated icons ──────────────────────────── -->
 <section class="py-16 border-y border-sys-border/40 overflow-hidden">
   <div class="max-w-7xl mx-auto px-4 mb-4 text-center">
-    <p class="text-[10px] font-mono text-sys-muted uppercase tracking-widest">
-      Native integrations · 22+ platforms · OAuth 2.1 · MCP
-    </p>
+    <p class="text-[10px] font-mono text-sys-muted uppercase tracking-widest">Native integrations · 22+ platforms · OAuth 2.1 · MCP</p>
   </div>
-
-  <!-- Row 1 -->
   <div class="marquee-wrapper mb-3">
     <div class="marquee-track">
       {[...row1, ...row1].map((p, i) => (
-        <div
-          class={`flex items-center gap-2 px-4 py-2 border border-sys-border/60 bg-sys-surface/40 shrink-0 whitespace-nowrap icon-float icon-float-delay-${(i % 6) + 1} hover:border-sys-accent-1/60 transition-colors cursor-default`}
-          style={`border-color: ${p.color}22;`}
-        >
+        <div class={`flex items-center gap-2 px-4 py-2 border border-sys-border/60 bg-sys-surface/40 shrink-0 whitespace-nowrap icon-float icon-float-delay-${(i % 6) + 1} hover:border-sys-accent-1/60 transition-colors cursor-default`} style={`border-color: ${p.color}22;`}>
           <span class="text-sm" style={`color: ${p.color};`}>{p.icon}</span>
           <span class="text-[11px] font-mono" style={`color: ${p.color};`}>{p.name}</span>
         </div>
       ))}
     </div>
   </div>
-
-  <!-- Row 2 (reverse) -->
   <div class="marquee-wrapper">
     <div class="marquee-track-rev">
       {[...row2, ...row2].map((p, i) => (
-        <div
-          class={`flex items-center gap-2 px-4 py-2 border border-sys-border/60 bg-sys-surface/40 shrink-0 whitespace-nowrap icon-float icon-float-delay-${(i % 6) + 1} hover:border-sys-accent-1/60 transition-colors cursor-default`}
-          style={`border-color: ${p.color}22;`}
-        >
+        <div class={`flex items-center gap-2 px-4 py-2 border border-sys-border/60 bg-sys-surface/40 shrink-0 whitespace-nowrap icon-float icon-float-delay-${(i % 6) + 1} hover:border-sys-accent-1/60 transition-colors cursor-default`} style={`border-color: ${p.color}22;`}>
           <span class="text-sm" style={`color: ${p.color};`}>{p.icon}</span>
           <span class="text-[11px] font-mono" style={`color: ${p.color};`}>{p.name}</span>
         </div>
@@ -162,134 +188,174 @@ const row2 = [
   </div>
 </section>
 
-<!-- SERVICES ──────────────────────────────────────────────────────────── -->
 <section id="servicios" class="py-24">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="mb-14 text-center">
       <div class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-3">01 // What we build</div>
       <h2 class="text-4xl font-black font-sans text-white">CUSTOM SOFTWARE,<br>NOT TEMPLATES</h2>
     </div>
-
     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-      <!-- CRM Custom -->
       <div class="border border-sys-border bg-sys-surface/20 p-7 hover:border-sys-accent-1/50 transition-all group relative overflow-hidden">
         <div class="absolute inset-0 bg-gradient-to-br from-sys-accent-1/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
         <div class="relative z-10">
-          <div class="w-10 h-10 bg-sys-accent-1/10 border border-sys-accent-1/30 flex items-center justify-center mb-5 icon-float">
-            <span class="text-sys-accent-1 text-lg">⊡</span>
-          </div>
+          <div class="w-10 h-10 bg-sys-accent-1/10 border border-sys-accent-1/30 flex items-center justify-center mb-5 icon-float"><span class="text-sys-accent-1 text-lg">⊡</span></div>
           <h3 class="text-xl font-bold text-white mb-3 font-sans">AI-Powered CRM</h3>
-          <p class="text-sys-muted text-sm leading-relaxed mb-4">
-            We design your CRM from scratch with Hermes at its core. The agent answers customers,
-            updates records, generates reports and scales with you. No licenses, yours completely.
-          </p>
+          <p class="text-sys-muted text-sm leading-relaxed mb-4">We design your CRM from scratch with Hermes at its core. The agent answers customers, updates records, generates reports and scales with you. No licenses, yours completely.</p>
           <div class="flex flex-wrap gap-1.5 text-[10px] font-mono">
-            {['Sales pipeline', 'Auto tracking', 'AI reports', 'Native WhatsApp'].map(t => (
-              <span class="px-2 py-0.5 bg-sys-accent-1/10 text-sys-accent-1 border border-sys-accent-1/20">{t}</span>
-            ))}
+            {['Sales pipeline', 'Auto tracking', 'AI reports', 'Native WhatsApp'].map(t => <span class="px-2 py-0.5 bg-sys-accent-1/10 text-sys-accent-1 border border-sys-accent-1/20">{t}</span>)}
           </div>
         </div>
       </div>
-
-      <!-- Customer service agent -->
       <div class="border border-sys-border bg-sys-surface/20 p-7 hover:border-sys-accent-2/50 transition-all group relative overflow-hidden">
         <div class="absolute inset-0 bg-gradient-to-br from-sys-accent-2/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
         <div class="relative z-10">
-          <div class="w-10 h-10 bg-sys-accent-2/10 border border-sys-accent-2/30 flex items-center justify-center mb-5 icon-float icon-float-delay-2">
-            <span class="text-sys-accent-2 text-lg">💬</span>
-          </div>
+          <div class="w-10 h-10 bg-sys-accent-2/10 border border-sys-accent-2/30 flex items-center justify-center mb-5 icon-float icon-float-delay-2"><span class="text-sys-accent-2 text-lg">💬</span></div>
           <h3 class="text-xl font-bold text-white mb-3 font-sans">Customer Service Agent</h3>
-          <p class="text-sys-muted text-sm leading-relaxed mb-4">
-            Hermes responds on Telegram and WhatsApp 24/7 with the exact knowledge of your company.
-            Persistent memory: it remembers every customer, order and history.
-          </p>
+          <p class="text-sys-muted text-sm leading-relaxed mb-4">Hermes responds on Telegram and WhatsApp 24/7 with the exact knowledge of your company. Persistent memory: it remembers every customer, order and history.</p>
           <div class="flex flex-wrap gap-1.5 text-[10px] font-mono">
-            {['Telegram', 'WhatsApp', '24/7 memory', 'Human escalation'].map(t => (
-              <span class="px-2 py-0.5 bg-sys-accent-2/10 text-sys-accent-2 border border-sys-accent-2/20">{t}</span>
-            ))}
+            {['Telegram', 'WhatsApp', '24/7 memory', 'Human escalation'].map(t => <span class="px-2 py-0.5 bg-sys-accent-2/10 text-sys-accent-2 border border-sys-accent-2/20">{t}</span>)}
           </div>
         </div>
       </div>
-
-      <!-- Google integrations -->
       <div class="border border-sys-border bg-sys-surface/20 p-7 hover:border-[#4285F4]/50 transition-all group relative overflow-hidden">
         <div class="absolute inset-0 bg-gradient-to-br from-[#4285F4]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
         <div class="relative z-10">
           <div class="flex items-center gap-2 mb-5">
-            {[
-              { letter: 'G', color: '#4285F4' },
-              { letter: 'M', color: '#EA4335' },
-              { letter: '▲', color: '#FBBC04' },
-              { letter: '⊞', color: '#34A853' },
-            ].map((g, idx) => (
-              <div
-                class={`w-8 h-8 flex items-center justify-center border text-xs font-bold icon-float icon-float-delay-${idx+1}`}
-                style={`color: ${g.color}; border-color: ${g.color}33; background: ${g.color}11;`}
-              >
-                {g.letter}
-              </div>
+            {[{letter:'G',color:'#4285F4'},{letter:'M',color:'#EA4335'},{letter:'▲',color:'#FBBC04'},{letter:'⊞',color:'#34A853'}].map((g, idx) => (
+              <div class={`w-8 h-8 flex items-center justify-center border text-xs font-bold icon-float icon-float-delay-${idx+1}`} style={`color: ${g.color}; border-color: ${g.color}33; background: ${g.color}11;`}>{g.letter}</div>
             ))}
           </div>
           <h3 class="text-xl font-bold text-white mb-3 font-sans">Google Workspace + AI</h3>
-          <p class="text-sys-muted text-sm leading-relaxed mb-4">
-            The agent reads and writes to Gmail, Calendar, Drive, Docs and Sheets. It automates complete
-            flows: "when an email arrives from a supplier, create a row in Sheets and a task in Calendar".
-          </p>
+          <p class="text-sys-muted text-sm leading-relaxed mb-4">The agent reads and writes to Gmail, Calendar, Drive, Docs and Sheets. It automates complete flows: "when an email arrives from a supplier, create a row in Sheets and a task in Calendar".</p>
           <div class="flex flex-wrap gap-1.5 text-[10px] font-mono">
-            {['Gmail', 'Google Sheets', 'Google Drive', 'Google Calendar'].map(t => (
-              <span class="px-2 py-0.5 bg-[#4285F4]/10 text-[#4285F4] border border-[#4285F4]/20">{t}</span>
-            ))}
+            {['Gmail', 'Google Sheets', 'Google Drive', 'Google Calendar'].map(t => <span class="px-2 py-0.5 bg-[#4285F4]/10 text-[#4285F4] border border-[#4285F4]/20">{t}</span>)}
           </div>
         </div>
       </div>
-
-      <!-- Automations -->
       <div class="border border-sys-border bg-sys-surface/20 p-7 hover:border-sys-accent-3/50 transition-all group relative overflow-hidden">
         <div class="absolute inset-0 bg-gradient-to-br from-sys-accent-3/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
         <div class="relative z-10">
-          <div class="w-10 h-10 bg-sys-accent-3/10 border border-sys-accent-3/30 flex items-center justify-center mb-5 icon-float icon-float-delay-3">
-            <span class="text-sys-accent-3 text-lg">⚡</span>
-          </div>
+          <div class="w-10 h-10 bg-sys-accent-3/10 border border-sys-accent-3/30 flex items-center justify-center mb-5 icon-float icon-float-delay-3"><span class="text-sys-accent-3 text-lg">⚡</span></div>
           <h3 class="text-xl font-bold text-white mb-3 font-sans">Custom Automations</h3>
-          <p class="text-sys-muted text-sm leading-relaxed mb-4">
-            Workflows designed for your specific company. Automatic reports, alerts,
-            data sync, web scraping, document generation.
-          </p>
+          <p class="text-sys-muted text-sm leading-relaxed mb-4">Workflows designed for your specific company. Automatic reports, alerts, data sync, web scraping, document generation.</p>
           <div class="flex flex-wrap gap-1.5 text-[10px] font-mono">
-            {['Cron scheduler', 'Web scraping', 'Auto docs', 'Telegram alerts'].map(t => (
-              <span class="px-2 py-0.5 bg-sys-accent-3/10 text-sys-accent-3 border border-sys-accent-3/20">{t}</span>
-            ))}
+            {['Cron scheduler', 'Web scraping', 'Auto docs', 'Telegram alerts'].map(t => <span class="px-2 py-0.5 bg-sys-accent-3/10 text-sys-accent-3 border border-sys-accent-3/20">{t}</span>)}
           </div>
         </div>
       </div>
-
     </div>
   </div>
 </section>
 
-<!-- TECHNOLOGY ────────────────────────────────────────────────────────── -->
+<section id="roi" class="py-24 border-t border-sys-border/50 bg-sys-surface/10">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="mb-14 text-center">
+      <div class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-3">02 // The cost of doing nothing</div>
+      <h2 class="text-4xl font-black font-sans text-white">WHAT HAPPENS IF YOU DON'T<br>AUTOMATE THIS QUARTER</h2>
+      <p class="text-sys-muted text-sm max-w-2xl mx-auto mt-4">Conservative estimates for a US SMB with 10–50 employees. Source: HubSpot State of Service 2024, BLS 2024, SHRM 2024.</p>
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+      <div class="space-y-4">
+        <div class="border-l-2 border-sys-accent-3/60 pl-5 py-1">
+          <div class="text-[10px] font-mono text-sys-accent-3 uppercase tracking-widest mb-1">Missed leads</div>
+          <h3 class="text-lg font-bold text-white mb-1">73% of customers expect a reply in 5 minutes</h3>
+          <p class="text-sys-muted text-sm leading-relaxed">HubSpot 2024. If you don't respond within an hour, 60% of buyers go to a competitor. For a US SMB with 200 inbound leads/month and a 5% miss-rate, that is <span class="text-sys-accent-3 font-bold">$48,000/yr in lost pipeline</span> at an average $200 deal size.</p>
+        </div>
+        <div class="border-l-2 border-sys-accent-3/60 pl-5 py-1">
+          <div class="text-[10px] font-mono text-sys-accent-3 uppercase tracking-widest mb-1">24/7 human support</div>
+          <h3 class="text-lg font-bold text-white mb-1">True 24/7 coverage requires 4 FTE</h3>
+          <p class="text-sys-muted text-sm leading-relaxed">At $18/hr fully loaded plus recruiting, training, and turnover (BLS reports average support rep tenure at 11 months), the real cost of a single 24/7 support seat is closer to <span class="text-sys-accent-3 font-bold">$181,360/yr</span> including all hidden costs.</p>
+        </div>
+        <div class="border-l-2 border-sys-accent-3/60 pl-5 py-1">
+          <div class="text-[10px] font-mono text-sys-accent-3 uppercase tracking-widest mb-1">Repetitive work</div>
+          <h3 class="text-lg font-bold text-white mb-1">20+ hours/week per team on tasks a machine can do</h3>
+          <p class="text-sys-muted text-sm leading-relaxed">Status reports, follow-up emails, data entry, ticket triage, scheduling. At $50/hr fully loaded, that is <span class="text-sys-accent-3 font-bold">$52,000/yr per person</span> doing work an agent does for free.</p>
+        </div>
+        <div class="border-l-2 border-sys-accent-3/60 pl-5 py-1">
+          <div class="text-[10px] font-mono text-sys-accent-3 uppercase tracking-widest mb-1">Compliance</div>
+          <h3 class="text-lg font-bold text-white mb-1">One audit failure costs 6 figures</h3>
+          <p class="text-sys-muted text-sm leading-relaxed">HIPAA violation: $50,000 minimum per incident. CCPA: $2,500 per consumer. SOC 2 failure: lost enterprise contracts averaging <span class="text-sys-accent-3 font-bold">$420,000/yr</span> in annual revenue.</p>
+        </div>
+      </div>
+      <div class="border border-sys-accent-1/40 bg-sys-bg p-8 relative">
+        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-sys-accent-1 via-sys-accent-2 to-sys-accent-3"></div>
+        <div class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-3">Annual cost of doing nothing</div>
+        <div class="text-5xl sm:text-6xl font-black text-white mb-2 font-sans">$700k+</div>
+        <div class="text-sm text-sys-muted mb-6">in lost productivity, missed leads, and compliance exposure for a typical US SMB</div>
+        <div class="border-t border-sys-border pt-5 space-y-2 text-xs font-mono">
+          <div class="flex justify-between text-sys-muted"><span>Missed leads (5% miss-rate)</span><span class="text-sys-accent-3">−$48,000</span></div>
+          <div class="flex justify-between text-sys-muted"><span>24/7 support coverage</span><span class="text-sys-accent-3">−$181,360</span></div>
+          <div class="flex justify-between text-sys-muted"><span>Repetitive work (4 people × 20h/wk)</span><span class="text-sys-accent-3">−$208,000</span></div>
+          <div class="flex justify-between text-sys-muted"><span>Compliance exposure (avg)</span><span class="text-sys-accent-3">−$50,000</span></div>
+          <div class="flex justify-between text-sys-muted"><span>Manual reporting</span><span class="text-sys-accent-3">−$10,400</span></div>
+          <div class="flex justify-between text-sys-muted"><span>SaaS overlap (CRM + chatbot + scheduler)</span><span class="text-sys-accent-3">−$3,600</span></div>
+          <div class="flex justify-between text-sys-muted"><span>Opportunity cost (slow response)</span><span class="text-sys-accent-3">−$200,000</span></div>
+          <div class="border-t border-sys-border pt-3 mt-3 flex justify-between text-base font-bold">
+            <span class="text-white">Total drag</span>
+            <span class="text-sys-accent-3">$700k+/yr</span>
+          </div>
+        </div>
+        <a href="#contacto" class="mt-6 w-full tech-border inline-flex items-center justify-center bg-sys-accent-1 text-black font-bold uppercase tracking-widest py-3 hover:bg-white transition-colors text-sm">
+          GET A FREE 30-MIN SCOPING CALL →
+        </a>
+        <p class="text-[10px] text-sys-muted mt-3 text-center">Tailored quote after we understand your specific situation. No one-size-fits-all pricing.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="integrations" class="py-24">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="mb-14 text-center">
+      <div class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-3">03 // Integrations</div>
+      <h2 class="text-4xl font-black font-sans text-white">WE ALREADY SPEAK<br>YOUR STACK</h2>
+      <p class="text-sys-muted text-sm max-w-2xl mx-auto mt-4">Hermes connects to 50+ platforms via OAuth 2.1 and the Model Context Protocol. If your tool is in the list, we can integrate it in days. If it isn't, we add it.</p>
+    </div>
+    <div class="space-y-10">
+      {integrationCategories.map((cat) => (
+        <div>
+          <h3 class="text-xs font-mono text-sys-muted uppercase tracking-widest mb-4 border-b border-sys-border/50 pb-2">{cat.name}</h3>
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {cat.items.map((it) => (
+              <div class="border border-sys-border bg-sys-surface/20 p-3 hover:border-sys-accent-1/60 hover:bg-sys-surface/40 transition-all group flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full shrink-0" style={`background: ${it.color};`}></span>
+                <span class="text-xs font-mono text-sys-muted group-hover:text-sys-text transition-colors truncate">{it.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<section id="use-cases" class="py-24 border-t border-sys-border/50 bg-sys-surface/10">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="mb-14 text-center">
+      <div class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-3">04 // Use cases</div>
+      <h2 class="text-4xl font-black font-sans text-white">BUILT FOR YOUR<br>INDUSTRY</h2>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {useCases.map((u) => (
+        <div class="border border-sys-border bg-sys-surface/20 p-5 hover:border-sys-accent-1/50 transition-all group">
+          <div class="text-2xl mb-3 group-hover:scale-110 transition-transform">{u.icon}</div>
+          <h3 class="text-sm font-bold text-white mb-2 font-sans uppercase tracking-wider">{u.industry}</h3>
+          <p class="text-xs text-sys-muted leading-relaxed">{u.text}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
 <section id="tecnologia" class="py-24 border-y border-sys-border/50">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-
       <div>
-        <div class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-3">02 // Technology engine</div>
+        <div class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-3">05 // Technology engine</div>
         <h2 class="text-4xl font-black font-sans text-white mb-6">HERMES AGENT<br><span class="text-sys-accent-1">v0.14.0</span></h2>
-        <p class="text-sys-muted leading-relaxed mb-8 text-sm">
-          We build on <strong class="text-white">Hermes Agent</strong> from NousResearch —
-          the most starred open-source AI agent on GitHub (165K+).
-          Closed learning loop, 200+ models, 22 platforms, MCP, browser automation.
-        </p>
+        <p class="text-sys-muted leading-relaxed mb-8 text-sm">We build on <strong class="text-white">Hermes Agent</strong> from NousResearch — the most starred open-source AI agent on GitHub (165K+). Closed learning loop, 200+ models, 22 platforms, MCP, browser automation.</p>
         <div class="grid grid-cols-2 gap-3 text-xs font-mono">
-          {[
-            ['200+ Models', 'OpenRouter API'],
-            ['22 Platforms', 'Telegram to Teams'],
-            ['Memory Stack', 'pgvector + FTS5'],
-            ['MCP OAuth 2.1', 'GitHub, Linear...'],
-            ['Browser 180x', 'Playwright CDP'],
-            ['Native Cron', 'Natural language'],
-          ].map(([k, v]) => (
+          {[['200+ Models','OpenRouter API'],['22 Platforms','Telegram to Teams'],['Memory Stack','pgvector + FTS5'],['MCP OAuth 2.1','GitHub, Linear...'],['Browser 180x','Playwright CDP'],['Native Cron','Natural language']].map(([k,v]) => (
             <div class="border border-sys-border p-3 bg-sys-surface/30 hover:border-sys-accent-1/40 transition-colors">
               <div class="text-white font-bold mb-0.5">{k}</div>
               <div class="text-sys-muted text-[10px]">{v}</div>
@@ -297,58 +363,214 @@ const row2 = [
           ))}
         </div>
       </div>
-
-      <!-- Visual pipeline -->
       <div class="relative h-[360px] border border-sys-border bg-sys-bg/50 overflow-hidden">
         <div class="absolute inset-0 flex items-center justify-center">
-          <!-- Animated rings -->
           <div class="absolute w-64 h-64 border border-sys-accent-1/10 rounded-full animate-[spin_20s_linear_infinite]"></div>
           <div class="absolute w-44 h-44 border border-sys-accent-2/15 rounded-full animate-[spin_12s_linear_infinite_reverse]"></div>
           <div class="absolute w-28 h-28 border border-sys-accent-3/20 rounded-full animate-[spin_8s_linear_infinite]"></div>
-          <!-- Center -->
           <div class="relative z-10 w-20 h-20 rounded-full bg-sys-bg border border-sys-accent-2 flex items-center justify-center shadow-[0_0_30px_rgba(176,38,255,0.3)] animate-pulse-slow">
             <span class="text-white text-xs font-bold font-mono">HERMES</span>
           </div>
-          <!-- Satellites -->
-          {[
-            { label: 'WhatsApp', color: '#25D366', angle: 0 },
-            { label: 'Google',   color: '#4285F4', angle: 72 },
-            { label: 'GitHub',   color: '#e0e0e0', angle: 144 },
-            { label: 'Airtable', color: '#FCB400', angle: 216 },
-            { label: 'Telegram', color: '#2AABEE', angle: 288 },
-          ].map(({ label, color, angle }) => {
+          {[{label:'WhatsApp',color:'#25D366',angle:0},{label:'Google',color:'#4285F4',angle:72},{label:'GitHub',color:'#e0e0e0',angle:144},{label:'Airtable',color:'#FCB400',angle:216},{label:'Telegram',color:'#2AABEE',angle:288}].map(({label,color,angle}) => {
             const rad = (angle - 90) * Math.PI / 180;
             const r = 120;
             const x = 50 + (r / 1.8 * Math.cos(rad));
             const y = 50 + (r / 1.8 * Math.sin(rad));
             return (
-              <div
-                class="absolute text-[9px] font-mono font-bold flex items-center justify-center w-14 h-6 border"
-                style={`left: ${x}%; top: ${y}%; transform: translate(-50%, -50%); color: ${color}; border-color: ${color}44; background: ${color}11;`}
-              >
-                {label}
-              </div>
+              <div class="absolute text-[9px] font-mono font-bold flex items-center justify-center w-14 h-6 border" style={`left: ${x}%; top: ${y}%; transform: translate(-50%, -50%); color: ${color}; border-color: ${color}44; background: ${color}11;`}>{label}</div>
             );
           })}
         </div>
-        <div class="absolute bottom-3 right-4 text-[9px] text-sys-muted font-mono">
-          AGENT_CORE // CONNECTED
-        </div>
+        <div class="absolute bottom-3 right-4 text-[9px] text-sys-muted font-mono">AGENT_CORE // CONNECTED</div>
       </div>
-
     </div>
   </div>
 </section>
 
-<!-- CONTACT ──────────────────────────────────────────────────────────── -->
+<section id="mantenimiento" class="py-24 border-t border-sys-border/50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="mb-14 text-center">
+      <div class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-3">06 // Ongoing management</div>
+      <h2 class="text-4xl font-black font-sans text-white">AI AGENTS ARE NOT<br>"SET AND FORGET"</h2>
+      <p class="text-sys-muted text-sm max-w-2xl mx-auto mt-4">Your agent will be measurably worse in 90 days if no one is watching it. Here is what breaks — and why it is good news for your business.</p>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-12">
+      <div class="border border-sys-border bg-sys-surface/20 p-6 hover:border-sys-accent-3/40 transition-all">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-8 h-8 bg-sys-accent-3/10 border border-sys-accent-3/30 flex items-center justify-center text-sys-accent-3 text-sm font-bold">1</div>
+          <h3 class="text-base font-bold text-white">Model deprecation</h3>
+        </div>
+        <p class="text-sys-muted text-sm leading-relaxed">OpenRouter retires models quarterly. When your model disappears, your agent starts failing silently. Cost spikes if the replacement is more expensive. No alerts = no warning.</p>
+      </div>
+      <div class="border border-sys-border bg-sys-surface/20 p-6 hover:border-sys-accent-3/40 transition-all">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-8 h-8 bg-sys-accent-3/10 border border-sys-accent-3/30 flex items-center justify-center text-sys-accent-3 text-sm font-bold">2</div>
+          <h3 class="text-base font-bold text-white">API breaking changes</h3>
+        </div>
+        <p class="text-sys-muted text-sm leading-relaxed">Telegram, WhatsApp, Google, Stripe, Slack all change their APIs every quarter. Each one can break a specific flow in your agent, silently, while you sleep.</p>
+      </div>
+      <div class="border border-sys-border bg-sys-surface/20 p-6 hover:border-sys-accent-3/40 transition-all">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-8 h-8 bg-sys-accent-3/10 border border-sys-accent-3/30 flex items-center justify-center text-sys-accent-3 text-sm font-bold">3</div>
+          <h3 class="text-base font-bold text-white">Security vulnerabilities</h3>
+        </div>
+        <p class="text-sys-muted text-sm leading-relaxed">New CVEs ship every quarter. A vulnerability in a PDF parser or HTTP client can sit in your production agent for weeks. For an agent handling customer data, this is a compliance risk.</p>
+      </div>
+      <div class="border border-sys-border bg-sys-surface/20 p-6 hover:border-sys-accent-3/40 transition-all">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-8 h-8 bg-sys-accent-3/10 border border-sys-accent-3/30 flex items-center justify-center text-sys-accent-3 text-sm font-bold">4</div>
+          <h3 class="text-base font-bold text-white">Response drift</h3>
+        </div>
+        <p class="text-sys-muted text-sm leading-relaxed">Without a feedback loop to review bad responses and turn them into training examples, your agent's quality erodes 10–20% by month three. The drop is invisible until it is large.</p>
+      </div>
+      <div class="border border-sys-border bg-sys-surface/20 p-6 hover:border-sys-accent-3/40 transition-all">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-8 h-8 bg-sys-accent-3/10 border border-sys-accent-3/30 flex items-center justify-center text-sys-accent-3 text-sm font-bold">5</div>
+          <h3 class="text-base font-bold text-white">Compliance changes</h3>
+        </div>
+        <p class="text-sys-muted text-sm leading-relaxed">CCPA, HIPAA, state-level AI rules update constantly. An agent compliant in January can be non-compliant in June if no one is tracking the regulatory landscape.</p>
+      </div>
+      <div class="border border-sys-border bg-sys-surface/20 p-6 hover:border-sys-accent-3/40 transition-all">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-8 h-8 bg-sys-accent-3/10 border border-sys-accent-3/30 flex items-center justify-center text-sys-accent-3 text-sm font-bold">6</div>
+          <h3 class="text-base font-bold text-white">New standards</h3>
+        </div>
+        <p class="text-sys-muted text-sm leading-relaxed">MCP emerged last year. More protocols will emerge. An agent not kept current falls behind competitors who adopted the new standard six months ago.</p>
+      </div>
+    </div>
+    <div class="border-t border-sys-border pt-10">
+      <h3 class="text-2xl font-black font-sans text-white text-center mb-8">HOW WE KEEP YOUR AGENT ALIVE</h3>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div class="border border-sys-border bg-sys-surface/20 p-6">
+          <div class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-2">Tier 1</div>
+          <h4 class="text-lg font-bold text-white mb-2">Watch</h4>
+          <p class="text-sys-muted text-sm leading-relaxed mb-4">You monitor the agent yourself. We provide the playbook, release notes digest, and security advisories. Best for teams with strong engineering culture.</p>
+          <div class="text-xs text-sys-muted">DIY monitoring — your team, our playbooks</div>
+        </div>
+        <div class="border border-sys-accent-1/60 bg-sys-surface/20 p-6 relative">
+          <div class="absolute top-0 right-0 bg-sys-accent-1 text-black text-[9px] font-mono uppercase tracking-widest px-2 py-1">MOST COMMON</div>
+          <div class="text-[10px] font-mono text-sys-accent-1 uppercase tracking-widest mb-2">Tier 2</div>
+          <h4 class="text-lg font-bold text-white mb-2">Manage</h4>
+          <p class="text-sys-muted text-sm leading-relaxed mb-4">We monitor your deployment 24/7. We migrate models before they're deprecated, patch CVEs within 48 hours, and fix webhooks the same day. Monthly health report included.</p>
+          <div class="text-xs text-sys-muted">Tailored per agent and conversation volume</div>
+        </div>
+        <div class="border border-sys-border bg-sys-surface/20 p-6">
+          <div class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-2">Tier 3</div>
+          <h4 class="text-lg font-bold text-white mb-2">Evolve</h4>
+          <p class="text-sys-muted text-sm leading-relaxed mb-4">We add new skills, integrations, and automations on a roadmap we co-design with you. We tune responses, A/B test flows, write custom reports, keep your agent at the frontier.</p>
+          <div class="text-xs text-sys-muted">Quarterly business reviews and roadmap sessions</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="compliance" class="py-24 border-t border-sys-border/50 bg-sys-surface/10">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="mb-14 text-center">
+      <div class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-3">07 // Compliance &amp; security</div>
+      <h2 class="text-4xl font-black font-sans text-white">ENTERPRISE-GRADE<br>BY DEFAULT</h2>
+      <p class="text-sys-muted text-sm max-w-2xl mx-auto mt-4">Every deployment ships with the controls your auditor, your security team, and your legal counsel require.</p>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      {[
+        { title: 'Data residency',     desc: 'Your data stays in your Docker container on your infrastructure. We never see your customer data.' },
+        { title: 'Encryption',         desc: 'AES-256 at rest, TLS 1.3 in transit. Keys managed via your cloud KMS or HashiCorp Vault.' },
+        { title: 'SOC 2 Type II',      desc: 'Documentation provided for your audit. We sign DPAs and BAAs on request.' },
+        { title: 'HIPAA-compliant',    desc: 'Available configuration for healthcare clients. BAA included. PHI isolation by tenant.' },
+        { title: 'CCPA / GDPR ready',  desc: 'Data deletion API, consent tracking, right-to-be-forgotten flows built in.' },
+        { title: 'Audit logs',         desc: 'Every action Hermes takes is logged with timestamp, context, and reasoning chain.' },
+        { title: 'No training on your data', desc: 'Your conversations never train any model. Zero data retention beyond your control.' },
+        { title: 'SSO + RBAC',         desc: 'Integrate with Okta, Azure AD, Google Workspace. Role-based access for your team.' },
+        { title: 'Air-gapped option',  desc: 'Fully on-premise deployment available. No outbound calls. No third-party dependencies.' },
+      ].map((c) => (
+        <div class="border border-sys-border bg-sys-surface/20 p-5 hover:border-sys-accent-1/40 transition-all">
+          <h3 class="text-sm font-bold text-white mb-2 font-sans uppercase tracking-wider">{c.title}</h3>
+          <p class="text-sys-muted text-xs leading-relaxed">{c.desc}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<section id="vs" class="py-24 border-t border-sys-border/50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="mb-14 text-center">
+      <div class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-3">08 // Comparison</div>
+      <h2 class="text-4xl font-black font-sans text-white">VS THE ALTERNATIVES</h2>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm font-mono">
+        <thead>
+          <tr class="border-b border-sys-border">
+            <th class="text-left py-3 px-4 text-[10px] uppercase tracking-widest text-sys-muted font-bold">Feature</th>
+            <th class="py-3 px-4 text-[10px] uppercase tracking-widest text-sys-muted font-bold text-center">Zapier / Make</th>
+            <th class="py-3 px-4 text-[10px] uppercase tracking-widest text-sys-muted font-bold text-center">ChatGPT Teams</th>
+            <th class="py-3 px-4 text-[10px] uppercase tracking-widest text-sys-muted font-bold text-center">$3k/mo freelancer</th>
+            <th class="py-3 px-4 text-[10px] uppercase tracking-widest text-sys-accent-1 font-bold text-center bg-sys-accent-1/5">martes.app</th>
+          </tr>
+        </thead>
+        <tbody>
+          {[
+            ['Conversational',          false, true,  true,  true],
+            ['Memory between sessions', false, false, true,  true],
+            ['24/7 autonomous',         false, false, true,  true],
+            ['Custom to your business', false, false, true,  true],
+            ['Code maintenance',        false, false, false, true],
+            ['Compliance docs (SOC 2)', false, false, true,  true],
+            ['Setup time',              '1–2 weeks', '1 day', '1–3 months', '48 hours'],
+            ['Ongoing management',      false, false, false, true],
+          ].map((row, idx) => (
+            <tr class={`border-b border-sys-border/50 ${idx % 2 === 0 ? 'bg-sys-surface/10' : ''}`}>
+              <td class="py-3 px-4 text-sys-text">{row[0]}</td>
+              <td class="py-3 px-4 text-center text-sys-muted">{row[1] === true ? <span class="text-sys-accent-1">✓</span> : row[1] === false ? <span class="text-sys-accent-3">✗</span> : row[1]}</td>
+              <td class="py-3 px-4 text-center text-sys-muted">{row[2] === true ? <span class="text-sys-accent-1">✓</span> : row[2] === false ? <span class="text-sys-accent-3">✗</span> : row[2]}</td>
+              <td class="py-3 px-4 text-center text-sys-muted">{row[3] === true ? <span class="text-sys-accent-1">✓</span> : row[3] === false ? <span class="text-sys-accent-3">✗</span> : row[3]}</td>
+              <td class="py-3 px-4 text-center bg-sys-accent-1/5">{row[4] === true ? <span class="text-sys-accent-1 font-bold">✓</span> : row[4] === false ? <span class="text-sys-accent-3">✗</span> : row[4]}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    <div class="mt-10 text-center">
+      <a href="#contacto" class="tech-border inline-flex items-center justify-center px-10 py-4 border border-sys-accent-1 text-sys-accent-1 hover:bg-sys-accent-1 hover:text-black font-bold uppercase tracking-widest transition-all text-sm">
+        Get a 30-min scoping call →
+      </a>
+    </div>
+  </div>
+</section>
+
+<section id="how" class="py-24 border-t border-sys-border/50 bg-sys-surface/10">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="mb-14 text-center">
+      <div class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-3">09 // Process</div>
+      <h2 class="text-4xl font-black font-sans text-white">FROM CALL TO LIVE<br>IN 48 HOURS</h2>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
+      {[
+        { step: '01', title: 'Scoping call',  time: 'Day 0',   desc: '30 minutes. We look at your actual workflow, ticket volume, and stack. We tell you honestly whether this makes sense for you.' },
+        { step: '02', title: 'Build &amp; deploy', time: '48 hours', desc: 'Your agent is live in your environment. We integrate your tools, load your knowledge base, configure your tone.' },
+        { step: '03', title: 'Tune &amp; iterate', time: 'Week 1',   desc: 'We monitor every conversation, fix edge cases, refine responses. You review, we tune.' },
+        { step: '04', title: 'Ongoing management', time: 'Always',   desc: 'Model migrations, security patches, new features. We keep your agent at the frontier.' },
+      ].map((s) => (
+        <div class="border border-sys-border bg-sys-surface/20 p-6 relative">
+          <div class="text-3xl font-black text-sys-accent-1 font-mono mb-2">{s.step}</div>
+          <div class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-2">{s.time}</div>
+          <h3 class="text-base font-bold text-white mb-2 font-sans" set:html={s.title}></h3>
+          <p class="text-sys-muted text-xs leading-relaxed">{s.desc}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
 <section id="contacto" class="py-24">
   <div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="text-center mb-10">
-      <div class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-3">03 // Talk to us</div>
+      <div class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-3">10 // Talk to us</div>
       <h2 class="text-3xl font-black font-sans text-white mb-3">HAVE A PROJECT?</h2>
       <p class="text-sys-muted text-sm">Tell us what your company needs. We reply via Telegram.</p>
     </div>
-
     <div class="border border-sys-border bg-sys-surface/30 overflow-hidden">
       <div class="border-b border-sys-border p-3 flex justify-between items-center bg-sys-surface text-[10px] font-mono text-sys-muted">
         <span>root@martes.app:~#</span>
@@ -376,6 +598,8 @@ const row2 = [
             <option>Customer service agent (WhatsApp/Telegram)</option>
             <option>Google Workspace integrations + AI</option>
             <option>Internal process automation</option>
+            <option>Ongoing management of an existing agent</option>
+            <option>Compliance &amp; security audit</option>
             <option>Other AI software project</option>
           </select>
         </div>
@@ -384,14 +608,13 @@ const row2 = [
           <textarea rows="4" class="w-full bg-sys-bg border border-sys-border focus:border-sys-accent-1 text-white text-sm px-3 py-2.5 outline-none transition-colors resize-none font-mono" placeholder="What does your company do, what do you want to automate or improve..."></textarea>
         </div>
         <button type="button" class="w-full tech-border bg-sys-accent-1 text-black font-bold uppercase tracking-widest py-3 hover:bg-white transition-colors text-sm">
-          SEND PROJECT →
+          REQUEST A 30-MIN SCOPING CALL →
         </button>
       </form>
     </div>
   </div>
 </section>
 
-<!-- FOOTER ────────────────────────────────────────────────────────────── -->
 <footer class="border-t border-sys-border py-10 font-mono text-xs">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8">
@@ -429,7 +652,6 @@ const row2 = [
 
 <script is:inline>
 (function() {
-  // Terminal
   var out = document.getElementById('terminal-output');
   if (!out) return;
   var lines = [
@@ -447,7 +669,7 @@ const row2 = [
     if (i >= lines.length) {
       var c = document.createElement('div');
       c.className = 'text-sys-accent-1 mt-1';
-      c.innerHTML = '<span class="animate-pulse">\u2588</span>';
+      c.innerHTML = '<span class="animate-pulse">█</span>';
       out.appendChild(c);
       out.scrollTop = out.scrollHeight;
       return;
@@ -463,7 +685,6 @@ const row2 = [
   setTimeout(next, 800);
 })();
 
-// Three.js
 window.onload = function() {
   var canvas = document.getElementById('bg-canvas');
   if (!canvas || typeof THREE === 'undefined') return;
