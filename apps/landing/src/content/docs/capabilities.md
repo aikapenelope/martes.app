@@ -1,103 +1,103 @@
 ---
-title: "Capacidades de Hermes"
-description: "Todo lo que Hermes puede hacer: herramientas, memoria, scheduler, API y más."
+title: "Hermes Capabilities"
+description: "Everything Hermes can do: tools, memory, scheduler, API and more."
 order: 2
 section: "Hermes Agent"
 ---
 
-## Hermes v0.14.0 — Capacidades completas
+## Hermes v0.14.0 — Full Capabilities
 
-Hermes no es un wrapper de ChatGPT. Es un agente autónomo con bucle de aprendizaje cerrado que se vuelve más capaz cuanto más se usa.
+Hermes is not a ChatGPT wrapper. It is an autonomous agent with a closed learning loop that becomes more capable the more it is used.
 
-**3 diferencias clave:**
-1. **Bucle de aprendizaje cerrado** — crea skills desde la experiencia, las mejora, construye un modelo del usuario
-2. **Autonomía real** — ejecuta tareas complejas sin supervisión y reporta resultados
-3. **Multi-plataforma nativo** — 22 plataformas desde un solo proceso
+**3 key differences:**
+1. **Closed learning loop** — creates skills from experience, improves them, builds a model of the user
+2. **Real autonomy** — executes complex tasks without supervision and reports results
+3. **Multi-platform native** — 22 platforms from a single process
 
 ---
 
-## Herramientas nativas (built-in)
+## Built-in native tools
 
-### Terminal y código
-- Ejecución de Python, JavaScript, Bash
+### Terminal and code
+- Python, JavaScript, Bash execution
 - 7 backends: local, Docker, SSH, Singularity, Modal, Daytona, Vercel Sandbox
-- File manager completo (read, write, patch, search)
-- Git integrado · Ripgrep para búsqueda en código
+- Full file manager (read, write, patch, search)
+- Integrated Git · Ripgrep for code search
 
-### Web y navegador
-- **Búsqueda web**: Firecrawl, Tavily, SearXNG, Brave, DuckDuckGo (sin API key)
-- **Automatización de navegador**: Playwright, CDP directo — 180x más rápido en v0.14.0
-- **Vision web**: captura de pantalla, análisis visual de páginas
-- **Computer use**: control de mouse/teclado (funciona con GPT-4o, Gemini — no solo Anthropic)
-- **Scraping**: cualquier página, extracción estructurada
+### Web and browser
+- **Web search**: Firecrawl, Tavily, SearXNG, Brave, DuckDuckGo (no API key)
+- **Browser automation**: Playwright, direct CDP — 180x faster in v0.14.0
+- **Web vision**: screenshot, visual analysis of pages
+- **Computer use**: mouse/keyboard control (works with GPT-4o, Gemini — not just Anthropic)
+- **Scraping**: any page, structured extraction
 
 ### Multimedia
-- **Imágenes**: FAL.ai (Flux, SDXL y más)
-- **Text-to-speech**: OpenAI, xAI Custom Voices con clonación de voz
-- **Transcripción**: voz → texto desde memos de Telegram/WhatsApp
-- **Video**: backends pluggables (Higgsfield, RunwayML)
-- **Análisis visual**: imagen → descripción, OCR, análisis de documentos
+- **Images**: FAL.ai (Flux, SDXL and more)
+- **Text-to-speech**: OpenAI, xAI Custom Voices with voice cloning
+- **Transcription**: voice → text from Telegram/WhatsApp memos
+- **Video**: pluggable backends (Higgsfield, RunwayML)
+- **Visual analysis**: image → description, OCR, document analysis
 
-### Automatización
-- **Cron scheduler**: tareas en lenguaje natural — "cada lunes a las 9am envíame un resumen"
-- **Subagentes**: delega tareas a agentes paralelos en su propio contexto
-- **Kanban multi-agente**: tablero con heartbeat, zombie detection, retries automáticos
-- **MCP**: conecta cualquier servidor MCP con OAuth 2.1
+### Automation
+- **Cron scheduler**: tasks in natural language — "every Monday at 9am send me a summary"
+- **Subagents**: delegate tasks to parallel agents in their own context
+- **Multi-agent Kanban**: board with heartbeat, zombie detection, automatic retries
+- **MCP**: connect any MCP server with OAuth 2.1
 
 ---
 
-## Sistema de memoria
+## Memory System
 
-| Tipo | Qué recuerda |
+| Type | What it remembers |
 |---|---|
-| **UserMemory** | Quién eres, tus preferencias, estilo de trabajo, equipo |
-| **EntityMemory** | Empresas, clientes, proyectos, sistemas de terceros |
-| **LearnedKnowledge** | Procedimientos complejos que resolvió antes |
-| **DecisionLog** | Por qué tomó ciertas decisiones (auditable) |
-| **SessionContext** | Plan de trabajo multi-paso dentro de una sesión |
-| **FTS5 Search** | Búsqueda semántica en todas las conversaciones pasadas |
+| **UserMemory** | Who you are, your preferences, working style, team |
+| **EntityMemory** | Companies, clients, projects, third-party systems |
+| **LearnedKnowledge** | Complex procedures it solved before |
+| **DecisionLog** | Why it made certain decisions (auditable) |
+| **SessionContext** | Multi-step work plan within a session |
+| **FTS5 Search** | Semantic search across all past conversations |
 
 ---
 
-## Automatizaciones programadas
+## Scheduled automations
 
-El scheduler nativo entiende lenguaje natural:
+The native scheduler understands natural language:
 
 ```
-"Cada lunes a las 8am: analiza noticias del sector retail y envíame un resumen"
-"Diariamente a las 6pm: si el BTC cayó >5% notifícame"
-"El 1ro de cada mes: genera informe de ventas desde Airtable y envíalo por email"
+"Every Monday at 8am: analyze news in the retail sector and send me a summary"
+"Daily at 6pm: if BTC dropped >5% notify me"
+"On the 1st of each month: generate sales report from Airtable and send it by email"
 ```
 
-Entrega vía cualquier plataforma: Telegram, WhatsApp, Discord, Email.
+Delivery via any platform: Telegram, WhatsApp, Discord, Email.
 
 ---
 
-## API Server (puerto 8642)
+## API Server (port 8642)
 
-Cuando `API_SERVER_ENABLED=true`, Hermes expone una API OpenAI-compatible:
+When `API_SERVER_ENABLED=true`, Hermes exposes an OpenAI-compatible API:
 
 ```
 GET  /health                    — health check
-GET  /v1/models                 — modelos disponibles
+GET  /v1/models                 — available models
 POST /v1/chat/completions       — Chat Completions (stateless)
 POST /v1/responses              — Responses API (stateful)
 POST /v1/runs                   — run async
 GET  /v1/runs/{id}/events       — SSE stream
-POST /v1/runs/{id}/approval     — resolver approval
+POST /v1/runs/{id}/approval     — resolve approval
 ```
 
-Cualquier cliente OpenAI-compatible puede conectarse: Open WebUI, LibreChat, Cursor, Aider.
+Any OpenAI-compatible client can connect: Open WebUI, LibreChat, Cursor, Aider.
 
 ---
 
-## Capacidades exclusivas de v0.14.0
+## v0.14.0 exclusive capabilities
 
-- **OpenAI-compatible proxy local** — Cursor, Codex o Cline pueden usar los modelos de Claude Pro o Grok sin API key adicional
-- **Microsoft Teams end-to-end** — leer y responder mensajes de Teams
-- **Computer use con modelos no-Anthropic** — GPT-4o y Gemini controlan el escritorio
-- **Cross-session Claude prompt caching** — -60% costo en conversaciones largas
-- **xAI Grok 4.3 a 1M tokens** de contexto
-- **LSP semantic diagnostics** — verifica errores semánticos en código antes de terminar el turno
-- **`/handoff`** — transfiere una sesión activa a otro modelo sin perder contexto
-- **`pip install hermes-agent`** — disponible en PyPI
+- **OpenAI-compatible local proxy** — Cursor, Codex or Cline can use Claude Pro or Grok models without additional API keys
+- **Microsoft Teams end-to-end** — read and reply to Teams messages
+- **Computer use with non-Anthropic models** — GPT-4o and Gemini control the desktop
+- **Cross-session Claude prompt caching** — -60% cost on long conversations
+- **xAI Grok 4.3 at 1M tokens** of context
+- **LSP semantic diagnostics** — verifies semantic errors in code before ending the turn
+- **`/handoff`** — transfers an active session to another model without losing context
+- **`pip install hermes-agent`** — available on PyPI
