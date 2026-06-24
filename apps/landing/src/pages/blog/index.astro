@@ -1,6 +1,6 @@
 ---
 // Blog hub — /blog
-// Inspirado en MagicUI blog template: card grid, tag filter, featured post
+// Inspired by MagicUI blog template: card grid, tag filter, featured post
 import { getCollection } from 'astro:content';
 import Layout from '../../layouts/Layout.astro';
 
@@ -18,7 +18,7 @@ function readingTime(content: string) {
 }
 ---
 
-<Layout title="Blog — martes.app" description="Artículos sobre software IA, Hermes Agent y automatización para empresas LATAM.">
+<Layout title="Blog — martes.app" description="Articles on custom AI software, Hermes Agent, tutorials and use cases for LATAM companies.">
 
 <!-- NAV -->
 <header class="fixed top-0 w-full z-40 border-b border-sys-border bg-sys-bg/95 backdrop-blur-md">
@@ -34,7 +34,7 @@ function readingTime(content: string) {
     <div class="flex items-center gap-4 text-xs font-mono">
       <a href="/docs"      class="text-sys-muted hover:text-sys-accent-1 transition-colors hidden sm:block">Docs</a>
       <a href="/#contacto" class="bg-sys-accent-1 text-black px-3 py-1.5 font-bold uppercase hover:bg-white transition-colors text-[10px] tracking-wider">
-        Contacto
+        Contact
       </a>
     </div>
   </div>
@@ -47,14 +47,14 @@ function readingTime(content: string) {
     <p class="text-[10px] font-mono text-sys-muted uppercase tracking-[0.2em] mb-3">SYS.BLOG // martes.app</p>
     <h1 class="text-[42px] font-black font-sans text-white leading-none mb-4">Blog</h1>
     <p class="text-sys-muted text-sm max-w-lg font-sans leading-relaxed">
-      Artículos sobre software IA a medida, Hermes Agent, tutoriales y casos de uso para empresas en LATAM.
+      Articles on custom AI software, Hermes Agent, tutorials and use cases for LATAM companies.
     </p>
   </div>
 
   <!-- Tag filter -->
   <div class="flex gap-2 flex-wrap mb-12 font-mono" id="tag-filters">
     <button data-tag="" class="tag-btn px-3 py-1 border border-sys-accent-1 text-sys-accent-1 text-[11px] transition-all">
-      Todos&nbsp;<span class="opacity-60">({allPosts.length})</span>
+      All&nbsp;<span class="opacity-60">({allPosts.length})</span>
     </button>
     {allTags.map(tag => (
       <button
@@ -66,14 +66,14 @@ function readingTime(content: string) {
     ))}
   </div>
 
-  <!-- Featured post (primero) -->
+  <!-- Featured post (first) -->
   {featured && (
     <a
       href={`/blog/${featured.slug}`}
       data-tags={JSON.stringify(featured.data.tags)}
       class="post-card featured-card group block mb-10 border border-sys-border hover:border-sys-accent-1/60 transition-all bg-sys-surface/20 hover:bg-sys-surface/40 overflow-hidden relative"
     >
-      <!-- Glow efect -->
+      <!-- Glow effect -->
       <div class="absolute inset-0 bg-gradient-to-br from-sys-accent-1/5 via-transparent to-sys-accent-2/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
 
       <div class="relative z-10 p-8 sm:p-10 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-6 items-start">
@@ -96,14 +96,14 @@ function readingTime(content: string) {
         <div class="flex sm:flex-col items-center sm:items-end gap-4 sm:gap-2 shrink-0">
           <span class="text-[11px] font-mono text-sys-muted">{featured.data.date}</span>
           <span class="text-xs font-mono text-sys-accent-1 border border-sys-accent-1/40 px-2 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-            leer →
+            read →
           </span>
         </div>
       </div>
     </a>
   )}
 
-  <!-- Grid de posts restantes -->
+  <!-- Grid of remaining posts -->
   {rest.length > 0 && (
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5" id="posts-grid">
       {rest.map(post => (
@@ -132,7 +132,7 @@ function readingTime(content: string) {
             <!-- Footer -->
             <div class="flex items-center justify-between mt-auto pt-3 border-t border-sys-border/40 text-[10px] font-mono">
               <span class="text-sys-muted">{post.data.date}</span>
-              <span class="text-sys-accent-1 opacity-0 group-hover:opacity-100 transition-opacity">leer →</span>
+              <span class="text-sys-accent-1 opacity-0 group-hover:opacity-100 transition-opacity">read →</span>
             </div>
           </div>
         </a>
@@ -142,7 +142,7 @@ function readingTime(content: string) {
 
   {allPosts.length === 0 && (
     <div class="text-center py-20 text-sys-muted font-mono text-sm">
-      <p>No hay artículos todavía.</p>
+      <p>No posts yet.</p>
     </div>
   )}
 
@@ -161,7 +161,7 @@ function readingTime(content: string) {
   var cards    = document.querySelectorAll('.post-card:not(.featured-card)');
 
   function filter(tag) {
-    // Botones
+    // Buttons
     buttons.forEach(function (btn) {
       var active = btn.getAttribute('data-tag') === tag;
       btn.classList.toggle('border-sys-accent-1', active);
