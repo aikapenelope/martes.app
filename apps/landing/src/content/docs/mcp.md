@@ -1,54 +1,54 @@
 ---
 title: "MCP — Model Context Protocol"
-description: "Conecta Hermes con cualquier herramienta externa: GitHub, Linear, Figma, Stripe y más."
+description: "Connect Hermes to any external tool: GitHub, Linear, Figma, Stripe and more."
 order: 4
-section: "Integraciones"
+section: "Integrations"
 ---
 
-## ¿Qué es MCP?
+## What is MCP?
 
-El **Model Context Protocol** (MCP) es un estándar abierto creado por Anthropic que define cómo los agentes IA se conectan con herramientas y datos externos. Es como un sistema de plugins universal: cualquier servidor MCP expone herramientas que Hermes descubre y usa automáticamente.
+The **Model Context Protocol** (MCP) is an open standard created by Anthropic that defines how AI agents connect to external tools and data. It is like a universal plugin system: any MCP server exposes tools that Hermes discovers and uses automatically.
 
-Hermes soporta MCP con **OAuth 2.1 completo** — descubrimiento dinámico, registro de cliente, PKCE, token exchange, refresh automático.
+Hermes supports MCP with **full OAuth 2.1** — dynamic discovery, client registration, PKCE, token exchange, automatic refresh.
 
 ---
 
-## Servidores MCP populares
+## Popular MCP servers
 
-### Productividad
-| Servidor MCP | Qué habilita | Paquete |
+### Productivity
+| MCP Server | What it enables | Package |
 |---|---|---|
-| **Filesystem** | Leer/escribir archivos, listar directorios | `@modelcontextprotocol/server-filesystem` |
+| **Filesystem** | Read/write files, list directories | `@modelcontextprotocol/server-filesystem` |
 | **GitHub** | Repos, PRs, issues, CI/CD | `@modelcontextprotocol/server-github` |
-| **Linear** | Issues, proyectos, ciclos (OAuth) | `https://mcp.linear.app/mcp` |
-| **Asana** | Tareas, proyectos, equipos (OAuth) | OAuth MCP |
-| **Figma** | Diseños, componentes, assets (OAuth) | OAuth MCP |
+| **Linear** | Issues, projects, cycles (OAuth) | `https://mcp.linear.app/mcp` |
+| **Asana** | Tasks, projects, teams (OAuth) | OAuth MCP |
+| **Figma** | Designs, components, assets (OAuth) | OAuth MCP |
 
-### Búsqueda e investigación
-| Servidor MCP | Qué habilita | Paquete |
+### Search and research
+| MCP Server | What it enables | Package |
 |---|---|---|
-| **Tavily** | Búsqueda web optimizada para IA | `tavily-mcp` |
-| **Exa** | Neural search, investigación académica | `exa-mcp-server` |
-| **Firecrawl** | Web scraping, extracción estructurada | `firecrawl-mcp` |
+| **Tavily** | Web search optimized for AI | `tavily-mcp` |
+| **Exa** | Neural search, academic research | `exa-mcp-server` |
+| **Firecrawl** | Web scraping, structured extraction | `firecrawl-mcp` |
 | **Playwright** | Browser automation, screenshots | `@playwright/mcp` |
 
-### Negocio y DevOps
-| Servidor MCP | Qué habilita | Paquete |
+### Business and DevOps
+| MCP Server | What it enables | Package |
 |---|---|---|
-| **Sentry** | Errores, issues, performance (OAuth) | OAuth MCP |
+| **Sentry** | Errors, issues, performance (OAuth) | OAuth MCP |
 | **Atlassian** | Jira, Confluence (OAuth) | OAuth MCP |
-| **Stripe** | Pagos, clientes, invoices (OAuth) | OAuth MCP |
-| **Slack** | Mensajes, canales (OAuth) | OAuth MCP |
+| **Stripe** | Payments, customers, invoices (OAuth) | OAuth MCP |
+| **Slack** | Messages, channels (OAuth) | OAuth MCP |
 
 ---
 
-## Tipos de conexión
+## Connection types
 
-### Servidores stdio (local)
-Corren como subprocesos en el mismo servidor que Hermes:
+### Stdio servers (local)
+Run as subprocesses on the same server as Hermes:
 
 ```yaml
-# config.yaml del tenant
+# tenant config.yaml
 mcp_servers:
   github:
     command: "npx"
@@ -61,8 +61,8 @@ mcp_servers:
     args: ["-y", "@modelcontextprotocol/server-filesystem", "/home/user/projects"]
 ```
 
-### Servidores HTTP remotos
-Se conectan a endpoints externos:
+### Remote HTTP servers
+Connect to external endpoints:
 
 ```yaml
 mcp_servers:
@@ -72,8 +72,8 @@ mcp_servers:
       Authorization: "Bearer xxx"
 ```
 
-### Servidores OAuth 2.1
-Para plataformas como Linear, Sentry, Figma — Hermes maneja todo el flujo automáticamente:
+### OAuth 2.1 servers
+For platforms like Linear, Sentry, Figma — Hermes handles the full flow automatically:
 
 ```yaml
 mcp_servers:
@@ -82,26 +82,26 @@ mcp_servers:
     auth: oauth
 ```
 
-En el primer uso, Hermes imprime una URL de autorización. El cliente la abre en su browser, aprueba, y los tokens quedan en caché. Los siguientes usos son silenciosos.
+On first use, Hermes prints an authorization URL. The client opens it in their browser, approves, and the tokens are cached. Subsequent uses are silent.
 
 ---
 
-## Cómo el cliente activa MCPs
+## How the client activates MCPs
 
-El cliente puede configurar servidores MCP desde Telegram editando su `config.yaml`:
+The client can configure MCP servers from Telegram by editing their `config.yaml`:
 
 ```
-"añade el servidor MCP de GitHub a mi configuración"
-→ Hermes edita /opt/data/config.yaml y recarga las conexiones
+"add the GitHub MCP server to my configuration"
+→ Hermes edits /opt/data/config.yaml and reloads the connections
 ```
 
-O puede pedirle al admin que lo configure vía `inject_wiki_content()` o editando el volumen directamente.
+Or they can ask the admin to configure it via `inject_wiki_content()` or by editing the volume directly.
 
 ---
 
-## Filtrado por herramienta
+## Tool filtering
 
-Hermes permite exponer solo las herramientas MCP que quieres:
+Hermes allows exposing only the MCP tools you want:
 
 ```yaml
 mcp_servers:
@@ -111,5 +111,5 @@ mcp_servers:
     tools:
       create_issue:    { enabled: true }
       list_repos:      { enabled: true }
-      delete_repo:     { enabled: false }  # bloqueado
+      delete_repo:     { enabled: false }  # blocked
 ```
