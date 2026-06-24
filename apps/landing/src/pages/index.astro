@@ -33,98 +33,50 @@ const row2 = [
 
 // Integrations grid
 const integrationCategories = [
-  {
-    name: 'Communication',
-    items: [
-      { name: 'Telegram',   color: '#2AABEE' },
-      { name: 'WhatsApp',   color: '#25D366' },
-      { name: 'Slack',      color: '#E01E5A' },
-      { name: 'Discord',    color: '#5865F2' },
-      { name: 'Teams',      color: '#6264A7' },
-      { name: 'Email',      color: '#FF6B35' },
-      { name: 'SMS',        color: '#34A853' },
-      { name: 'Signal',     color: '#2592E9' },
-      { name: 'Matrix',     color: '#000000' },
-      { name: 'Mattermost', color: '#1E325C' },
-      { name: 'LINE',       color: '#00B900' },
-      { name: 'iMessage',   color: '#34DA50' },
-    ],
-  },
-  {
-    name: 'Productivity',
-    items: [
-      { name: 'Notion',    color: '#e0e0e0' },
-      { name: 'Airtable',  color: '#FCB400' },
-      { name: 'Gmail',     color: '#EA4335' },
-      { name: 'Calendar',  color: '#4285F4' },
-      { name: 'Drive',     color: '#FBBC04' },
-      { name: 'Sheets',    color: '#34A853' },
-      { name: 'Linear',    color: '#5E6AD2' },
-      { name: 'Asana',     color: '#F06A6A' },
-      { name: 'Jira',      color: '#0052CC' },
-      { name: 'Monday',    color: '#FF3D57' },
-      { name: 'ClickUp',   color: '#7B68EE' },
-      { name: 'Trello',    color: '#0079BF' },
-    ],
-  },
-  {
-    name: 'Engineering',
-    items: [
-      { name: 'GitHub',    color: '#f0f6fc' },
-      { name: 'GitLab',    color: '#FC6D26' },
-      { name: 'Sentry',    color: '#F55B48' },
-      { name: 'Datadog',   color: '#632CA6' },
-      { name: 'PagerDuty', color: '#06AC38' },
-      { name: 'Stripe',    color: '#635BFF' },
-      { name: 'Figma',     color: '#A259FF' },
-      { name: 'Vercel',    color: '#000000' },
-    ],
-  },
-  {
-    name: 'Data',
-    items: [
-      { name: 'PostgreSQL', color: '#336791' },
-      { name: 'MySQL',      color: '#4479A1' },
-      { name: 'MongoDB',    color: '#47A248' },
-      { name: 'BigQuery',   color: '#4285F4' },
-      { name: 'Snowflake',  color: '#29B5E8' },
-      { name: 'Supabase',   color: '#3ECF8E' },
-    ],
-  },
-  {
-    name: 'CRM / Sales',
-    items: [
-      { name: 'HubSpot',   color: '#FF7A59' },
-      { name: 'Salesforce', color: '#00A1E0' },
-      { name: 'Pipedrive', color: '#26292C' },
-      { name: 'Close',     color: '#5C5CFF' },
-      { name: 'Attio',     color: '#000000' },
-    ],
-  },
-  {
-    name: 'Marketing',
-    items: [
-      { name: 'Mailchimp',   color: '#FFE01B' },
-      { name: 'Klaviyo',     color: '#000000' },
-      { name: 'Sendgrid',    color: '#1A82E2' },
-      { name: 'Postmark',    color: '#FFDE00' },
-      { name: 'Customer.io', color: '#7C3AED' },
-      { name: 'ConvertKit',  color: '#FB6970' },
-    ],
-  },
-  {
-    name: 'Finance',
-    items: [
-      { name: 'Stripe',     color: '#635BFF' },
-      { name: 'Quickbooks', color: '#2CA01C' },
-      { name: 'Xero',       color: '#13B5EA' },
-      { name: 'Mercury',    color: '#11304D' },
-      { name: 'Plaid',      color: '#000000' },
-    ],
-  },
+  { name: 'Communication', items: [
+    { name: 'Telegram', color: '#2AABEE' }, { name: 'WhatsApp', color: '#25D366' },
+    { name: 'Slack', color: '#E01E5A' }, { name: 'Discord', color: '#5865F2' },
+    { name: 'Teams', color: '#6264A7' }, { name: 'Email', color: '#FF6B35' },
+    { name: 'SMS', color: '#34A853' }, { name: 'Signal', color: '#2592E9' },
+    { name: 'Matrix', color: '#000000' }, { name: 'Mattermost', color: '#1E325C' },
+    { name: 'LINE', color: '#00B900' }, { name: 'iMessage', color: '#34DA50' },
+  ]},
+  { name: 'Productivity', items: [
+    { name: 'Notion', color: '#e0e0e0' }, { name: 'Airtable', color: '#FCB400' },
+    { name: 'Gmail', color: '#EA4335' }, { name: 'Calendar', color: '#4285F4' },
+    { name: 'Drive', color: '#FBBC04' }, { name: 'Sheets', color: '#34A853' },
+    { name: 'Linear', color: '#5E6AD2' }, { name: 'Asana', color: '#F06A6A' },
+    { name: 'Jira', color: '#0052CC' }, { name: 'Monday', color: '#FF3D57' },
+    { name: 'ClickUp', color: '#7B68EE' }, { name: 'Trello', color: '#0079BF' },
+  ]},
+  { name: 'Engineering', items: [
+    { name: 'GitHub', color: '#f0f6fc' }, { name: 'GitLab', color: '#FC6D26' },
+    { name: 'Sentry', color: '#F55B48' }, { name: 'Datadog', color: '#632CA6' },
+    { name: 'PagerDuty', color: '#06AC38' }, { name: 'Stripe', color: '#635BFF' },
+    { name: 'Figma', color: '#A259FF' }, { name: 'Vercel', color: '#000000' },
+  ]},
+  { name: 'Data', items: [
+    { name: 'PostgreSQL', color: '#336791' }, { name: 'MySQL', color: '#4479A1' },
+    { name: 'MongoDB', color: '#47A248' }, { name: 'BigQuery', color: '#4285F4' },
+    { name: 'Snowflake', color: '#29B5E8' }, { name: 'Supabase', color: '#3ECF8E' },
+  ]},
+  { name: 'CRM / Sales', items: [
+    { name: 'HubSpot', color: '#FF7A59' }, { name: 'Salesforce', color: '#00A1E0' },
+    { name: 'Pipedrive', color: '#26292C' }, { name: 'Close', color: '#5C5CFF' },
+    { name: 'Attio', color: '#000000' },
+  ]},
+  { name: 'Marketing', items: [
+    { name: 'Mailchimp', color: '#FFE01B' }, { name: 'Klaviyo', color: '#000000' },
+    { name: 'Sendgrid', color: '#1A82E2' }, { name: 'Postmark', color: '#FFDE00' },
+    { name: 'Customer.io', color: '#7C3AED' }, { name: 'ConvertKit', color: '#FB6970' },
+  ]},
+  { name: 'Finance', items: [
+    { name: 'Stripe', color: '#635BFF' }, { name: 'Quickbooks', color: '#2CA01C' },
+    { name: 'Xero', color: '#13B5EA' }, { name: 'Mercury', color: '#11304D' },
+    { name: 'Plaid', color: '#000000' },
+  ]},
 ];
 
-// Use cases by industry
 const useCases = [
   { industry: 'E-commerce',  icon: '🛍', text: 'Returns, abandoned cart, shipping, reviews' },
   { industry: 'SaaS',        icon: '⌥', text: 'Onboarding, churn, ticket triage, billing' },
@@ -150,9 +102,7 @@ const useCases = [
     <div class="flex items-center justify-between h-16">
       <div class="flex items-center gap-3">
         <div class="pulse-ring w-2 h-2 bg-sys-accent-1 rounded-full"></div>
-        <span class="text-sys-text font-bold tracking-widest uppercase text-sm font-mono">
-          martes<span class="text-sys-accent-1">.</span>app
-        </span>
+        <span class="text-sys-text font-bold tracking-widest uppercase text-sm font-mono">martes<span class="text-sys-accent-1">.</span>app</span>
       </div>
       <div class="hidden md:flex items-center gap-6 text-xs font-mono">
         <a href="#servicios"     class="text-sys-muted hover:text-sys-accent-1 transition-colors uppercase tracking-wider">Services</a>
@@ -162,13 +112,9 @@ const useCases = [
         <a href="#tecnologia"    class="text-sys-muted hover:text-sys-accent-1 transition-colors uppercase tracking-wider">Tech</a>
         <a href="/docs"          class="text-sys-muted hover:text-sys-accent-1 transition-colors uppercase tracking-wider">Docs</a>
         <a href="/blog"          class="text-sys-muted hover:text-sys-accent-1 transition-colors uppercase tracking-wider">Blog</a>
-        <a href="#contacto"      class="bg-sys-accent-1 text-black px-4 py-2 font-bold uppercase tracking-wider hover:bg-white transition-colors">
-          Talk to us
-        </a>
+        <a href="#contacto"      class="bg-sys-accent-1 text-black px-4 py-2 font-bold uppercase tracking-wider hover:bg-white transition-colors">Talk to us</a>
       </div>
-      <a href="#contacto" class="md:hidden bg-sys-accent-1 text-black px-3 py-2 font-bold uppercase text-[10px] tracking-wider hover:bg-white transition-colors">
-        Contact
-      </a>
+      <a href="#contacto" class="md:hidden bg-sys-accent-1 text-black px-3 py-2 font-bold uppercase text-[10px] tracking-wider hover:bg-white transition-colors">Contact</a>
     </div>
   </div>
 </nav>
@@ -195,9 +141,7 @@ const useCases = [
         Get a 30-min scoping call
         <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
       </a>
-      <a href="/docs" class="inline-flex items-center justify-center px-8 py-4 border border-sys-border text-sys-muted hover:border-sys-text hover:text-sys-text font-bold uppercase tracking-widest transition-all text-sm">
-        See the docs
-      </a>
+      <a href="/docs" class="inline-flex items-center justify-center px-8 py-4 border border-sys-border text-sys-muted hover:border-sys-text hover:text-sys-text font-bold uppercase tracking-widest transition-all text-sm">See the docs</a>
     </div>
     <div class="relative mx-auto max-w-3xl">
       <div class="absolute inset-0 bg-gradient-to-t from-sys-bg via-transparent to-transparent z-10 pointer-events-none h-16 bottom-0 top-auto"></div>
@@ -224,9 +168,7 @@ const useCases = [
 <!-- MARQUEE -->
 <section class="py-16 border-y border-sys-border/40 overflow-hidden">
   <div class="max-w-7xl mx-auto px-4 mb-4 text-center">
-    <p class="text-[10px] font-mono text-sys-muted uppercase tracking-widest">
-      Native integrations · 22+ platforms · OAuth 2.1 · MCP
-    </p>
+    <p class="text-[10px] font-mono text-sys-muted uppercase tracking-widest">Native integrations · 22+ platforms · OAuth 2.1 · MCP</p>
   </div>
   <div class="marquee-wrapper mb-3">
     <div class="marquee-track">
@@ -263,14 +205,9 @@ const useCases = [
         <div class="relative z-10">
           <div class="w-10 h-10 bg-sys-accent-1/10 border border-sys-accent-1/30 flex items-center justify-center mb-5 icon-float"><span class="text-sys-accent-1 text-lg">⊡</span></div>
           <h3 class="text-xl font-bold text-white mb-3 font-sans">AI-Powered CRM</h3>
-          <p class="text-sys-muted text-sm leading-relaxed mb-4">
-            We design your CRM from scratch with Hermes at its core. The agent answers customers,
-            updates records, generates reports and scales with you. No licenses, yours completely.
-          </p>
+          <p class="text-sys-muted text-sm leading-relaxed mb-4">We design your CRM from scratch with Hermes at its core. The agent answers customers, updates records, generates reports and scales with you. No licenses, yours completely.</p>
           <div class="flex flex-wrap gap-1.5 text-[10px] font-mono">
-            {['Sales pipeline', 'Auto tracking', 'AI reports', 'Native WhatsApp'].map(t => (
-              <span class="px-2 py-0.5 bg-sys-accent-1/10 text-sys-accent-1 border border-sys-accent-1/20">{t}</span>
-            ))}
+            {['Sales pipeline', 'Auto tracking', 'AI reports', 'Native WhatsApp'].map(t => <span class="px-2 py-0.5 bg-sys-accent-1/10 text-sys-accent-1 border border-sys-accent-1/20">{t}</span>)}
           </div>
         </div>
       </div>
@@ -279,14 +216,9 @@ const useCases = [
         <div class="relative z-10">
           <div class="w-10 h-10 bg-sys-accent-2/10 border border-sys-accent-2/30 flex items-center justify-center mb-5 icon-float icon-float-delay-2"><span class="text-sys-accent-2 text-lg">💬</span></div>
           <h3 class="text-xl font-bold text-white mb-3 font-sans">Customer Service Agent</h3>
-          <p class="text-sys-muted text-sm leading-relaxed mb-4">
-            Hermes responds on Telegram and WhatsApp 24/7 with the exact knowledge of your company.
-            Persistent memory: it remembers every customer, order and history.
-          </p>
+          <p class="text-sys-muted text-sm leading-relaxed mb-4">Hermes responds on Telegram and WhatsApp 24/7 with the exact knowledge of your company. Persistent memory: it remembers every customer, order and history.</p>
           <div class="flex flex-wrap gap-1.5 text-[10px] font-mono">
-            {['Telegram', 'WhatsApp', '24/7 memory', 'Human escalation'].map(t => (
-              <span class="px-2 py-0.5 bg-sys-accent-2/10 text-sys-accent-2 border border-sys-accent-2/20">{t}</span>
-            ))}
+            {['Telegram', 'WhatsApp', '24/7 memory', 'Human escalation'].map(t => <span class="px-2 py-0.5 bg-sys-accent-2/10 text-sys-accent-2 border border-sys-accent-2/20">{t}</span>)}
           </div>
         </div>
       </div>
@@ -294,26 +226,14 @@ const useCases = [
         <div class="absolute inset-0 bg-gradient-to-br from-[#4285F4]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
         <div class="relative z-10">
           <div class="flex items-center gap-2 mb-5">
-            {[
-              { letter: 'G', color: '#4285F4' },
-              { letter: 'M', color: '#EA4335' },
-              { letter: '▲', color: '#FBBC04' },
-              { letter: '⊞', color: '#34A853' },
-            ].map((g, idx) => (
-              <div class={`w-8 h-8 flex items-center justify-center border text-xs font-bold icon-float icon-float-delay-${idx+1}`} style={`color: ${g.color}; border-color: ${g.color}33; background: ${g.color}11;`}>
-                {g.letter}
-              </div>
+            {[{letter:'G',color:'#4285F4'},{letter:'M',color:'#EA4335'},{letter:'▲',color:'#FBBC04'},{letter:'⊞',color:'#34A853'}].map((g, idx) => (
+              <div class={`w-8 h-8 flex items-center justify-center border text-xs font-bold icon-float icon-float-delay-${idx+1}`} style={`color: ${g.color}; border-color: ${g.color}33; background: ${g.color}11;`}>{g.letter}</div>
             ))}
           </div>
           <h3 class="text-xl font-bold text-white mb-3 font-sans">Google Workspace + AI</h3>
-          <p class="text-sys-muted text-sm leading-relaxed mb-4">
-            The agent reads and writes to Gmail, Calendar, Drive, Docs and Sheets. It automates complete
-            flows: "when an email arrives from a supplier, create a row in Sheets and a task in Calendar".
-          </p>
+          <p class="text-sys-muted text-sm leading-relaxed mb-4">The agent reads and writes to Gmail, Calendar, Drive, Docs and Sheets. It automates complete flows: "when an email arrives from a supplier, create a row in Sheets and a task in Calendar".</p>
           <div class="flex flex-wrap gap-1.5 text-[10px] font-mono">
-            {['Gmail', 'Google Sheets', 'Google Drive', 'Google Calendar'].map(t => (
-              <span class="px-2 py-0.5 bg-[#4285F4]/10 text-[#4285F4] border border-[#4285F4]/20">{t}</span>
-            ))}
+            {['Gmail', 'Google Sheets', 'Google Drive', 'Google Calendar'].map(t => <span class="px-2 py-0.5 bg-[#4285F4]/10 text-[#4285F4] border border-[#4285F4]/20">{t}</span>)}
           </div>
         </div>
       </div>
@@ -322,14 +242,9 @@ const useCases = [
         <div class="relative z-10">
           <div class="w-10 h-10 bg-sys-accent-3/10 border border-sys-accent-3/30 flex items-center justify-center mb-5 icon-float icon-float-delay-3"><span class="text-sys-accent-3 text-lg">⚡</span></div>
           <h3 class="text-xl font-bold text-white mb-3 font-sans">Custom Automations</h3>
-          <p class="text-sys-muted text-sm leading-relaxed mb-4">
-            Workflows designed for your specific company. Automatic reports, alerts,
-            data sync, web scraping, document generation.
-          </p>
+          <p class="text-sys-muted text-sm leading-relaxed mb-4">Workflows designed for your specific company. Automatic reports, alerts, data sync, web scraping, document generation.</p>
           <div class="flex flex-wrap gap-1.5 text-[10px] font-mono">
-            {['Cron scheduler', 'Web scraping', 'Auto docs', 'Telegram alerts'].map(t => (
-              <span class="px-2 py-0.5 bg-sys-accent-3/10 text-sys-accent-3 border border-sys-accent-3/20">{t}</span>
-            ))}
+            {['Cron scheduler', 'Web scraping', 'Auto docs', 'Telegram alerts'].map(t => <span class="px-2 py-0.5 bg-sys-accent-3/10 text-sys-accent-3 border border-sys-accent-3/20">{t}</span>)}
           </div>
         </div>
       </div>
@@ -337,4 +252,4 @@ const useCases = [
   </div>
 </section>
 
-<!-- placeholder for next sections in part 2 -->
+<!-- (full content continues in next commits) -->
