@@ -1,63 +1,63 @@
 ---
-title: "Hermes v0.14.0 — Lo que cambió y por qué importa"
-description: "La versión más importante de Hermes en 2026: 180x más rápido en browser, computer use en GPT-4o y Gemini, Microsoft Teams, y más."
+title: "Hermes v0.14.0 — What Changed and Why It Matters"
+description: "The most important Hermes release of 2026: 180x faster browser automation, computer use in GPT-4o and Gemini, Microsoft Teams, and more."
 date: "2026-05-20"
-tags: ["Hermes", "Producto", "Actualización"]
+tags: ["Hermes", "Product", "Release"]
 author: "martes.app"
 ---
 
-## Hermes v0.14.0 ya está en producción
+## Hermes v0.14.0 is now in production
 
-NousResearch acaba de publicar la versión 0.14.0 de Hermes Agent (tag Docker: `v2026.5.16`). Es la actualización más significativa del año. Los tenants de martes.app están corriendo esta versión desde el día del lanzamiento.
+NousResearch just published version 0.14.0 of Hermes Agent (Docker tag: `v2026.5.16`). It is the most significant update of the year. martes.app tenants are running this version since launch day.
 
-Estas son las novedades que más importan para uso empresarial.
-
----
-
-## 180x más rápido en automatización de browser
-
-El motor CDP (Chrome DevTools Protocol) fue completamente reescrito. Las interacciones con páginas web — navegación, clicks, extracción de datos, captura de pantallas — son ahora 180 veces más rápidas que en v0.13.x.
-
-En la práctica: lo que antes tardaba 3 minutos en raspar datos de una tabla web ahora tarda 1 segundo.
+These are the changes that matter most for enterprise use.
 
 ---
 
-## Computer use sin necesidad de Claude
+## 180x faster in browser automation
 
-Hasta v0.13.x, el control de mouse y teclado (computer use) solo funcionaba con modelos de Anthropic. En v0.14.0 funciona con **cualquier modelo**:
+The CDP (Chrome DevTools Protocol) engine was completely rewritten. Interactions with web pages — navigation, clicks, data extraction, screenshots — are now 180 times faster than in v0.13.x.
+
+In practice: what used to take 3 minutes to scrape data from a web table now takes 1 second.
+
+---
+
+## Computer use without Claude
+
+Until v0.13.x, mouse and keyboard control (computer use) only worked with Anthropic models. In v0.14.0 it works with **any model**:
 
 - GPT-4o ✓
 - Gemini 2.0 Flash ✓
-- DeepSeek V4 Flash ✓ (y es mucho más barato)
+- DeepSeek V4 Flash ✓ (and much cheaper)
 
-Esto significa que tus automatizaciones de pantalla ya no están atadas a los precios de Anthropic.
+This means your screen automations are no longer tied to Anthropic pricing.
 
 ---
 
 ## Microsoft Teams end-to-end
 
-Hermes ahora puede leer mensajes de Teams y responder desde el mismo agente que ya usas en Telegram. Un solo Hermes, todos los canales.
+Hermes can now read Teams messages and reply from the same agent you already use on Telegram. One Hermes, all channels.
 
-Especialmente útil para empresas con parte del equipo en Teams y los clientes en WhatsApp.
-
----
-
-## Más novedades
-
-**`/handoff`** — transfiere una sesión activa (con todo el contexto) a otro modelo sin perder nada. Empezaste con DeepSeek, necesitas el razonamiento de Claude para esta parte específica, y vuelves a DeepSeek. Sin perder el hilo.
-
-**Claude prompt caching cross-session** — si usas Claude para conversaciones largas, -60% en el costo. Los prompts de sistema y contexto se cachean entre sesiones.
-
-**Grok 4.3 a 1M tokens** — documentos enteros, repositorios completos, bases de datos grandes en una sola consulta.
-
-**LSP semantic diagnostics** — cuando Hermes escribe código, ahora verifica errores semánticos antes de terminar el turno. Menos iteraciones de "arregla este error".
-
-**pip install hermes-agent** — disponible en PyPI. Ya no hace falta clonar el repo.
+Especially useful for companies with part of the team on Teams and customers on WhatsApp.
 
 ---
 
-## Para los tenants de martes.app
+## More updates
 
-Todos los containers ya corren `v2026.5.16`. No hay ninguna acción requerida de tu parte.
+**`/handoff`** — transfers an active session (with full context) to another model without losing anything. You started with DeepSeek, you need Claude's reasoning for this specific part, then back to DeepSeek. Without losing the thread.
 
-Si quieres probar `/handoff` o las nuevas capacidades de computer use, solo pídeselo a tu agente desde Telegram.
+**Claude prompt caching cross-session** — if you use Claude for long conversations, -60% on cost. System prompts and context are cached across sessions.
+
+**Grok 4.3 at 1M tokens** — entire documents, complete repositories, large databases in a single query.
+
+**LSP semantic diagnostics** — when Hermes writes code, it now verifies semantic errors before ending the turn. Fewer iterations of "fix this error".
+
+**pip install hermes-agent** — available on PyPI. No need to clone the repo anymore.
+
+---
+
+## For martes.app tenants
+
+All containers already run `v2026.5.16`. No action required from your side.
+
+If you want to try `/handoff` or the new computer use capabilities, just ask your agent from Telegram.
