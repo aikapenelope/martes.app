@@ -5,7 +5,7 @@ import Layout from '../../layouts/Layout.astro';
 
 const allDocs = (await getCollection('docs')).sort((a, b) => a.data.order - b.data.order);
 
-// Agrupar por sección
+// Group by section
 const sections: Record<string, typeof allDocs> = {};
 for (const doc of allDocs) {
   const s = doc.data.section;
@@ -14,7 +14,7 @@ for (const doc of allDocs) {
 }
 ---
 
-<Layout title="Documentación — martes.app" description="Todo lo que necesitas saber sobre Hermes y martes.app.">
+<Layout title="Documentation — martes.app" description="Everything you need to know about Hermes Agent and the martes.app platform.">
 
   <!-- Nav -->
   <header class="fixed top-0 w-full z-40 border-b border-sys-border bg-sys-bg/90 backdrop-blur-md">
@@ -35,14 +35,14 @@ for (const doc of allDocs) {
     <!-- Header -->
     <div class="mb-16 border-b border-sys-border pb-8">
       <div class="text-xs text-sys-muted font-mono tracking-widest uppercase mb-3">SYS.DOCS // martes.app</div>
-      <h1 class="text-4xl font-bold font-sans text-white mb-4">Documentación</h1>
+      <h1 class="text-4xl font-bold font-sans text-white mb-4">Documentation</h1>
       <p class="text-sys-muted text-lg max-w-2xl">
-        Todo lo que necesitas saber sobre Hermes Agent y la plataforma martes.app.
-        Capacidades, integraciones, plataformas y más.
+        Everything you need to know about Hermes Agent and the martes.app platform.
+        Capabilities, integrations, platforms and more.
       </p>
     </div>
 
-    <!-- Grid de secciones -->
+    <!-- Section grid -->
     <div class="space-y-16">
       {Object.entries(sections).map(([section, docs]) => (
         <div>
@@ -62,7 +62,7 @@ for (const doc of allDocs) {
                   <p class="text-sys-muted text-xs leading-relaxed">{doc.data.description}</p>
                 )}
                 <div class="mt-4 text-sys-accent-1 text-xs font-mono opacity-0 group-hover:opacity-100 transition-opacity">
-                  leer doc →
+                  read doc →
                 </div>
               </a>
             ))}
@@ -73,7 +73,7 @@ for (const doc of allDocs) {
 
   </div>
 
-  <!-- Footer mínimo -->
+  <!-- Minimal footer -->
   <footer class="border-t border-sys-border py-6 text-center text-xs font-mono text-sys-muted mt-16">
     &copy; 2026 HERMES AGENT DEPLOYMENT FACILITY
   </footer>
