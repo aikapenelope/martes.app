@@ -128,7 +128,7 @@ body {
 .pulse-ring { animation: pulse-ring 2s infinite; }
 
 /* ────────────────────────────────────────────────────────────────────────
-   BLOG — Prose styles (lectura cómoda, tipografía Inter)
+   BLOG — Prose styles (comfortable reading, Inter typography)
    ──────────────────────────────────────────────────────────────────────── */
 .prose-blog {
   font-family: 'Inter', sans-serif;
@@ -168,14 +168,14 @@ body {
 .prose-blog strong { color: #fff; font-weight: 700; }
 .prose-blog em { color: #b026ff; font-style: italic; }
 
-/* Listas */
+/* Lists */
 .prose-blog ul  { list-style: none; padding: 0; margin: 0 0 1.25rem; }
 .prose-blog ol  { padding-left: 1.5rem; margin: 0 0 1.25rem; }
 .prose-blog li  { margin-bottom: 0.5rem; font-size: 15px; }
 .prose-blog ul > li { padding-left: 1.5rem; position: relative; }
 .prose-blog ul > li::before { content: '→'; position: absolute; left: 0; color: #00ffcc; font-size: 13px; }
 
-/* Código inline */
+/* Inline code */
 .prose-blog :not(pre) > code {
   background: rgba(0,255,204,0.08);
   border: 1px solid rgba(0,255,204,0.2);
@@ -186,7 +186,7 @@ body {
   font-family: 'JetBrains Mono', monospace;
 }
 
-/* Bloques de código */
+/* Code blocks */
 .prose-blog pre {
   background: #0d0d0d;
   border: 1px solid #1e1e1e;
@@ -202,7 +202,7 @@ body {
   font-family: 'JetBrains Mono', monospace;
 }
 
-/* Tablas */
+/* Tables */
 .prose-blog table {
   width: 100%; border-collapse: collapse; margin: 1.75rem 0;
   font-size: 14px; font-family: 'JetBrains Mono', monospace;
@@ -253,7 +253,7 @@ body {
 .prose-docs strong { @apply text-white font-semibold; }
 .prose-docs em { color: #b026ff; font-style: italic; }
 
-/* Listas */
+/* Lists */
 .prose-docs ul  { @apply space-y-2 mb-6 pl-0; list-style: none; }
 .prose-docs ol  { @apply space-y-2 mb-6 pl-5; list-style: decimal; }
 .prose-docs li  { @apply text-[14px] leading-6; color: #aaa; }
@@ -265,7 +265,7 @@ body {
 }
 .prose-docs ol > li { color: #aaa; }
 
-/* Código inline */
+/* Inline code */
 .prose-docs :not(pre) > code {
   background: rgba(0,255,204,0.08);
   border: 1px solid rgba(0,255,204,0.2);
@@ -276,7 +276,7 @@ body {
   font-family: 'JetBrains Mono', monospace;
 }
 
-/* Bloques de código */
+/* Code blocks */
 .prose-docs pre {
   background: #0d0d0d;
   border: 1px solid #1e1e1e;
@@ -298,7 +298,7 @@ body {
   font-family: 'JetBrains Mono', monospace;
 }
 
-/* Tablas */
+/* Tables */
 .prose-docs table {
   width: 100%; border-collapse: collapse;
   margin: 1.5rem 0; font-size: 13px; font-family: 'JetBrains Mono', monospace;

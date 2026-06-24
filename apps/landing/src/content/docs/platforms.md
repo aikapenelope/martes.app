@@ -1,64 +1,64 @@
 ---
-title: "22 Plataformas de mensajería"
-description: "Hermes funciona en Telegram, WhatsApp, Discord, Slack y 18 plataformas más."
+title: "22 Messaging Platforms"
+description: "Hermes works on Telegram, WhatsApp, Discord, Slack and 18 more platforms."
 order: 3
 section: "Hermes Agent"
 ---
 
-## Plataformas soportadas en v0.14.0
+## Platforms supported in v0.14.0
 
-Hermes corre en 22 plataformas desde un único proceso gateway. El cliente activa las que necesita con `/auth` desde su chat.
+Hermes runs on 22 platforms from a single gateway process. The client activates the ones they need with `/auth` from their chat.
 
-| Plataforma | Notas para uso comercial |
+| Platform | Notes for commercial use |
 |---|---|
-| **Telegram** | El más robusto — webhooks, grupos, canales, bots inline, voz |
-| **WhatsApp** | Via Business API — principal canal comercial en LATAM |
-| **Discord** | Comunidades, servidores, canales privados, bots |
-| **Slack** | Entornos corporativos, workspaces |
-| **Signal** | Alta privacidad — popular en periodismo y activismo |
-| **SMS (Twilio)** | Alcance máximo — sin necesidad de app |
-| **Email** | Gmail, cualquier IMAP/SMTP |
-| **Matrix** | Protocolo abierto federado |
-| **Mattermost** | Self-hosted para empresas que no quieren Slack |
-| **Microsoft Teams** | Integración corporativa via webhook |
-| **WeChat/Weixin** | Mercado chino (860M usuarios activos) |
-| **DingTalk / Feishu** | Herramientas corporativas chinas |
-| **LINE** | Japón, Corea, Tailandia (220M usuarios) |
-| **SimpleX Chat** | Zero-metadata, máxima privacidad |
-| **QQBot** | Mercado chino |
-| **Yuanbao (Tencent 元宝)** | Plataforma china |
-| **BlueBubbles** | iMessage en Android y Web |
-| **Home Assistant** | Smart home, domótica, automatización |
-| **Webhook** | Integración con cualquier sistema externo |
-| **API Server** | OpenAI-compatible en puerto 8642 |
-| **CLI** | Terminal interactivo directo |
-| **TUI** | Interfaz de terminal completa con historial |
+| **Telegram** | The most robust — webhooks, groups, channels, inline bots, voice |
+| **WhatsApp** | Via Business API — main commercial channel in LATAM |
+| **Discord** | Communities, servers, private channels, bots |
+| **Slack** | Corporate environments, workspaces |
+| **Signal** | High privacy — popular in journalism and activism |
+| **SMS (Twilio)** | Maximum reach — no app needed |
+| **Email** | Gmail, any IMAP/SMTP |
+| **Matrix** | Open federated protocol |
+| **Mattermost** | Self-hosted for companies that don't want Slack |
+| **Microsoft Teams** | Corporate integration via webhook |
+| **WeChat/Weixin** | Chinese market (860M active users) |
+| **DingTalk / Feishu** | Chinese corporate tools |
+| **LINE** | Japan, Korea, Thailand (220M users) |
+| **SimpleX Chat** | Zero-metadata, maximum privacy |
+| **QQBot** | Chinese market |
+| **Yuanbao (Tencent 元宝)** | Chinese platform |
+| **BlueBubbles** | iMessage on Android and Web |
+| **Home Assistant** | Smart home, domotics, automation |
+| **Webhook** | Integration with any external system |
+| **API Server** | OpenAI-compatible on port 8642 |
+| **CLI** | Direct interactive terminal |
+| **TUI** | Full terminal interface with history |
 
 ---
 
-## Configuración desde Telegram
+## Configuration from Telegram
 
-El cliente configura plataformas adicionales con comandos nativos de Hermes:
+The client configures additional platforms with native Hermes commands:
 
 ```
-/auth                  → menú de autenticación
-/auth whatsapp         → conectar WhatsApp Business API
-/auth discord          → conectar Discord bot
-/sethome               → cambiar canal de notificaciones por defecto
+/auth                  → authentication menu
+/auth whatsapp         → connect WhatsApp Business API
+/auth discord          → connect Discord bot
+/sethome               → change default notification channel
 ```
 
-No hay configuración manual de archivos. Hermes guía al cliente paso a paso.
+There is no manual file configuration. Hermes guides the client step by step.
 
 ---
 
 ## Multi-platform continuity
 
-Hermes mantiene el contexto entre plataformas. Si el cliente empieza una tarea en Telegram y la continúa en Discord, Hermes recuerda el estado completo. El historial de sesiones es buscable con FTS5 semántico cross-platform.
+Hermes maintains context between platforms. If the client starts a task on Telegram and continues it on Discord, Hermes remembers the full state. Session history is searchable with semantic FTS5 cross-platform.
 
 ---
 
-## Para martes.app
+## For martes.app
 
-En el tier actual, cada tenant arranca con **Telegram** configurado por defecto (el bot token del cliente). Las otras plataformas están disponibles — el cliente las activa desde su propio chat cuando las necesite.
+In the current tier, each tenant starts with **Telegram** configured by default (the client's bot token). The other platforms are available — the client activates them from their own chat when they need them.
 
-El admin no necesita hacer nada adicional para habilitar plataformas adicionales. Hermes lo gestiona internamente.
+The admin does not need to do anything additional to enable additional platforms. Hermes handles it internally.

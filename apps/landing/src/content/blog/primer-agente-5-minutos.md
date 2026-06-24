@@ -1,120 +1,120 @@
 ---
-title: "Configura tu primer agente en 5 minutos"
-description: "Guía paso a paso: desde cero hasta tener un Hermes respondiendo en Telegram. Solo necesitas un bot token de @BotFather y tu Telegram ID."
+title: "Set up your first agent in 5 minutes"
+description: "Step-by-step guide: from zero to a Hermes agent responding on Telegram. All you need is a bot token from @BotFather and your Telegram ID."
 date: "2026-06-04"
-tags: ["Tutorial", "Telegram", "Primeros pasos"]
+tags: ["Tutorial", "Telegram", "Getting started"]
 author: "martes.app"
 ---
 
-## Lo que necesitas antes de empezar
+## What you need before starting
 
-1. Una cuenta de Telegram
-2. Un bot creado en [@BotFather](https://t.me/BotFather) — gratis, tarda 2 minutos
-3. Tu Telegram ID numérico — lo obtiene [@userinfobot](https://t.me/userinfobot) en segundos
+1. A Telegram account
+2. A bot created in [@BotFather](https://t.me/BotFather) — free, takes 2 minutes
+3. Your numeric Telegram ID — get it from [@userinfobot](https://t.me/userinfobot) in seconds
 
-Eso es todo. No necesitas servidor, no necesitas cuenta AWS, no necesitas saber programar.
-
----
-
-## Paso 1: Crea el bot en BotFather (2 min)
-
-1. Abre Telegram y busca **@BotFather**
-2. Envía `/newbot`
-3. BotFather te pregunta el nombre del bot — escribe el nombre de tu empresa o cualquiera
-4. BotFather te pregunta el username — debe terminar en `bot`, ej: `acme_corp_bot`
-5. BotFather te responde con el **token** — se ve así: `123456789:AABBCCddEEFFggHHii...`
-
-Guarda ese token. Lo necesitas en el siguiente paso.
+That's it. No server needed, no AWS account, no programming knowledge.
 
 ---
 
-## Paso 2: Obtén tu Telegram ID
+## Step 1: Create the bot in BotFather (2 min)
 
-1. Busca **@userinfobot** en Telegram
-2. Envíale cualquier mensaje
-3. Te responde con tu **User ID** — un número como `987654321`
+1. Open Telegram and search for **@BotFather**
+2. Send `/newbot`
+3. BotFather asks for the bot name — type your company name or any name
+4. BotFather asks for the username — must end in `bot`, e.g.: `acme_corp_bot`
+5. BotFather replies with the **token** — it looks like this: `123456789:AABBCCddEEFFggHHii...`
 
----
-
-## Paso 3: Escríbele al admin de martes.app
-
-Envíale este mensaje al admin (por Telegram):
-
-```
-Quiero activar mi agente.
-Nombre empresa: [tu empresa]
-Bot token: [el token de BotFather]
-Telegram ID: [tu número de @userinfobot]
-```
-
-El admin crea tu tenant en ~30 segundos. Recibirás confirmación cuando esté listo.
+Save that token. You need it in the next step.
 
 ---
 
-## Paso 4: Tu agente está activo
+## Step 2: Get your Telegram ID
 
-Abre el bot que creaste en BotFather y escríbele cualquier cosa. Hermes responde.
-
-Desde el primer mensaje, Hermes:
-- Empieza a aprender quién eres
-- Tiene acceso a búsqueda web
-- Puede ejecutar código Python
-- Puede programar tareas automáticas
-- Puede conectarse a tus herramientas (próximos pasos)
+1. Search for **@userinfobot** in Telegram
+2. Send it any message
+3. It replies with your **User ID** — a number like `987654321`
 
 ---
 
-## Comandos útiles para empezar
+## Step 3: Message the martes.app admin
+
+Send this message to the admin (via Telegram):
 
 ```
-/model                  → ver modelo actual y cambiarlo
-/skills browse          → explorar skills disponibles
-/skills install notion  → conectar Notion
-/cron add               → programar una tarea automática
-/memory                 → ver qué recuerda de ti
-/help                   → ver todos los comandos
+I want to activate my agent.
+Company name: [your company]
+Bot token: [the BotFather token]
+Telegram ID: [your @userinfobot number]
 ```
+
+The admin creates your tenant in ~30 seconds. You will receive a confirmation when it's ready.
 
 ---
 
-## Paso 5: Configura tu propia API key (opcional, recomendado)
+## Step 4: Your agent is active
 
-El agente arranca con una platform key temporal (30 días). Para que el servicio continúe más allá, el cliente configura su propia key de OpenRouter:
+Open the bot you created in BotFather and send it anything. Hermes replies.
 
-1. Crea una cuenta en [openrouter.ai](https://openrouter.ai)
-2. Genera una API key (gratis, pagas solo lo que usas)
-3. Escríbele a tu agente:
-
-```
-Configura esta API key de OpenRouter: sk-or-v1-xxxxx
-```
-
-Hermes la configura solo, sin restart, efecto inmediato.
+From the first message, Hermes:
+- Starts learning who you are
+- Has web search access
+- Can execute Python code
+- Can schedule automated tasks
+- Can connect to your tools (next steps)
 
 ---
 
-## Ejemplos de lo que puedes hacer desde el primer día
+## Useful commands to get started
 
-**Buscar información:**
 ```
-"Busca las últimas noticias sobre IA en Venezuela y dame un resumen"
-```
-
-**Programar un informe:**
-```
-"Cada lunes a las 8am, recuérdame revisar los pagos pendientes de la semana"
-```
-
-**Conectar Airtable:**
-```
-"Instala el skill de Airtable y conecta mi base de datos de clientes"
-```
-
-**Automatizar:**
-```
-"Cuando alguien me escriba en este chat sobre una queja, guárdalo en la tabla 'Soporte' de mi Airtable"
+/model                  → see current model and switch
+/skills browse          → explore available skills
+/skills install notion  → connect Notion
+/cron add               → schedule an automated task
+/memory                 → see what it remembers about you
+/help                   → see all commands
 ```
 
 ---
 
-¿Tienes preguntas? [Escríbenos aquí](#contact) o directamente al admin por Telegram.
+## Step 5: Configure your own API key (optional, recommended)
+
+The agent starts with a temporary platform key (30 days). For the service to continue beyond that, the client configures their own OpenRouter key:
+
+1. Create an account at [openrouter.ai](https://openrouter.ai)
+2. Generate an API key (free, you only pay for what you use)
+3. Message your agent:
+
+```
+Configure this OpenRouter API key: sk-or-v1-xxxxx
+```
+
+Hermes configures it alone, no restart, immediate effect.
+
+---
+
+## Examples of what you can do from day one
+
+**Search for information:**
+```
+"Search for the latest news on AI in Venezuela and give me a summary"
+```
+
+**Schedule a report:**
+```
+"Every Monday at 8am, remind me to review the week's pending payments"
+```
+
+**Connect Airtable:**
+```
+"Install the Airtable skill and connect my client database"
+```
+
+**Automate:**
+```
+"Whenever someone writes to me in this chat about a complaint, save it to my Airtable 'Support' table"
+```
+
+---
+
+Got questions? [Write to us here](#contact) or directly to the admin via Telegram.

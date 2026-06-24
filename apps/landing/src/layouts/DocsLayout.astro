@@ -18,7 +18,7 @@ for (const doc of allDocs) {
   sections[s].push(doc);
 }
 
-// Anterior / Siguiente para navegación inline
+// Previous / Next for inline navigation
 const flat = allDocs;
 const idx  = flat.findIndex(d => d.slug === currentSlug);
 const prev = idx > 0 ? flat[idx - 1] : null;
@@ -27,11 +27,11 @@ const next = idx >= 0 && idx < flat.length - 1 ? flat[idx + 1] : null;
 
 <Layout title={`${title} — Docs`} description={description}>
 <style is:global>
-  /* Scroll suave para anchors internos */
+  /* Smooth scroll for internal anchors */
   html { scroll-behavior: smooth; }
 </style>
 
-<!-- NAV SUPERIOR -->
+<!-- TOP NAV -->
 <header class="fixed top-0 w-full z-40 border-b border-sys-border bg-sys-bg/95 backdrop-blur-md">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-4">
     <div class="flex items-center gap-4 min-w-0">
@@ -51,7 +51,7 @@ const next = idx >= 0 && idx < flat.length - 1 ? flat[idx + 1] : null;
     <div class="flex items-center gap-4 shrink-0 text-xs font-mono">
       <a href="/blog"     class="text-sys-muted hover:text-sys-accent-1 transition-colors hidden sm:block">Blog</a>
       <a href="/#contacto" class="bg-sys-accent-1 text-black px-3 py-1.5 font-bold uppercase tracking-wider hover:bg-white transition-colors text-[10px]">
-        Contacto
+        Contact
       </a>
     </div>
   </div>
@@ -63,10 +63,10 @@ const next = idx >= 0 && idx < flat.length - 1 ? flat[idx + 1] : null;
   <aside class="hidden lg:flex flex-col w-60 shrink-0 border-r border-sys-border/60 bg-sys-bg">
     <div class="sticky top-14 overflow-y-auto h-[calc(100vh-3.5rem)] py-6 px-4">
 
-      <!-- Volver al hub -->
+      <!-- Back to hub -->
       <a href="/docs" class="flex items-center gap-2 text-[11px] font-mono text-sys-muted hover:text-sys-accent-1 transition-colors mb-6 group">
         <span class="group-hover:-translate-x-0.5 transition-transform">←</span>
-        <span>Documentación</span>
+        <span>Documentation</span>
       </a>
 
       {Object.entries(sections).map(([section, docs]) => (
@@ -95,33 +95,33 @@ const next = idx >= 0 && idx < flat.length - 1 ? flat[idx + 1] : null;
     </div>
   </aside>
 
-  <!-- CONTENIDO PRINCIPAL -->
+  <!-- MAIN CONTENT -->
   <div class="flex-1 min-w-0 flex flex-col">
     <main class="flex-1 max-w-3xl mx-auto w-full px-6 lg:px-10 py-12">
 
-      <!-- Breadcrumb mobile -->
+      <!-- Mobile breadcrumb -->
       <div class="lg:hidden flex items-center gap-2 text-[11px] font-mono text-sys-muted mb-8">
         <a href="/docs" class="hover:text-sys-accent-1 transition-colors">Docs</a>
         {currentSlug && <><span>/</span><span class="text-sys-text">{title}</span></>}
       </div>
 
-      <!-- Header del artículo -->
+      <!-- Article header -->
       <div class="mb-10 pb-8 border-b border-sys-border">
         <h1 class="text-[32px] font-black font-sans text-white leading-tight mb-3">{title}</h1>
         {description && <p class="text-sys-muted text-base leading-relaxed">{description}</p>}
       </div>
 
-      <!-- Contenido Markdown -->
+      <!-- Markdown content -->
       <div class="prose-docs">
         <slot />
       </div>
 
-      <!-- Navegación anterior / siguiente -->
+      <!-- Previous / next navigation -->
       <div class="mt-16 pt-8 border-t border-sys-border grid grid-cols-2 gap-4">
         {prev ? (
           <a href={`/docs/${prev.slug}`} class="group p-4 border border-sys-border hover:border-sys-accent-1/50 transition-all text-left">
             <div class="text-[9px] font-mono text-sys-muted uppercase tracking-widest mb-1 flex items-center gap-1">
-              <span>←</span> Anterior
+              <span>←</span> Previous
             </div>
             <div class="text-sm text-sys-text group-hover:text-sys-accent-1 transition-colors font-medium">{prev.data.title}</div>
           </a>
@@ -129,7 +129,7 @@ const next = idx >= 0 && idx < flat.length - 1 ? flat[idx + 1] : null;
         {next && (
           <a href={`/docs/${next.slug}`} class="group p-4 border border-sys-border hover:border-sys-accent-1/50 transition-all text-right">
             <div class="text-[9px] font-mono text-sys-muted uppercase tracking-widest mb-1 flex items-center gap-1 justify-end">
-              Siguiente <span>→</span>
+              Next <span>→</span>
             </div>
             <div class="text-sm text-sys-text group-hover:text-sys-accent-1 transition-colors font-medium">{next.data.title}</div>
           </a>

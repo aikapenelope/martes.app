@@ -1,118 +1,118 @@
 ---
-title: "Skills de Hermes"
-description: "Skills built-in activos por defecto y skills opcionales instalables."
+title: "Hermes Skills"
+description: "Built-in skills active by default and optional installable skills."
 order: 5
-section: "Integraciones"
+section: "Integrations"
 ---
 
-## Sistema de Skills
+## Skills System
 
-Los skills son módulos de capacidades que extienden a Hermes más allá de sus herramientas nativas. Hermes también **crea sus propios skills** automáticamente después de resolver tareas complejas, encapsulando el conocimiento para reutilización futura.
+Skills are capability modules that extend Hermes beyond its native tools. Hermes also **creates its own skills** automatically after solving complex tasks, encapsulating knowledge for future reuse.
 
-El cliente gestiona sus skills desde Telegram:
+The client manages their skills from Telegram:
 ```
-/skills browse         → explorar el hub de skills
-/skills install notion → instalar skill de Notion
-/skills list           → ver skills instalados
+/skills browse         → explore the skills hub
+/skills install notion → install Notion skill
+/skills list           → see installed skills
 ```
 
 ---
 
-## Skills built-in (activos por defecto)
+## Built-in skills (active by default)
 
-### Productividad
-| Skill | Qué hace |
+### Productivity
+| Skill | What it does |
 |---|---|
-| **Notion** | Lectura/escritura de páginas y bases de datos |
-| **Airtable** | CRUD completo, filtros, upserts, vistas |
+| **Notion** | Read/write of pages and databases |
+| **Airtable** | Full CRUD, filters, upserts, views |
 | **Google Workspace** | Gmail, Calendar, Drive, Docs, Sheets, Contacts |
-| **Linear** | Issues, proyectos, ciclos, comentarios |
-| **Maps / Rutas** | Google Maps, geocoding, distancias, rutas |
-| **OCR y documentos** | Extracción de texto de PDFs, imágenes, documentos escaneados |
-| **PowerPoint** | Creación y edición de presentaciones |
-| **Teams Meeting Pipeline** | Automatización de reuniones de Microsoft Teams |
+| **Linear** | Issues, projects, cycles, comments |
+| **Maps / Routes** | Google Maps, geocoding, distances, routes |
+| **OCR and documents** | Text extraction from PDFs, images, scanned documents |
+| **PowerPoint** | Creation and editing of presentations |
+| **Teams Meeting Pipeline** | Microsoft Teams meeting automation |
 
 ### Social Media
-| Skill | Qué hace |
+| Skill | What it does |
 |---|---|
-| **X / Twitter** | Búsqueda, análisis de tweets (OAuth o API key) |
+| **X / Twitter** | Search, tweet analysis (OAuth or API key) |
 
-### Investigación
-| Skill | Qué hace |
+### Research
+| Skill | What it does |
 |---|---|
-| **ArXiv** | Búsqueda de papers académicos |
-| **RSS / HTTP** | Vigilancia de contenido y fuentes |
-| **GitHub Watch** | Monitoreo de repositorios |
-| **OSINT básico** | Información de dominios y organizaciones |
+| **ArXiv** | Academic paper search |
+| **RSS / HTTP** | Content and source monitoring |
+| **GitHub Watch** | Repository monitoring |
+| **Basic OSINT** | Domain and organization information |
 
-### Desarrollo
-| Skill | Qué hace |
+### Development
+| Skill | What it does |
 |---|---|
 | **GitHub** | Repos, PRs, issues, releases, CI/CD via gh CLI |
-| **MLOps** | Entrenamiento, evaluación, bases de datos vectoriales |
+| **MLOps** | Training, evaluation, vector databases |
 
 ### Creative
-| Skill | Qué hace |
+| Skill | What it does |
 |---|---|
-| **Diagramas** | Excalidraw, UML, arquitectura de sistemas |
-| **Arte ASCII** | Diseño visual en terminal |
+| **Diagrams** | Excalidraw, UML, system architecture |
+| **ASCII Art** | Visual design in terminal |
 
 ---
 
-## Skills opcionales (instalar vía `/skills install`)
+## Optional skills (install via `/skills install`)
 
-### Finanzas y mercados
-| Skill | Qué hace |
+### Finance and markets
+| Skill | What it does |
 |---|---|
-| `stocks` | Cotizaciones, historial, crypto via Yahoo Finance (sin API key) |
-| `3-statement-model` | Estado de resultados, balance, flujo de caja |
-| `dcf-model` | Valoración por flujos descontados |
-| `comps-analysis` | Análisis comparativo de empresas |
+| `stocks` | Quotes, history, crypto via Yahoo Finance (no API key) |
+| `3-statement-model` | Income statement, balance sheet, cash flow |
+| `dcf-model` | Valuation by discounted cash flows |
+| `comps-analysis` | Comparative company analysis |
 | `lbo-model` | Leveraged buyout modeling |
-| `merger-model` | Análisis de fusiones y adquisiciones |
-| `hyperliquid` | DeFi perpetuos y spot via Hyperliquid SDK |
+| `merger-model` | Merger and acquisition analysis |
+| `hyperliquid` | DeFi perpetuals and spot via Hyperliquid SDK |
 
 ### Blockchain
-| Skill | Qué hace |
+| Skill | What it does |
 |---|---|
-| `solana` | Wallets, tokens, transacciones, NFTs, whale detection |
+| `solana` | Wallets, tokens, transactions, NFTs, whale detection |
 | `evm` | Ethereum + L2s + Base (multi-chain) |
 
 ### E-commerce
-| Skill | Qué hace |
+| Skill | What it does |
 |---|---|
-| `shopify` | Admin API + Storefront GraphQL (productos, órdenes, inventario) |
-| `shop-app` | Asistente de compras personal |
+| `shopify` | Admin API + Storefront GraphQL (products, orders, inventory) |
+| `shop-app` | Personal shopping assistant |
 
-### Comunicación
-| Skill | Qué hace |
+### Communication
+| Skill | What it does |
 |---|---|
-| `telephony` | Llamadas de voz programáticas |
+| `telephony` | Programmatic voice calls |
 
-### Productividad adicional
-| Skill | Qué hace |
+### Additional productivity
+| Skill | What it does |
 |---|---|
-| `memento-flashcards` | Tarjetas de memoria espaciada |
-| `here-now` | Localización y contexto geográfico |
-| `canvas` | Lienzo de trabajo visual |
+| `memento-flashcards` | Spaced memory cards |
+| `here-now` | Location and geographic context |
+| `canvas` | Visual work canvas |
 
 ---
 
-## Auto-creación de skills
+## Auto-creation of skills
 
-Hermes crea skills automáticamente. Después de resolver una tarea compleja por primera vez, documenta el procedimiento como un skill reutilizable. La próxima vez que se necesite algo similar, lo aplica directamente sin rehacer el trabajo.
+Hermes creates skills automatically. After solving a complex task for the first time, it documents the procedure as a reusable skill. The next time something similar is needed, it applies it directly without redoing the work.
 
-Ejemplo:
+Example:
 ```
-Primera vez: "Extrae todos los contactos de mi Gmail y pásalos a Airtable"
-→ Hermes lo resuelve (tarda 3 minutos)
-→ Hermes crea el skill "gmail-to-airtable-sync"
+First time: "Extract all contacts from my Gmail and pass them to Airtable"
+→ Hermes solves it (takes 3 minutes)
+→ Hermes creates the "gmail-to-airtable-sync" skill
 
-Segunda vez: tarda 10 segundos
+Second time: takes 10 seconds
 ```
 
 ---
 
-## Compatibilidad con agentskills.io
+## Compatibility with agentskills.io
 
-Los skills de Hermes son compatibles con el estándar abierto [agentskills.io](https://agentskills.io), lo que significa que skills creados por la comunidad para otros agentes compatibles también funcionan en Hermes.
+Hermes skills are compatible with the open standard [agentskills.io](https://agentskills.io), which means community-created skills for other compatible agents also work in Hermes.

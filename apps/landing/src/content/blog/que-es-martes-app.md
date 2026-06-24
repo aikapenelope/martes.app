@@ -1,67 +1,67 @@
 ---
-title: "¿Qué es martes.app?"
-description: "Presentamos la plataforma SaaS que pone Hermes Agent en manos de empresas LATAM. Un agente IA completo por $30/mes, sin código, sin servidores que gestionar."
+title: "What is martes.app?"
+description: "We present the SaaS platform that puts Hermes Agent in the hands of LATAM companies. A complete AI agent for $30/month, no code, no servers to manage."
 date: "2026-06-01"
-tags: ["Producto", "Hermes", "LATAM"]
+tags: ["Product", "Hermes", "LATAM"]
 author: "martes.app"
 ---
 
 ## TL;DR
 
-martes.app es una plataforma que le da a tu empresa un agente IA completo basado en [Hermes Agent](https://github.com/nousresearch/hermes-agent) de NousResearch (165K ⭐), corriendo 24/7 en infraestructura propia, por $30/mes.
+martes.app is a platform that gives your company a complete AI agent based on [Hermes Agent](https://github.com/nousresearch/hermes-agent) from NousResearch (165K ⭐), running 24/7 on its own infrastructure, for $30/month.
 
-No es un chatbot. No es un wrapper de ChatGPT. Es un agente autónomo con memoria persistente, capaz de ejecutar tareas, programar automatizaciones y conectarse con las herramientas que ya usas.
-
----
-
-## El problema que resuelve
-
-Las empresas medianas en LATAM necesitan automatización. Responder a clientes fuera de horario, generar informes semanales, consultar inventario en Airtable, hacer seguimiento de leads — tareas repetibles que consumen tiempo humano.
-
-Las opciones actuales son:
-- **Zapier/Make** — bueno para integraciones simples, malo para conversación
-- **ChatGPT Teams** — $25/usuario/mes, sin memoria entre sesiones, sin automatizaciones, sin WhatsApp
-- **Contratar** — $800-1500/mes para un asistente remoto
-
-martes.app ofrece la tercera opción: un agente que aprende, recuerda y actúa, por $30/mes.
+It is not a chatbot. It is not a ChatGPT wrapper. It is an autonomous agent with persistent memory, capable of executing tasks, scheduling automations and connecting with the tools you already use.
 
 ---
 
-## Qué incluye
+## The problem it solves
 
-Cada tenant recibe Hermes completo:
+Mid-sized companies in LATAM need automation. Replying to customers outside business hours, generating weekly reports, querying inventory in Airtable, following up on leads — repeatable tasks that consume human time.
 
-- **Bot de Telegram o WhatsApp** configurado en ~30 segundos
-- **Memoria persistente** — recuerda tu empresa, equipo y preferencias entre sesiones
-- **200+ modelos** vía OpenRouter (GPT-4o, Claude, DeepSeek, Grok...)
-- **Skills built-in**: Notion, Airtable, Google Workspace, GitHub, Linear
-- **MCP**: conecta con cualquier herramienta externa (Figma, Stripe, Sentry...)
-- **Automatizaciones**: "cada lunes a las 8am, resumen de ventas"
-- **Browser automation**: navega, extrae datos, captura pantallas
+The current options are:
+- **Zapier/Make** — good for simple integrations, bad for conversation
+- **ChatGPT Teams** — $25/user/month, no memory between sessions, no automations, no WhatsApp
+- **Hiring** — $800-1500/month for a remote assistant
 
-El cliente no necesita configurar servidores. El admin crea el tenant en 30 segundos desde Telegram.
+martes.app offers the third option: an agent that learns, remembers and acts, for $30/month.
 
 ---
 
-## Para quién es
+## What is included
 
-- PyMEs venezolanas y latinoamericanas con operaciones en WhatsApp/Telegram
-- Equipos que ya usan Airtable, Notion o Google Workspace y quieren conectarlos con un agente
-- Freelancers que quieren automatizar su flujo de trabajo
-- Agencias que quieren ofrecer "IA personalizada" a sus clientes sin desarrollar nada
+Each tenant receives a complete Hermes:
+
+- **Telegram or WhatsApp bot** configured in ~30 seconds
+- **Persistent memory** — remembers your company, team and preferences between sessions
+- **200+ models** via OpenRouter (GPT-4o, Claude, DeepSeek, Grok...)
+- **Built-in skills**: Notion, Airtable, Google Workspace, GitHub, Linear
+- **MCP**: connects to any external tool (Figma, Stripe, Sentry...)
+- **Automations**: "every Monday at 8am, sales summary"
+- **Browser automation**: navigates, extracts data, captures screenshots
+
+The client does not need to configure servers. The admin creates the tenant in 30 seconds from Telegram.
 
 ---
 
-## El modelo de negocio
+## Who is it for
 
-$30/mes por tenant. El límite del cliente es su presupuesto de tokens en OpenRouter (va directo a ellos, sin intermediario). 30 días de trial gratis con la platform key de martes.app mientras el cliente configura la suya.
-
-Pagos: transferencia, pago móvil, Zelle, crypto. Sin Stripe, sin PayPal — porque sabemos dónde estamos.
+- Venezuelan and Latin American SMBs with operations on WhatsApp/Telegram
+- Teams that already use Airtable, Notion or Google Workspace and want to connect them with an agent
+- Freelancers who want to automate their workflow
+- Agencies that want to offer "personalized AI" to their clients without developing anything
 
 ---
 
-## Próximos pasos
+## The business model
 
-El sistema está en producción con un tenant activo. Estamos abriendo el primer lote de clientes reales.
+$30/month per tenant. The client's limit is their OpenRouter token budget (goes directly to them, no intermediary). 30 days of free trial with the martes.app platform key while the client configures their own.
 
-Si tienes una empresa y quieres un agente IA funcionando esta semana, [escríbenos aquí](#contact).
+Payments: transfer, mobile payment, Zelle, crypto. No Stripe, no PayPal — because we know where we are.
+
+---
+
+## Next steps
+
+The system is in production with an active tenant. We are opening the first batch of real customers.
+
+If you have a company and want an AI agent running this week, [write to us here](#contact).

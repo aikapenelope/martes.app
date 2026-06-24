@@ -17,7 +17,7 @@ const recent = (await getCollection('blog'))
   .slice(0, 5);
 ---
 
-<Layout title={`${title} — Blog martes.app`} description={description}>
+<Layout title={`${title} — Blog | martes.app`} description={description}>
 
 <!-- NAV -->
 <header class="fixed top-0 w-full z-40 border-b border-sys-border bg-sys-bg/95 backdrop-blur-md">
@@ -33,14 +33,14 @@ const recent = (await getCollection('blog'))
       <span class="text-sys-text text-xs font-mono truncate hidden sm:inline">{title}</span>
     </div>
     <a href="/#contacto" class="bg-sys-accent-1 text-black px-3 py-1.5 font-bold uppercase tracking-wider hover:bg-white transition-colors text-[10px] shrink-0">
-      Contacto
+      Contact
     </a>
   </div>
 </header>
 
 <div class="pt-14 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-14">
 
-  <!-- ARTÍCULO -->
+  <!-- ARTICLE -->
   <article class="min-w-0">
     <!-- Header -->
     <div class="mb-10">
@@ -67,27 +67,27 @@ const recent = (await getCollection('blog'))
       </div>
     </div>
 
-    <!-- Contenido Markdown -->
+    <!-- Markdown Content -->
     <div class="prose-blog">
       <slot />
     </div>
 
-    <!-- Pie del artículo -->
+    <!-- Article footer -->
     <div class="mt-14 pt-8 border-t border-sys-border flex items-center justify-between">
       <a href="/blog" class="text-xs font-mono text-sys-muted hover:text-sys-accent-1 transition-colors flex items-center gap-1.5">
-        ← todos los artículos
+        ← all articles
       </a>
       <a href="/#contacto" class="text-xs font-mono text-sys-accent-1 border border-sys-accent-1/40 px-3 py-1.5 hover:bg-sys-accent-1/10 transition-colors">
-        ¿Tienes un proyecto? →
+        Have a project? →
       </a>
     </div>
   </article>
 
-  <!-- SIDEBAR: artículos recientes -->
+  <!-- SIDEBAR: recent articles -->
   <aside class="hidden lg:block">
     <div class="sticky top-20">
       <p class="text-[9px] font-mono text-sys-muted uppercase tracking-[0.15em] mb-4 border-b border-sys-border pb-2">
-        Artículos recientes
+        Recent articles
       </p>
       <div class="space-y-3">
         {recent.map(post => (
