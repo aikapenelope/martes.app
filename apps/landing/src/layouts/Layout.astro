@@ -1,11 +1,11 @@
 ---
-// global.css aquí → aplica a TODAS las páginas (fix: antes solo en páginas individuales)
+// global.css here → applies to ALL pages (fix: previously only on individual pages)
 import '../styles/global.css';
 export interface Props { title?: string; description?: string; }
-const { title = 'martes.app — SYS.HERMES', description = 'Agentes IA para empresas.' } = Astro.props;
+const { title = 'martes.app — SYS.HERMES', description = 'AI agents for companies.' } = Astro.props;
 ---
 <!DOCTYPE html>
-<html lang="es" class="scroll-smooth">
+<html lang="en" class="scroll-smooth">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
