@@ -166,7 +166,6 @@ const useCases = [
           Talk to us
         </a>
       </div>
-      <!-- Mobile CTA -->
       <a href="#contacto" class="md:hidden bg-sys-accent-1 text-black px-3 py-2 font-bold uppercase text-[10px] tracking-wider hover:bg-white transition-colors">
         Contact
       </a>
@@ -174,30 +173,23 @@ const useCases = [
   </div>
 </nav>
 
-<!-- HERO ──────────────────────────────────────────────────────────────── -->
+<!-- HERO -->
 <main class="relative pt-32 pb-8 sm:pt-44 overflow-hidden">
   <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-hero-glow rounded-full blur-[120px] opacity-15 animate-pulse-slow pointer-events-none"></div>
-
   <div class="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-
     <div class="mb-5 inline-flex items-center gap-2 border border-sys-border/60 px-4 py-1.5 rounded-full text-xs text-sys-muted font-mono">
       <span class="w-1.5 h-1.5 rounded-full bg-sys-accent-2 animate-pulse"></span>
       POWERED BY HERMES AGENT · NousResearch · 165K ⭐
     </div>
-
     <h1 class="text-5xl sm:text-7xl lg:text-[88px] font-black tracking-tighter mb-6 font-sans leading-none">
-      <span class="text-transparent bg-clip-text bg-gradient-to-br from-white via-gray-200 to-gray-500">
-        CUSTOM AI
-      </span><br>
+      <span class="text-transparent bg-clip-text bg-gradient-to-br from-white via-gray-200 to-gray-500">CUSTOM AI</span><br>
       <span class="font-mono text-white glitch-hover">SOFTWARE</span>
     </h1>
-
     <p class="mt-2 max-w-2xl mx-auto text-lg sm:text-xl text-sys-muted font-light leading-relaxed mb-4">
       We build custom AI agents for your company — AI-powered CRM,
       tailored automations, integrations with Google Workspace, WhatsApp and 20+ tools.
       All powered by Hermes Agent, the most advanced open-source AI agent.
     </p>
-
     <div class="flex flex-col sm:flex-row justify-center gap-3 mb-16">
       <a href="#contacto" class="tech-border inline-flex items-center justify-center px-8 py-4 border border-sys-accent-1 text-sys-accent-1 hover:bg-sys-accent-1 hover:text-black font-bold uppercase tracking-widest transition-all text-sm">
         Get a 30-min scoping call
@@ -207,8 +199,6 @@ const useCases = [
         See the docs
       </a>
     </div>
-
-    <!-- Terminal -->
     <div class="relative mx-auto max-w-3xl">
       <div class="absolute inset-0 bg-gradient-to-t from-sys-bg via-transparent to-transparent z-10 pointer-events-none h-16 bottom-0 top-auto"></div>
       <div class="border border-sys-border bg-sys-surface/30 overflow-hidden shadow-2xl">
@@ -231,37 +221,27 @@ const useCases = [
   </div>
 </main>
 
-<!-- MARQUEE: Platforms with animated icons ──────────────────────────── -->
+<!-- MARQUEE -->
 <section class="py-16 border-y border-sys-border/40 overflow-hidden">
   <div class="max-w-7xl mx-auto px-4 mb-4 text-center">
     <p class="text-[10px] font-mono text-sys-muted uppercase tracking-widest">
       Native integrations · 22+ platforms · OAuth 2.1 · MCP
     </p>
   </div>
-
-  <!-- Row 1 -->
   <div class="marquee-wrapper mb-3">
     <div class="marquee-track">
       {[...row1, ...row1].map((p, i) => (
-        <div
-          class={`flex items-center gap-2 px-4 py-2 border border-sys-border/60 bg-sys-surface/40 shrink-0 whitespace-nowrap icon-float icon-float-delay-${(i % 6) + 1} hover:border-sys-accent-1/60 transition-colors cursor-default`}
-          style={`border-color: ${p.color}22;`}
-        >
+        <div class={`flex items-center gap-2 px-4 py-2 border border-sys-border/60 bg-sys-surface/40 shrink-0 whitespace-nowrap icon-float icon-float-delay-${(i % 6) + 1} hover:border-sys-accent-1/60 transition-colors cursor-default`} style={`border-color: ${p.color}22;`}>
           <span class="text-sm" style={`color: ${p.color};`}>{p.icon}</span>
           <span class="text-[11px] font-mono" style={`color: ${p.color};`}>{p.name}</span>
         </div>
       ))}
     </div>
   </div>
-
-  <!-- Row 2 (reverse) -->
   <div class="marquee-wrapper">
     <div class="marquee-track-rev">
       {[...row2, ...row2].map((p, i) => (
-        <div
-          class={`flex items-center gap-2 px-4 py-2 border border-sys-border/60 bg-sys-surface/40 shrink-0 whitespace-nowrap icon-float icon-float-delay-${(i % 6) + 1} hover:border-sys-accent-1/60 transition-colors cursor-default`}
-          style={`border-color: ${p.color}22;`}
-        >
+        <div class={`flex items-center gap-2 px-4 py-2 border border-sys-border/60 bg-sys-surface/40 shrink-0 whitespace-nowrap icon-float icon-float-delay-${(i % 6) + 1} hover:border-sys-accent-1/60 transition-colors cursor-default`} style={`border-color: ${p.color}22;`}>
           <span class="text-sm" style={`color: ${p.color};`}>{p.icon}</span>
           <span class="text-[11px] font-mono" style={`color: ${p.color};`}>{p.name}</span>
         </div>
@@ -270,23 +250,18 @@ const useCases = [
   </div>
 </section>
 
-<!-- SERVICES ──────────────────────────────────────────────────────────── -->
+<!-- SERVICES -->
 <section id="servicios" class="py-24">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="mb-14 text-center">
       <div class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-3">01 // What we build</div>
       <h2 class="text-4xl font-black font-sans text-white">CUSTOM SOFTWARE,<br>NOT TEMPLATES</h2>
     </div>
-
     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-      <!-- CRM Custom -->
       <div class="border border-sys-border bg-sys-surface/20 p-7 hover:border-sys-accent-1/50 transition-all group relative overflow-hidden">
         <div class="absolute inset-0 bg-gradient-to-br from-sys-accent-1/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
         <div class="relative z-10">
-          <div class="w-10 h-10 bg-sys-accent-1/10 border border-sys-accent-1/30 flex items-center justify-center mb-5 icon-float">
-            <span class="text-sys-accent-1 text-lg">⊡</span>
-          </div>
+          <div class="w-10 h-10 bg-sys-accent-1/10 border border-sys-accent-1/30 flex items-center justify-center mb-5 icon-float"><span class="text-sys-accent-1 text-lg">⊡</span></div>
           <h3 class="text-xl font-bold text-white mb-3 font-sans">AI-Powered CRM</h3>
           <p class="text-sys-muted text-sm leading-relaxed mb-4">
             We design your CRM from scratch with Hermes at its core. The agent answers customers,
@@ -299,14 +274,10 @@ const useCases = [
           </div>
         </div>
       </div>
-
-      <!-- Customer service agent -->
       <div class="border border-sys-border bg-sys-surface/20 p-7 hover:border-sys-accent-2/50 transition-all group relative overflow-hidden">
         <div class="absolute inset-0 bg-gradient-to-br from-sys-accent-2/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
         <div class="relative z-10">
-          <div class="w-10 h-10 bg-sys-accent-2/10 border border-sys-accent-2/30 flex items-center justify-center mb-5 icon-float icon-float-delay-2">
-            <span class="text-sys-accent-2 text-lg">💬</span>
-          </div>
+          <div class="w-10 h-10 bg-sys-accent-2/10 border border-sys-accent-2/30 flex items-center justify-center mb-5 icon-float icon-float-delay-2"><span class="text-sys-accent-2 text-lg">💬</span></div>
           <h3 class="text-xl font-bold text-white mb-3 font-sans">Customer Service Agent</h3>
           <p class="text-sys-muted text-sm leading-relaxed mb-4">
             Hermes responds on Telegram and WhatsApp 24/7 with the exact knowledge of your company.
@@ -319,8 +290,6 @@ const useCases = [
           </div>
         </div>
       </div>
-
-      <!-- Google integrations -->
       <div class="border border-sys-border bg-sys-surface/20 p-7 hover:border-[#4285F4]/50 transition-all group relative overflow-hidden">
         <div class="absolute inset-0 bg-gradient-to-br from-[#4285F4]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
         <div class="relative z-10">
@@ -331,10 +300,7 @@ const useCases = [
               { letter: '▲', color: '#FBBC04' },
               { letter: '⊞', color: '#34A853' },
             ].map((g, idx) => (
-              <div
-                class={`w-8 h-8 flex items-center justify-center border text-xs font-bold icon-float icon-float-delay-${idx+1}`}
-                style={`color: ${g.color}; border-color: ${g.color}33; background: ${g.color}11;`}
-              >
+              <div class={`w-8 h-8 flex items-center justify-center border text-xs font-bold icon-float icon-float-delay-${idx+1}`} style={`color: ${g.color}; border-color: ${g.color}33; background: ${g.color}11;`}>
                 {g.letter}
               </div>
             ))}
@@ -351,14 +317,10 @@ const useCases = [
           </div>
         </div>
       </div>
-
-      <!-- Automations -->
       <div class="border border-sys-border bg-sys-surface/20 p-7 hover:border-sys-accent-3/50 transition-all group relative overflow-hidden">
         <div class="absolute inset-0 bg-gradient-to-br from-sys-accent-3/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
         <div class="relative z-10">
-          <div class="w-10 h-10 bg-sys-accent-3/10 border border-sys-accent-3/30 flex items-center justify-center mb-5 icon-float icon-float-delay-3">
-            <span class="text-sys-accent-3 text-lg">⚡</span>
-          </div>
+          <div class="w-10 h-10 bg-sys-accent-3/10 border border-sys-accent-3/30 flex items-center justify-center mb-5 icon-float icon-float-delay-3"><span class="text-sys-accent-3 text-lg">⚡</span></div>
           <h3 class="text-xl font-bold text-white mb-3 font-sans">Custom Automations</h3>
           <p class="text-sys-muted text-sm leading-relaxed mb-4">
             Workflows designed for your specific company. Automatic reports, alerts,
@@ -371,169 +333,8 @@ const useCases = [
           </div>
         </div>
       </div>
-
     </div>
   </div>
 </section>
 
-<!-- ROI: THE COST OF NOT AUTOMATING ──────────────────────────────────────── -->
-<section id="roi" class="py-24 border-t border-sys-border/50 bg-sys-surface/10">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="mb-14 text-center">
-      <div class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-3">02 // The cost of doing nothing</div>
-      <h2 class="text-4xl font-black font-sans text-white">WHAT HAPPENS IF YOU DON'T<br>AUTOMATE THIS QUARTER</h2>
-      <p class="text-sys-muted text-sm max-w-2xl mx-auto mt-4">
-        Conservative estimates for a US SMB with 10–50 employees. Source: HubSpot State of Service 2024, BLS 2024, SHRM 2024.
-      </p>
-    </div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-      <!-- Hidden costs list -->
-      <div class="space-y-4">
-        <div class="border-l-2 border-sys-accent-3/60 pl-5 py-1">
-          <div class="text-[10px] font-mono text-sys-accent-3 uppercase tracking-widest mb-1">Missed leads</div>
-          <h3 class="text-lg font-bold text-white mb-1">73% of customers expect a reply in 5 minutes</h3>
-          <p class="text-sys-muted text-sm leading-relaxed">
-            HubSpot 2024. If you don't respond within an hour, 60% of buyers go to a competitor.
-            For a US SMB with 200 inbound leads/month and a 5% miss-rate, that is
-            <span class="text-sys-accent-3 font-bold">$48,000/yr in lost pipeline</span> at an average $200 deal size.
-          </p>
-        </div>
-
-        <div class="border-l-2 border-sys-accent-3/60 pl-5 py-1">
-          <div class="text-[10px] font-mono text-sys-accent-3 uppercase tracking-widest mb-1">24/7 human support</div>
-          <h3 class="text-lg font-bold text-white mb-1">True 24/7 coverage requires 4 FTE</h3>
-          <p class="text-sys-muted text-sm leading-relaxed">
-            At $18/hr fully loaded plus recruiting, training, and turnover (BLS reports average
-            support rep tenure at 11 months), the real cost of a single 24/7 support seat is closer to
-            <span class="text-sys-accent-3 font-bold">$181,360/yr</span> including all hidden costs.
-          </p>
-        </div>
-
-        <div class="border-l-2 border-sys-accent-3/60 pl-5 py-1">
-          <div class="text-[10px] font-mono text-sys-accent-3 uppercase tracking-widest mb-1">Repetitive work</div>
-          <h3 class="text-lg font-bold text-white mb-1">20+ hours/week per team on tasks a machine can do</h3>
-          <p class="text-sys-muted text-sm leading-relaxed">
-            Status reports, follow-up emails, data entry, ticket triage, scheduling.
-            At $50/hr fully loaded, that is
-            <span class="text-sys-accent-3 font-bold">$52,000/yr per person</span> doing work an agent does for free.
-          </p>
-        </div>
-
-        <div class="border-l-2 border-sys-accent-3/60 pl-5 py-1">
-          <div class="text-[10px] font-mono text-sys-accent-3 uppercase tracking-widest mb-1">Compliance</div>
-          <h3 class="text-lg font-bold text-white mb-1">One audit failure costs 6 figures</h3>
-          <p class="text-sys-muted text-sm leading-relaxed">
-            HIPAA violation: $50,000 minimum per incident. CCPA: $2,500 per consumer.
-            SOC 2 failure: lost enterprise contracts averaging
-            <span class="text-sys-accent-3 font-bold">$420,000/yr</span> in annual revenue.
-          </p>
-        </div>
-      </div>
-
-      <!-- Summary card -->
-      <div class="border border-sys-accent-1/40 bg-sys-bg p-8 relative">
-        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-sys-accent-1 via-sys-accent-2 to-sys-accent-3"></div>
-        <div class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-3">Annual cost of doing nothing</div>
-        <div class="text-5xl sm:text-6xl font-black text-white mb-2 font-sans">$700k+</div>
-        <div class="text-sm text-sys-muted mb-6">in lost productivity, missed leads, and compliance exposure for a typical US SMB</div>
-        <div class="border-t border-sys-border pt-5 space-y-2 text-xs font-mono">
-          <div class="flex justify-between text-sys-muted">
-            <span>Missed leads (5% miss-rate)</span>
-            <span class="text-sys-accent-3">−$48,000</span>
-          </div>
-          <div class="flex justify-between text-sys-muted">
-            <span>24/7 support coverage</span>
-            <span class="text-sys-accent-3">−$181,360</span>
-          </div>
-          <div class="flex justify-between text-sys-muted">
-            <span>Repetitive work (4 people × 20h/wk)</span>
-            <span class="text-sys-accent-3">−$208,000</span>
-          </div>
-          <div class="flex justify-between text-sys-muted">
-            <span>Compliance exposure (avg)</span>
-            <span class="text-sys-accent-3">−$50,000</span>
-          </div>
-          <div class="flex justify-between text-sys-muted">
-            <span>Manual reporting</span>
-            <span class="text-sys-accent-3">−$10,400</span>
-          </div>
-          <div class="flex justify-between text-sys-muted">
-            <span>SaaS overlap (CRM + chatbot + scheduler)</span>
-            <span class="text-sys-accent-3">−$3,600</span>
-          </div>
-          <div class="flex justify-between text-sys-muted">
-            <span>Opportunity cost (slow response)</span>
-            <span class="text-sys-accent-3">−$200,000</span>
-          </div>
-          <div class="border-t border-sys-border pt-3 mt-3 flex justify-between text-base font-bold">
-            <span class="text-white">Total drag</span>
-            <span class="text-sys-accent-3">$700k+/yr</span>
-          </div>
-        </div>
-        <a href="#contacto" class="mt-6 w-full tech-border inline-flex items-center justify-center bg-sys-accent-1 text-black font-bold uppercase tracking-widest py-3 hover:bg-white transition-colors text-sm">
-          GET A FREE 30-MIN SCOPING CALL →
-        </a>
-        <p class="text-[10px] text-sys-muted mt-3 text-center">
-          Tailored quote after we understand your specific situation. No one-size-fits-all pricing.
-        </p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- INTEGRATIONS GRID ──────────────────────────────────────────────────── -->
-<section id="integrations" class="py-24">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="mb-14 text-center">
-      <div class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-3">03 // Integrations</div>
-      <h2 class="text-4xl font-black font-sans text-white">WE ALREADY SPEAK<br>YOUR STACK</h2>
-      <p class="text-sys-muted text-sm max-w-2xl mx-auto mt-4">
-        Hermes connects to 50+ platforms via OAuth 2.1 and the Model Context Protocol.
-        If your tool is in the list, we can integrate it in days. If it isn't, we add it.
-      </p>
-    </div>
-
-    <div class="space-y-10">
-      {integrationCategories.map((cat) => (
-        <div>
-          <h3 class="text-xs font-mono text-sys-muted uppercase tracking-widest mb-4 border-b border-sys-border/50 pb-2">
-            {cat.name}
-          </h3>
-          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-            {cat.items.map((it) => (
-              <div class="border border-sys-border bg-sys-surface/20 p-3 hover:border-sys-accent-1/60 hover:bg-sys-surface/40 transition-all group flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full shrink-0" style={`background: ${it.color};`}></span>
-                <span class="text-xs font-mono text-sys-muted group-hover:text-sys-text transition-colors truncate">
-                  {it.name}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-</section>
-
-<!-- USE CASES BY INDUSTRY ─────────────────────────────────────────────── -->
-<section id="use-cases" class="py-24 border-t border-sys-border/50 bg-sys-surface/10">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="mb-14 text-center">
-      <div class="text-[10px] font-mono text-sys-muted uppercase tracking-widest mb-3">04 // Use cases</div>
-      <h2 class="text-4xl font-black font-sans text-white">BUILT FOR YOUR<br>INDUSTRY</h2>
-    </div>
-
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {useCases.map((u) => (
-        <div class="border border-sys-border bg-sys-surface/20 p-5 hover:border-sys-accent-1/50 transition-all group">
-          <div class="text-2xl mb-3 group-hover:scale-110 transition-transform">{u.icon}</div>
-          <h3 class="text-sm font-bold text-white mb-2 font-sans uppercase tracking-wider">{u.industry}</h3>
-          <p class="text-xs text-sys-muted leading-relaxed">{u.text}</p>
-        </div>
-      ))}
-    </div>
-  </div>
-</section>
-
-<!-- placeholder for section 5 (TECHNOLOGY), 6 (ONGOING MGMT), 7 (COMPLIANCE), 8 (COMPARISON), 9 (HOW), 10 (CONTACT), FOOTER, SCRIPT -->
+<!-- placeholder for next sections in part 2 -->
